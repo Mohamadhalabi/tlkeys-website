@@ -1,0 +1,18 @@
+{
+  "searchPlaceholder": "I'm searching for",
+  "myAccount": "My Account",
+  "cars": "Cars",
+  "manufacturers": "Manufacturers",
+  "keysRemotes": "Keys & Remotes",
+  "accessoriesTools": "Accessories & Tools",
+  "pinCode": "Pin Code",
+  "shippingMessages": [
+    "Free Shipping for eligible orders over $4999",
+    "Same Day Shipping Until 4PM GMT+4"
+  ],
+  "carRemotes": "Car remotes...",
+  "keyCuttingMachines": "Key cutting machines...",
+  "logIn": "Log in",
+  "wishlist": "Wishlist",
+  "cart": "Cart"
+}

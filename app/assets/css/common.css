@@ -1,0 +1,13 @@
+/* Tailwind imports */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom global styles */
+body {
+  @apply bg-gray-50 text-gray-900;
+}
+
+a {
+  @apply transition-colors duration-200 hover:text-blue-600;
+}

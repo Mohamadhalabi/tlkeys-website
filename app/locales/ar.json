@@ -1,0 +1,18 @@
+{
+  "searchPlaceholder": "أبحث عن",
+  "myAccount": "حسابي",
+  "cars": "السيارات",
+  "manufacturers": "المصنعون",
+  "keysRemotes": "المفاتيح وأجهزة التحكم",
+  "accessoriesTools": "الإكسسوارات والأدوات",
+  "pinCode": "رمز PIN",
+  "shippingMessages": [
+    "شحن مجاني للطلبات المؤهلة التي تزيد عن 4999 دولار",
+    "شحن في نفس اليوم حتى الساعة 4 مساءً بتوقيت GMT+4"
+  ],
+  "carRemotes": "ريموتات السيارات...",
+  "keyCuttingMachines": "آلات قص المفاتيح...",
+  "logIn": "تسجيل الدخول",
+  "wishlist": "المفضلة",
+  "cart": "سلة التسوق"
+}

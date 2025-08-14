@@ -1,0 +1,21 @@
+.header-middle {
+  border-bottom: 1px solid #ddd;
+}
+
+.search-input {
+  border: 1px solid #ccc;
+  border-radius: 9999px;
+  padding: 0.5rem 1rem;
+  width: 100%;
+}
+
+.cart-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #e60000;
+  color: white;
+  font-size: 0.75rem;
+  padding: 0 4px;
+  border-radius: 9999px;
+}
