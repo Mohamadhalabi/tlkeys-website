@@ -59,6 +59,7 @@ export function useWishlist() {
     if (!process.client) return
     localStorage.setItem(STORAGE_KEY, JSON.stringify(guest.value))
   }
+  function clearGuest() { guest.value = []; saveGuest() }
 
   function addGuest(product_id: Id, meta?: AddMeta) {
     const found = guest.value.find(i => String(i.product_id) === String(product_id))
@@ -75,7 +76,9 @@ export function useWishlist() {
         const sp = toNum(meta.sale_price);     if (sp != null && found.sale_price == null)     found.sale_price = sp
 
         if (Array.isArray(meta.table_price) && !found.table_price) found.table_price = meta.table_price as PriceTableRow[]
-        if (meta.discount_type && !found.discount_type) found.discount_type = (meta.discount_type === 'percent' || meta.discount_type === 'fixed') ? meta.discount_type : null
+        if (meta.discount_type && !found.discount_type) {
+          found.discount_type = (meta.discount_type === 'percent' || meta.discount_type === 'fixed') ? meta.discount_type : null
+        }
         const dv = toNum(meta.discount_value); if (dv != null && found.discount_value == null) found.discount_value = dv
       }
       saveGuest()
@@ -119,56 +122,92 @@ export function useWishlist() {
   }
 
   // ---------- Server wishlist ----------
-  // Keep a set of IDs for quick membership checks
   const serverIds = ref<Set<string>>(new Set())
   const loadingServer = ref(false)
+
+  function extractIds(payload: any): string[] {
+    // Accept: [1,2,3] OR [{product_id},{id},product] OR {data:[...]} OR {items:[...]}
+    const root = Array.isArray(payload) ? payload
+      : Array.isArray(payload?.data) ? payload.data
+      : Array.isArray(payload?.items) ? payload.items
+      : []
+    const ids: string[] = []
+    for (const it of root) {
+      if (it == null) continue
+      if (typeof it === 'number' || typeof it === 'string') {
+        ids.push(String(it)); continue
+      }
+      const pid = it.product_id ?? it.id ?? it?.product?.id
+      if (pid != null) ids.push(String(pid))
+    }
+    return ids
+  }
 
   async function loadServerIds() {
     if (!isAuthed.value) return
     loadingServer.value = true
     try {
       const r = await $customApi('/v2/wishlist', { method: 'GET' })
-      const arr = (r?.data ?? r) as any[]
-      const set = new Set<string>()
-      for (const it of Array.isArray(arr) ? arr : []) {
-        // support either [1,2] or [{product_id:1}, {id:2}, ...]
-        const pid = (typeof it === 'number' || typeof it === 'string') ? it : (it?.product_id ?? it?.id)
-        if (pid != null) set.add(String(pid))
-      }
-      serverIds.value = set
+      const ids = extractIds(r?.data ?? r)
+      serverIds.value = new Set(ids)
     } finally {
       loadingServer.value = false
     }
   }
 
-  // Server calls
   async function addServer(product_id: Id) {
     await $customApi('/v2/wishlist', { method: 'POST', body: { product_id } })
     serverIds.value.add(String(product_id))
   }
   async function removeServer(product_id: Id) {
-    await $customApi(`/v2/wishlist/delete/${product_id}`, { method: 'POST' })
+    try {
+      // Preferred per your routes: DELETE /v2/wishlist/{productId}
+      await $customApi(`/v2/wishlist/${product_id}`, { method: 'DELETE' })
+    } catch {
+      // Fallback alias if you keep POST delete endpoint
+      await $customApi(`/v2/wishlist/delete/${product_id}`, { method: 'POST' })
+    }
+    serverIds.value.delete(String(product_id))
   }
+
   async function toggleServer(product_id: Id): Promise<'added' | 'removed'> {
-    // Preferred: backend toggle returns {status:'added'|'removed'} (or {added:true}/{removed:true})
     try {
       const r = await $customApi('/v2/wishlist/toggle', { method: 'POST', body: { product_id } })
       const data = r?.data ?? r
-      const status: 'added' | 'removed' =
-        data?.status ?? (data?.added ? 'added' : 'removed')
+      const status: 'added' | 'removed' = data?.status ?? (data?.added ? 'added' : 'removed')
       if (status === 'added') serverIds.value.add(String(product_id))
       else serverIds.value.delete(String(product_id))
       return status
     } catch {
-      // Fallback if /toggle isn't available: try add then remove
-      try { await addServer(product_id); return 'added' }
-      catch { await removeServer(product_id); return 'removed' }
+      // Fallback if /toggle not available
+      if (serverIds.value.has(String(product_id))) {
+        await removeServer(product_id); return 'removed'
+      } else {
+        await addServer(product_id); return 'added'
+      }
     }
   }
+
   async function bulkAddServer(ids: Id[]) {
     if (!ids.length) return
     await $customApi('/v2/wishlist/bulk', { method: 'POST', body: { products: ids.join(',') } })
     for (const id of ids) serverIds.value.add(String(id))
+  }
+
+  async function listServerIds(): Promise<string[]> {
+    try {
+      const r = await $customApi('/v2/wishlist', { method: 'GET' })
+      return extractIds(r?.data ?? r)
+    } catch { return [] }
+  }
+
+  async function clearServer() {
+    // If you later add POST /v2/wishlist/clear this will use it automatically
+    try { await $customApi('/v2/wishlist/clear', { method: 'POST' }); serverIds.value.clear(); return } catch {}
+    // Fallback: fetch IDs and delete all
+    const ids = await listServerIds()
+    if (ids.length) await Promise.all(ids.map(id => removeServer(id).catch(() => {})))
+    serverIds.value.clear()
   }
 
   // ---- Public API (with alerts) ----
@@ -275,6 +314,11 @@ export function useWishlist() {
     }
   }
 
+  async function clear() {
+    if (isAuthed.value) await clearServer()
+    clearGuest() // always keep guest clean too
+  }
+
   async function syncGuestToServer() {
     if (!isAuthed.value || !guest.value.length || syncing.value) return
     syncing.value = true
@@ -283,9 +327,7 @@ export function useWishlist() {
       await bulkAddServer(ids)
       guest.value = []
       saveGuest()
-    } finally {
-      syncing.value = false
-    }
+    } finally { syncing.value = false }
   }
 
   function isInWishlist(product_id: Id) {
@@ -302,7 +344,7 @@ export function useWishlist() {
     window.addEventListener('auth:changed', async () => {
       await syncGuestToServer()
       await loadServerIds()
-    })
+    }, { once: true })
   })
 
   const count = computed(() =>
@@ -312,14 +354,14 @@ export function useWishlist() {
   return {
     // state
     guest, count, syncing,
-    // server state (handy for debugging)
     serverIds, loadingServer,
     // actions
-    add, remove, toggle, syncGuestToServer,
+    add, remove, toggle, clear, syncGuestToServer,
     // helpers
     isInWishlist,
     // guest helpers
-    addGuest, removeGuest, toggleGuest,
-    loadServerIds,
+    addGuest, removeGuest, toggleGuest, clearGuest,
+    // server helpers
+    loadServerIds, clearServer,
   }
 }

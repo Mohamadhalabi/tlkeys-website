@@ -15,7 +15,6 @@ type WishRow = {
   image?: string
   sku?: string
   slug?: string
-  // snapshot + pricing inputs (keep all of these)
   price?: number | null
   regular_price?: number | null
   sale_price?: number | null
@@ -26,25 +25,22 @@ type WishRow = {
 
 const { formatMoney } = useCurrency()
 const { $customApi } = useNuxtApp()
-const config = useRuntimeConfig()
-const API_BASE_URL = config.public.API_BASE_URL as string
+const API_BASE_URL = useRuntimeConfig().public.API_BASE_URL as string
 
 const wishlist = useWishlist()
 const cart = useCart()
 const alerts = useAlertStore()
-
 const auth = useAuth()
-const isAuthed = computed<boolean>(() => Boolean((auth as any)?.token?.value))
 
+const isAuthed = computed<boolean>(() => Boolean((auth as any)?.token?.value))
 const loading = ref(true)
 const rows = ref<WishRow[]>([])
 
-/* ---------- helpers ---------- */
+/* ----- helpers ----- */
 async function fetchProductsByIds(ids: Id[]) {
   if (!ids.length) return {}
   try {
-    const bulkUrl = `${API_BASE_URL}/products/bulk?ids=${encodeURIComponent(ids.map(String).join(','))}`
-    const r = await $customApi(bulkUrl)
+    const r = await $customApi(`${API_BASE_URL}/products/bulk?ids=${encodeURIComponent(ids.map(String).join(','))}`)
     const list = (r?.data ?? r) as any[]
     const map: Record<string, any> = {}
     list?.forEach(p => { map[String(p.id)] = p })
@@ -52,34 +48,31 @@ async function fetchProductsByIds(ids: Id[]) {
   } catch {
     const out: Record<string, any> = {}
     for (const id of ids) {
-      try {
-        const r = await $customApi(`${API_BASE_URL}/products/${id}`)
-        out[String(id)] = (r?.data ?? r)
-      } catch { /* ignore */ }
+      try { const r = await $customApi(`${API_BASE_URL}/products/${id}`); out[String(id)] = (r?.data ?? r) } catch {}
     }
     return out
   }
 }
 
 async function loadServerWishlist(): Promise<WishRow[]> {
-  // backend returns full rows (cart-like) OR just IDs; handle both
   const r = await $customApi('/v2/wishlist', { method: 'GET' })
   const data = r?.data ?? r
 
+  // If backend returns hydrated rows, use them
   if (Array.isArray(data) && data.length && (data[0]?.title || data[0]?.price != null)) {
-    // already hydrated by backend
     return data.map((i: any) => ({
       product_id: i.product_id ?? i.id,
       title: i.title ?? i.name,
       image: i.image ?? i.images?.[0]?.src,
       sku: i.sku ?? null,
-      price: Number(i.price ?? 0),
-      regular_price: null,
-      slug: i.slug
+      slug: i.slug ?? null,
+      price: typeof i.price === 'number' ? i.price : (i.price ? Number(i.price) : null),
+      regular_price: typeof i.regular_price === 'number' ? i.regular_price : null,
+      sale_price: typeof i.sale_price === 'number' ? i.sale_price : null,
     }))
   }
 
-  // fallback: hydrate by IDs
+  // Otherwise hydrate by ids
   const ids: string[] = Array.isArray(data?.data)
     ? data.data.map((x: any) => String(x?.product_id ?? x?.id ?? x))
     : Array.isArray(data) ? data.map((x: any) => String(x?.product_id ?? x?.id ?? x)) : []
@@ -93,24 +86,22 @@ async function loadServerWishlist(): Promise<WishRow[]> {
       title: p.title ?? p.name ?? `#${id}`,
       image: p.image ?? p.images?.[0]?.src,
       sku: p.sku ?? null,
-      price: Number(p.price ?? 0),
-      regular_price: null,
-      slug: p.slug
+      slug: p.slug,
+      price: typeof p.sale_price === 'number' ? p.sale_price : (typeof p.price === 'number' ? p.price : null),
+      regular_price: typeof p.price === 'number' ? p.price : null,
+      sale_price: typeof p.sale_price === 'number' ? p.sale_price : null,
     }
   })
 }
 
 async function hydrateGuestWishlist(): Promise<WishRow[]> {
-  // Use the guest snapshot exactly as it was stored by useWishlist()
   const list = (wishlist.guest?.value || [])
   return list.map(w => ({
     product_id: w.product_id,
-    title: w.title,
-    image: w.image,
-    sku: w.sku,
-    slug: (w as any).slug,
-
-    price: typeof (w as any).price === 'number' ? (w as any).price : null,
+    title: w.title, image: w.image, sku: w.sku, slug: (w as any).slug,
+    price: typeof (w as any).sale_price === 'number'
+      ? (w as any).sale_price
+      : (typeof (w as any).price === 'number' ? (w as any).price : null),
     regular_price: typeof (w as any).regular_price === 'number' ? (w as any).regular_price : null,
     sale_price: typeof (w as any).sale_price === 'number' ? (w as any).sale_price : null,
     table_price: Array.isArray((w as any).table_price) ? (w as any).table_price as PriceTableRow[] : null,
@@ -123,51 +114,72 @@ async function load() {
   loading.value = true
   try {
     rows.value = isAuthed.value ? await loadServerWishlist() : await hydrateGuestWishlist()
-  } finally {
-    loading.value = false
-  }
+  } finally { loading.value = false }
 }
 
 watch(() => wishlist.guest?.value, () => { if (!isAuthed.value) load() }, { deep: true })
 onMounted(load)
 
-function fmt(n?: number | null) { return formatMoney(n ?? 0) }
+function priceView(row: WishRow) {
+  const current =
+    typeof row.sale_price === 'number' && row.sale_price > 0 ? row.sale_price :
+    typeof row.price === 'number' ? row.price : 0
+  const old =
+    typeof row.sale_price === 'number' &&
+    typeof row.price === 'number' &&
+    row.price > row.sale_price ? row.price : null
+  return { current, old }
+}
+const fmt = (n?: number | null) => formatMoney(n ?? 0)
 
-/* ---------- actions ---------- */
+/* ----- actions ----- */
 async function removeRow(row: WishRow) {
   const before = rows.value.slice()
-  rows.value = rows.value.filter(r => String(r.product_id) !== String(row.product_id)) // optimistic
+  rows.value = rows.value.filter(r => String(r.product_id) !== String(row.product_id))
   try { await wishlist.remove(row.product_id, { title: row.title, image: row.image, sku: row.sku }) }
   catch { rows.value = before }
 }
 
-// pages/wishlist/index.vue — replace addRowToCart
 async function addRowToCart(row: WishRow) {
   await cart.add(row.product_id, 1, {
-    title: row.title,
-    image: row.image,
-    sku: row.sku,
-    slug: row.slug,
-
-    // Raw pricing inputs for computeUnitPrice()
-    price: typeof row.regular_price === 'number'
-            ? row.regular_price
-            : (typeof row.price === 'number' ? row.price : 0),
+    title: row.title, image: row.image, sku: row.sku, slug: row.slug,
+    price: typeof row.regular_price === 'number' ? row.regular_price : (typeof row.price === 'number' ? row.price : 0),
     regular_price: typeof row.regular_price === 'number' ? row.regular_price : null,
     sale_price: typeof row.sale_price === 'number' ? row.sale_price : null,
     table_price: Array.isArray(row.table_price) ? row.table_price : null,
     discount_type: row.discount_type ?? null,
     discount_value: typeof row.discount_value === 'number' ? row.discount_value : null,
-
-    // what the user saw on the wishlist card (display only)
     priceSnapshot: typeof row.price === 'number' ? row.price : undefined,
   })
+}
+
+async function clearAll() {
+  if (!rows.value.length) return
+  if (!confirm('Clear your wishlist?')) return
+  try {
+    await wishlist.clear()
+    rows.value = []
+    alerts.showAlert({ type: 'info', title: 'Wishlist cleared' })
+  } catch (e: any) {
+    alerts.showAlert({ type: 'error', title: 'Could not clear wishlist', message: e?.message || 'Try again.' })
+    await load()
+  }
 }
 </script>
 
 <template>
   <div class="container mx-auto px-4 py-6">
-    <h1 class="text-2xl font-semibold mb-6">Your Wishlist</h1>
+    <div class="mb-6 flex items-center gap-3">
+      <h1 class="text-2xl font-semibold">Your Wishlist</h1>
+      <button
+        v-if="rows.length"
+        type="button"
+        class="ms-auto px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50"
+        @click="clearAll"
+      >
+        Clear Wishlist
+      </button>
+    </div>
 
     <!-- Loading skeleton -->
     <div v-if="loading" class="space-y-3">
@@ -184,14 +196,14 @@ async function addRowToCart(row: WishRow) {
       </NuxtLink>
     </div>
 
-    <!-- Row list -->
+    <!-- List -->
     <ul v-else class="space-y-4">
       <li
         v-for="row in rows"
         :key="String(row.product_id)"
-        class="group bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow"
+        class="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow"
       >
-        <div class="p-4 md:p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+        <div class="p-4 md:p-5 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
           <!-- Image -->
           <NuxtLink
             v-if="row.slug"
@@ -208,7 +220,7 @@ async function addRowToCart(row: WishRow) {
           </div>
 
           <!-- Details -->
-          <div class="flex-1 min-w-0">
+          <div class="min-w-0 flex-1">
             <div class="flex items-start gap-3">
               <div class="min-w-0">
                 <NuxtLink
@@ -220,25 +232,28 @@ async function addRowToCart(row: WishRow) {
                 </NuxtLink>
                 <div v-else class="font-medium text-gray-900 line-clamp-2">{{ row.title }}</div>
 
-                <p v-if="row.sku" class="mt-1 text-xs text-gray-500">SKU: {{ row.sku }}</p>
-                <div class="mt-2 text-base font-semibold text-gray-900">
-                  {{ fmt(row.price) }}
-                </div>
+                <p v-if="row.sku" class="mt-1 text-md font-medium text-green-600">
+                  SKU: {{ row.sku }}
+                </p>
               </div>
 
-              <!-- Remove button (top-right on larger screens) -->
-              <button
-                class="ms-auto hidden sm:inline-flex p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 mt-auto mb-auto"
-                @click="removeRow(row)"
-                aria-label="Remove from wishlist"
-              >
-                ✕
-              </button>
+              <!-- Price (right, large red) -->
+              <div class="ms-auto text-right">
+                <div class="text-2xl font-bold text-red-600">
+                  {{ formatMoney(priceView(row).current) }}
+                </div>
+                <div
+                  v-if="priceView(row).old"
+                  class="text-sm text-gray-500 line-through"
+                >
+                  {{ formatMoney(priceView(row).old) }}
+                </div>
+              </div>
             </div>
           </div>
 
           <!-- Actions -->
-          <div class="flex gap-3 sm:ms-auto">
+          <div class="sm:ms-auto flex gap-3">
             <button
               type="button"
               class="px-5 py-2.5 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700 transition shadow-sm"
@@ -255,9 +270,9 @@ async function addRowToCart(row: WishRow) {
               Details
             </NuxtLink>
 
-            <!-- Mobile remove button -->
             <button
-              class="sm:hidden px-4 py-2.5 rounded-xl border border-gray-300 text-gray-500 hover:bg-gray-50"
+              type="button"
+              class="px-4 py-2.5 rounded-xl border border-gray-300 text-gray-500 hover:bg-gray-50"
               @click="removeRow(row)"
             >
               Remove
