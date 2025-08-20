@@ -38,6 +38,7 @@ const { formatMoney } = useCurrency()
 
 const loading = ref(true)
 const rows = ref<CartRow[]>([])
+const clearing = ref(false)
 
 /* helpers */
 function n(x: unknown): number | null {
@@ -61,10 +62,12 @@ function asProductLike(row: CartRow): ProductLike {
 function recalcRow(row: CartRow) {
   const withPromo = priceCalc(asProductLike(row), row.quantity)
   row.price = withPromo.unit
+
   const forcedBase =
     (typeof row.base.regular_price === 'number' && row.base.regular_price > 0)
       ? row.base.regular_price
       : (typeof row.base.price === 'number' ? row.base.price : 0)
+
   const pNoPromo: any = { ...asProductLike(row), discount_type: null, discount_value: null, sale_price: null, price: forcedBase }
   const { unit: unitNoPromo } = priceCalc(pNoPromo, row.quantity)
   row.price_before = unitNoPromo
@@ -158,11 +161,37 @@ async function removeRow(row: CartRow) {
     await load()
   }
 }
+async function clearAll() {
+  if (clearing.value) return
+  if (!window.confirm('Clear all items from your cart?')) return
+  clearing.value = true
+  try {
+    await cart.clear()
+    rows.value = []
+    alerts.showAlert({ type: 'info', title: 'Cart cleared' })
+  } catch (e: any) {
+    alerts.showAlert({ type: 'error', title: 'Clear cart failed', message: e?.message || 'Try again.' })
+    await load()
+  } finally {
+    clearing.value = false
+  }
+}
 </script>
 
 <template>
   <div class="container mx-auto px-4 py-6">
-    <h1 class="text-2xl font-semibold mb-4">Your Cart</h1>
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <h1 class="text-2xl font-semibold">Your Cart</h1>
+      <button
+        v-if="rows.length"
+        type="button"
+        class="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+        :disabled="clearing"
+        @click="clearAll"
+      >
+        {{ clearing ? 'Clearing…' : 'Clear Cart' }}
+      </button>
+    </div>
 
     <div v-if="loading" class="space-y-3">
       <div class="h-20 bg-gray-100 rounded-xl animate-pulse" />
@@ -196,7 +225,9 @@ async function removeRow(row: CartRow) {
               <div v-else class="font-medium truncate">{{ row.title }}</div>
               <button class="ms-auto text-gray-400 hover:text-gray-600" @click="removeRow(row)">✕</button>
             </div>
-            <p v-if="row.sku" class="text-xs text-gray-500">SKU: {{ row.sku }}</p>
+
+            <!-- SKU in green -->
+            <p v-if="row.sku" class="text-xs font-medium text-green-600">SKU: {{ row.sku }}</p>
 
             <div class="mt-2 flex flex-wrap items-center gap-4">
               <div class="inline-flex items-center rounded-xl border border-gray-300 overflow-hidden">
@@ -210,8 +241,10 @@ async function removeRow(row: CartRow) {
                 />
                 <button type="button" class="px-3 py-2 hover:bg-gray-50" @click="inc(row)">+</button>
               </div>
+
+              <!-- Pricing (big red current price, gray strikethrough old) -->
               <div class="ms-auto text-right">
-                <div class="text-lg font-semibold text-gray-900">
+                <div class="text-2xl font-extrabold text-red-600">
                   {{ formatMoney((row.price || 0) * (row.quantity || 1)) }}
                 </div>
                 <div
@@ -220,15 +253,15 @@ async function removeRow(row: CartRow) {
                 >
                   {{ formatMoney((row.price_before || 0) * (row.quantity || 1)) }}
                 </div>
-                <div class="text-xs text-gray-500">
+                <div class="text-xs">
                   Unit:
                   <span
                     v-if="row.price_before != null && row.price_before > (row.price || 0)"
-                    class="line-through mr-1"
+                    class="line-through text-gray-400 mr-1"
                   >
                     {{ formatMoney(row.price_before || 0) }}
                   </span>
-                  <span>{{ formatMoney(row.price || 0) }}</span>
+                  <span class="font-semibold text-red-600">{{ formatMoney(row.price || 0) }}</span>
                 </div>
               </div>
             </div>
@@ -240,17 +273,36 @@ async function removeRow(row: CartRow) {
       <aside class="lg:col-span-1">
         <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-3">
           <h2 class="font-semibold text-gray-900">Order Summary</h2>
-          <div class="flex items-center justify-between text-sm">
+          <div class="flex items-center justify-between text-lg">
             <span>Subtotal</span>
-            <span class="font-medium">{{ formatMoney(subtotal) }}</span>
+            <span class="text-red-600">{{ formatMoney(subtotal) }}</span>
           </div>
-          <p class="text-xs text-gray-500">Shipping and taxes calculated at checkout.</p>
-          <button
-            type="button"
-            class="w-full mt-2 px-5 py-3 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700"
-          >
-            Checkout
-          </button>
+          <p class="text-xs text-gray-500">Shipping is calculated at checkout.</p>
+
+          <!-- Auth-aware CTA -->
+          <template v-if="isAuthed">
+            <button
+              type="button"
+              class="w-full mt-2 px-5 py-3 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700"
+            >
+              Checkout
+            </button>
+          </template>
+          <template v-else>
+            <div class="mt-2 grid grid-cols-2 gap-2">
+              <NuxtLink
+                to="/login"
+                class="px-5 py-3 rounded-xl border border-gray-300 text-gray-700 text-center hover:bg-gray-50"
+              >Log in</NuxtLink>
+              <NuxtLink
+                to="/register"
+                class="px-5 py-3 rounded-xl bg-red-600 text-white text-center font-medium hover:bg-red-700"
+              >Register</NuxtLink>
+            </div>
+            <p class="text-xs text-gray-500 mt-1 text-center">
+              Log in or create an account to checkout.
+            </p>
+          </template>
         </div>
       </aside>
     </div>

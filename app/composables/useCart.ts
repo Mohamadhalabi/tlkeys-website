@@ -4,7 +4,6 @@ import { useNuxtApp } from '#imports'
 import { useAuth } from './useAuth'
 import { useAlertStore } from '~/stores/alert'
 
-/** ---- module-scope guards (shared across all imports) ---- */
 let cartAuthListenerAdded = false
 const SYNC_LOCK_KEY = 'cart-sync-lock'
 
@@ -113,23 +112,21 @@ export function useCart() {
   }
   function clearGuest() { guestItems.value = []; saveGuest() }
 
-  // --- Server calls (match your current backend) ---
+  // --- Server calls ---
   async function addToServer(product_id: Id, quantity: number) {
     return $customApi('/v2/cart/add', { method: 'POST', body: { product_id, quantity } })
   }
   async function changeQtyServer(product_id: Id, quantity: number) {
-    // you’re using POST /v2/cart/set-quantity/{id}
     return $customApi(`/v2/cart/set-quantity/${product_id}`, { method: 'POST', body: { quantity } })
   }
   async function removeServer(product_id: Id) {
-    // you’re using POST /v2/cart/remove/{id}
     return $customApi(`/v2/cart/remove/${product_id}`, { method: 'POST' })
   }
   async function clearServer() {
     return $customApi('/v2/cart/clear', { method: 'POST' })
   }
 
-  // --- Public API
+  // --- Public API ---
   async function add(product_id: Id, quantity: number, meta?: Partial<CartItem>) {
     if (isAuthed.value) {
       await addToServer(product_id, quantity)
@@ -159,14 +156,20 @@ export function useCart() {
     }
   }
 
-  /**
-   * Sync guest → server exactly once after login.
-   */
+  /** NEW: clear() for both guest & authed usage */
+  async function clear() {
+    if (isAuthed.value) {
+      await clearServer()
+    } else {
+      clearGuest()
+    }
+  }
+
+  /** Sync guest → server exactly once after login. */
   async function syncGuestToServer() {
     if (!auth.token.value) return
     if (!guestItems.value.length) return
 
-    // cross-instance lock (protect against multiple listeners)
     if (sessionStorage.getItem(SYNC_LOCK_KEY) === '1') return
     if (syncing.value) return
     syncing.value = true
@@ -178,18 +181,15 @@ export function useCart() {
       quantity: Number(i.quantity || 1),
     }))
 
-    // optimistic clear; if another listener fires, it has nothing to send
     guestItems.value = []
     saveGuest()
 
     try {
-      // optional debug
       console.debug('[cart] syncing', items)
       await $customApi('/v2/cart/sync', { method: 'POST', body: { items } })
       console.debug('[cart] sync ok')
     } catch (err) {
       console.error('[cart] sync failed', (err as any)?.data || err)
-      // restore on failure
       guestItems.value = backup
       saveGuest()
     } finally {
@@ -200,16 +200,12 @@ export function useCart() {
 
   onMounted(() => {
     loadGuest()
-
-    // If already logged in on first render, do a single sync
     if (auth.token.value) {
       syncGuestToServer()
     } else if (!cartAuthListenerAdded) {
-      // Install the listener only once across the whole app
       window.addEventListener('auth:changed', () => syncGuestToServer(), { once: true })
       cartAuthListenerAdded = true
     }
-    // NOTE: removed the unconditional extra sync call to avoid duplicates
   })
 
   const count = computed(() => guestItems.value.reduce((a, b) => a + Number(b.quantity || 0), 0))
@@ -222,9 +218,11 @@ export function useCart() {
     add,
     setQuantity,
     remove,
+    clear,
     clearServer,
+    clearGuest,
     syncGuestToServer,
     // guest helpers
-    addToGuest, setQtyGuest, removeGuest, clearGuest
+    addToGuest, setQtyGuest, removeGuest
   }
 }
