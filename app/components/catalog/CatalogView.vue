@@ -48,7 +48,7 @@ const mergedFilters = computed(() => {
     brands:        q.brands ? parseCsv(q.brands) : (props.initialFilters?.brands ?? []),
     categories:    q.categories ? parseCsv(q.categories) : (props.initialFilters?.categories ?? []),
     manufacturers: q.manufacturers ? parseCsv(q.manufacturers) : (props.initialFilters?.manufacturers ?? []),
-    models:        q.models ? parseCsv(q.models) : (props.initialFilters?.models ?? []), // NEW
+    models:        q.models ? parseCsv(q.models) : (props.initialFilters?.models ?? []),
     q:    (q.q as string) || '',
     sort: (q.sort as string) || 'newest',
     page: Number(q.page || 1),
@@ -70,7 +70,7 @@ const sel = reactive({
   brands: [] as string[],
   categories: [] as string[],
   manufacturers: [] as string[],
-  models: [] as string[], // NEW
+  models: [] as string[],
   q: '',
   sort: 'newest',
   page: 1,
@@ -109,7 +109,7 @@ function updateRoute(replace = false) {
     brands:        sel.brands.length ? sel.brands.join(',') : undefined,
     categories:    sel.categories.length ? sel.categories.join(',') : undefined,
     manufacturers: sel.manufacturers.length ? sel.manufacturers.join(',') : undefined,
-    models:        sel.models.length ? sel.models.join(',') : undefined, // NEW
+    models:        sel.models.length ? sel.models.join(',') : undefined,
     q: sel.q || undefined,
     sort: sel.sort || undefined,
     page: sel.page > 1 ? sel.page : undefined,
@@ -127,27 +127,85 @@ function clearGroup(which: K) {
   if (which === 'brands') sel.brands = []
   else if (which === 'categories') sel.categories = []
   else if (which === 'manufacturers') sel.manufacturers = []
-  else sel.models = [] // models
+  else sel.models = []
   applyAndResetPage()
 }
 
-/* ---------- API unwrap + mapping ---------- */
+/* ---------- API unwrap + pricing helpers ---------- */
 function unwrapApi(res: any) {
   const body = (res && typeof res === 'object' && 'data' in res && !Array.isArray(res.data)) ? res.data : res
   const items = Array.isArray(body?.data) ? body.data : (Array.isArray(body) ? body : [])
   const meta  = (body && body.meta) ?? (res && res.meta) ?? null
   return { items, meta, body }
 }
+
+function toNum(v: any): number | null {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+function isType(v: any): v is 'percent' | 'fixed' {
+  return v === 'percent' || v === 'fixed'
+}
+function normalizeDiscount(raw: any) {
+  const d = raw?.data ?? raw ?? {}
+  const type = isType(d?.type) ? d.type : null
+  const value = toNum(d?.value)
+
+  const now = Date.now()
+  const okStart = d?.start_date ? now >= Date.parse(d.start_date) : true
+  const okEnd   = d?.end_date   ? now <= Date.parse(d.end_date)   : true
+  const active  = !!d?.active && type && value != null && okStart && okEnd
+
+  return {
+    discount_type: active ? (type as 'percent'|'fixed') : null,
+    discount_value: active ? (value as number) : null
+  }
+}
+function applyDiscount(base: number, disc: { discount_type: 'percent'|'fixed'|null, discount_value: number|null }) {
+  if (!disc.discount_type || disc.discount_value == null) return base
+  if (disc.discount_type === 'percent') return Math.max(0, Math.round((base * (1 - disc.discount_value / 100)) * 100) / 100)
+  if (disc.discount_type === 'fixed')   return Math.max(0, Math.round((base - disc.discount_value) * 100) / 100)
+  return base
+}
+
+/** Map API → card item with sale/discount awareness */
 function mapApiProduct(p: any) {
+  // unwrap discount payload that comes as { discount: { data: { ... } } } or { discount: { ... } }
+  const discRaw = (p?.discount?.data ?? p?.discount) || null
+  const discType  = (discRaw?.type === 'fixed' || discRaw?.type === 'percent') ? discRaw.type : null
+  const discValue = typeof discRaw?.value === 'number' ? discRaw.value
+                   : (discRaw?.value != null ? Number(discRaw.value) : null)
+  const discStart = discRaw?.start_date ?? null
+  const discEnd   = discRaw?.end_date ?? null
+  const discActive = Boolean(discRaw?.active)
+
   const hasSale = p?.sale_price != null && p?.sale_price !== 0
+
   const categoryName = Array.isArray(p?.categories) && p.categories[0]?.name ? String(p.categories[0].name) : ''
   const categorySlug = Array.isArray(p?.categories) && p.categories[0]?.slug ? String(p.categories[0].slug).toLowerCase() : ''
+
   return {
     id: p.id,
     name: p.title ?? p.short_title ?? '',
     image: p.image,
+
+    // base prices
     price: hasSale ? p.sale_price : p.price,
     oldPrice: hasSale ? p.price : null,
+    regular_price: p.regular_price ?? null,
+    sale_price: p.sale_price ?? null,
+
+    // tiers (include if your API returns them; harmless if null)
+    table_price: Array.isArray(p?.table_price) ? p.table_price : null,
+
+    // discount inputs for card/cart recompute + timer
+    discount_type: discType,
+    discount_value: discValue,
+    discount_start_date: discStart,
+    discount_end_date: discEnd,
+    discount_active: discActive, // optional (not used by card, but handy)
+
+    // misc/meta
     sku: p.sku ?? '',
     category: categoryName,
     categorySlug,
@@ -155,6 +213,7 @@ function mapApiProduct(p: any) {
     href: p.slug ? `/products/${p.slug}` : `/products/${p.id}`,
   }
 }
+
 function lastFromMeta(meta: any) {
   const lp = Number(meta?.last_page)
   if (Number.isFinite(lp) && lp > 1) return lp
@@ -198,12 +257,15 @@ async function fetchOnce() {
       brands: sel.brands,
       categories: sel.categories,
       manufacturers: sel.manufacturers,
-      models: sel.models, // NEW
+      models: sel.models,
       q: sel.q,
       sort: sel.sort,
       page: sel.page,
       per_page: effectivePerPage
     })
+    // IMPORTANT: include discount (and tiers if you wish)
+    ;(params as any).include = 'discount,table_price'
+
     const res = await $customApi(`${API_BASE_URL}/catalog`, { method: 'GET', params })
     const { items: list, meta: m, body } = unwrapApi(res)
 
@@ -316,8 +378,7 @@ const facetMaps = computed(() => {
   return { b, mdl, c, m }
 })
 
-/** Order: Brands → Models (only if brands selected) → Manufacturers → Categories */
-/** Order of filters depends on where the user entered from */
+/** Order: depends on entry type */
 const facetSections = computed(() => {
   if (!facets.value) return []
 
@@ -331,23 +392,16 @@ const facetSections = computed(() => {
   const order: (keyof typeof sectionsMap)[] = []
 
   if (entryType.value === 'category') {
-    // category → manufacturers → brands → models (if brand selected)
     order.push('categories', 'manufacturers', 'brands')
     if (sel.brands.length) order.push('models')
-  } 
-  else if (entryType.value === 'manufacturer') {
-    // manufacturers → categories → brands → models (if brand selected)
+  } else if (entryType.value === 'manufacturer') {
     order.push('manufacturers', 'categories', 'brands')
     if (sel.brands.length) order.push('models')
-  } 
-  else if (entryType.value === 'brand') {
-    // brands → models → categories → manufacturers
+  } else if (entryType.value === 'brand') {
     order.push('brands')
     if (sel.brands.length) order.push('models')
     order.push('categories', 'manufacturers')
-  } 
-  else {
-    // fallback: brands → models → manufacturers → categories
+  } else {
     order.push('brands')
     if (sel.brands.length) order.push('models')
     order.push('manufacturers', 'categories')

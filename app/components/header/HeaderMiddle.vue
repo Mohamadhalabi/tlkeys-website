@@ -24,9 +24,23 @@
 
       <!-- Wishlist / Account / Cart -->
       <div class="flex items-center gap-6 text-sm text-gray-700">
-        <NuxtLink to="/account" class="flex items-center gap-1">
+        <!-- Login / Account switch -->
+        <NuxtLink
+          v-if="!isAuthed"
+          to="/auth/login-register"
+          class="flex items-center gap-1"
+        >
           <UserPlusIcon class="w-5 h-5" />
           <span>{{ t('logIn') }}</span>
+        </NuxtLink>
+
+        <NuxtLink
+          v-else
+          to="/account"
+          class="flex items-center gap-1"
+        >
+          <UserPlusIcon class="w-5 h-5" />
+          <span>{{ t('account') }}</span>
         </NuxtLink>
 
         <NuxtLink to="/wishlist" class="flex items-center gap-1">
@@ -46,6 +60,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useAuth } from '~/composables/useAuth'
 import {
   HeartIcon,
   UserPlusIcon,
@@ -54,7 +69,14 @@ import {
 } from '@heroicons/vue/24/outline'
 
 const { t, locale } = useI18n()
+const auth = useAuth()
 
+// ensure we have auth state after hard refresh (safe even if you also hydrate in a plugin)
+onMounted(() => auth.hydrate?.())
+
+const isAuthed = computed(() => auth.isAuthenticated?.value ?? false)
+
+/* ---------- Typewriter placeholder ---------- */
 // phrases react to locale changes
 const phrases = computed(() => [
   t('searchPlaceholder'),
