@@ -54,9 +54,11 @@
   font-family: 'Proxima Nova', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif !important;
 }
 button, input, textarea, select { font-family: inherit !important; }
-header,body{
-    background-color: rgb(236, 236, 236)!important;
+header,
+body {
+    background-color: rgb(245, 245, 245) !important; /* lighter gray */
 }
+
 /* ===== Tailwind ===== */
 @tailwind base;
 @tailwind components;

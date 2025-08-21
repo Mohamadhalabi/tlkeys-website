@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watchEffect, watch } from 'vue'
-import { useI18n, useHead, useRoute, useRuntimeConfig, useNuxtApp } from '#imports'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useI18n, useHead, useRoute, useRuntimeConfig, useNuxtApp, useRequestURL } from '#imports'
 import { computeUnitPrice } from '~/utils/pricing'
 
 /* composables */
@@ -9,17 +9,28 @@ import { useAuth } from '~/composables/useAuth'
 import { useCart } from '~/composables/useCart'
 import { useWishlist } from '~/composables/useWishlist'
 
+/* components */
+import ProductTabDescription from '~/components/product/tabs/ProductTabDescription.vue'
+import ProductTabReviews from '~/components/product/tabs/ProductTabReviews.vue'
+import ProductTabFAQ from '~/components/product/tabs/ProductTabFAQ.vue'
+import ProductTabVideos from '~/components/product/tabs/ProductTabVideos.vue'
+import ProductTabContact from '~/components/product/tabs/ProductTabContact.vue'
+import ProductGallery from '~/components/product/ProductGallery.vue'
+import ProductPriceTable from '~/components/product/ProductPriceTable.vue'
+import ProductAttributesTable from '~/components/product/ProductAttributesTable.vue'
+import ProductRelatedGrid from '~/components/product/ProductRelatedGrid.vue'
+import ProductRatingStars from '~/components/product/ProductRatingStars.vue'
+
 /* ---------------- Types ---------------- */
 type PriceTableRow = { min_qty: number; max_qty?: number | null; price: number | string; sale_price?: number | string | null }
 type Review       = { id: number | string; author_name?: string | null; rating?: number | null; content?: string | null; created_at?: string | null }
 type ProductImage = { src: string; alt?: string; id?: number; w?: number; h?: number }
 type SimpleItem   = { id: number | string; name?: string; title?: string; slug?: string }
-
-// attributes 
-type AttrItem  = { id: number | string; slug?: string; value: string }
-type AttrGroup = { id: number | string; slug?: string; name: string; items: AttrItem[] }
-
-type MiniProduct = {
+type FaqItem      = { q: string; a: string }
+type VideoItem    = { title?: string | null; url: string }
+type AttrItem     = { id: number | string; slug?: string; value: string }
+type AttrGroup    = { id: number | string; slug?: string; name: string; items: AttrItem[] }
+type MiniProduct  = {
   id: number | string
   slug?: string
   title: string
@@ -29,11 +40,12 @@ type MiniProduct = {
   regular_price?: number | null
   sale_price?: number | null
 }
-
 type Product = {
   id: number | string
   slug: string
   title: string
+  meta_title?: string | null
+  meta_description?: string | null
   summary_name?: string | null
   image?: string | null
   description?: string | null
@@ -57,16 +69,25 @@ type Product = {
   accessories?: MiniProduct[]
   bundles?: MiniProduct[]
   attributes?: AttrGroup[]
+  faq?: FaqItem[] | null
+  videos?: VideoItem[] | null
 }
 
 /* ---------------- Base setup ---------------- */
 const route = useRoute()
-const { localeProperties, t } = useI18n()
+const { t: _t, localeProperties } = useI18n()
 const dir = computed(() => localeProperties.value.dir || 'ltr')
 
 const runtime = useRuntimeConfig()
 const API_BASE_URL = runtime.public.API_BASE_URL as string
+const SITE_URL = (runtime.public.SITE_URL as string) || ''
 const { $customApi } = useNuxtApp()
+const requestURL = useRequestURL()
+
+const t = (key: string, fallback?: string) => {
+  const out = _t(key) as string
+  return out === key ? (fallback ?? key) : out
+}
 
 const { currency, formatMoney } = useCurrency()
 const auth = useAuth()
@@ -94,27 +115,29 @@ const normAlt = (alt: any, title: string) => {
   }
   return title || ''
 }
-
 const toNum = (v: unknown): number | null => {
   const n = Number(v)
   return Number.isFinite(n) ? n : null
 }
 const isPercentOrFixed = (t: any): t is 'percent' | 'fixed' => t === 'percent' || t === 'fixed'
-
-/** Build link path exactly like “/KeyDiy-Remotes”. */
 const nameToPath = (s?: string | null) => {
   if (!s) return '/'
   const cleaned = s.trim().replace(/\s+/g, '-').replace(/[^A-Za-z0-9\-]/g, '')
   return `/${encodeURIComponent(cleaned)}`
 }
 
+const isUrgent = computed(() => {
+  if (!discountEndsIn.value) return false
+  // If the string doesn't contain "d", it's under 1 day → urgent
+  return !String(discountEndsIn.value).includes('d')
+})
 /* ---------------- SSR fetch & normalize ---------------- */
 const { data: ssr, pending: loading, error } = await useAsyncData(
   () => `product:${slug.value}`,
   async () => {
-  const endpoint =
-    `${API_BASE_URL}/products/slug/${encodeURIComponent(slug.value)}` +
-    `?include=images,table_price,description,reviews,categories,manufacturers,brands,discount,accessories,bundles,attributes`
+    const endpoint =
+      `${API_BASE_URL}/products/slug/${encodeURIComponent(slug.value)}` +
+      `?include=images,table_price,description,reviews,categories,manufacturers,brands,meta_title,meta_description,discount,accessories,bundles,attributes,faq,videos`
     const res = await $customApi(endpoint)
     const data = (res?.data ?? res) as any
 
@@ -131,7 +154,6 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
       h: img.h ? Number(img.h) : undefined
     }))
 
-    // ---- normalize discount ----
     const rawDisc   = data?.discount?.data ?? data?.discount ?? {}
     const discType  = isPercentOrFixed(rawDisc?.type) ? rawDisc.type : null
     const discValue = toNum(rawDisc?.value)
@@ -148,6 +170,9 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
       toNum(data.regular_price) ??
       0
 
+    const faqRaw    = (data?.faq?.data ?? data?.faq) || []
+    const videosRaw = (data?.videos?.data ?? data?.videos) || []
+
     const product: Product = {
       id: data.id,
       slug: data.slug,
@@ -155,14 +180,12 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
       summary_name: data.summary_name ?? null,
       image: data.image ?? null,
       description: data.description ?? '',
-
+      meta_title: data.meta_title ?? '',
+      meta_description: data.meta_description ?? '',
       price: basePrice,
       regular_price: toNum(data.regular_price),
       sale_price: toNum(data.sale_price),
-
-      images: gallery.length
-        ? gallery
-        : [{ src: '/images/placeholder.webp', alt: data.title || 'image' }],
+      images: gallery.length ? gallery : [{ src: '/images/placeholder.webp', alt: data.title || 'image' }],
       table_price: Array.isArray(data.table_price) ? data.table_price : [],
       reviews: (Array.isArray(data.reviews) ? data.reviews : []).filter(
         (r: any) => r && (r.rating || r.content || r.author_name)
@@ -182,8 +205,13 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
 
       accessories: Array.isArray(data.accessories) ? data.accessories : [],
       bundles: Array.isArray(data.bundles) ? data.bundles : [],
-
       attributes: Array.isArray(data.attributes) ? data.attributes : [],
+      faq: Array.isArray(faqRaw)
+        ? faqRaw.map((x: any) => ({ q: String(x.q ?? x.question ?? ''), a: String(x.a ?? x.answer ?? '') }))
+        : [],
+      videos: Array.isArray(videosRaw)
+        ? videosRaw.map((x: any) => ({ title: x.title ?? null, url: String(x.url ?? x.link ?? '') }))
+        : []
     }
 
     return product
@@ -202,14 +230,9 @@ const breadcrumb = computed(() => {
   items.push({ label: product.value?.summary_name || product.value?.title || 'Product' })
   return items
 })
-
-/** Make unique chip links (case/space–insensitive). */
-function makeLinks<T>(
-  src: T[] | undefined | null,
-  labelOf: (x: T) => string | undefined | null
-) {
+function makeLinks<T>(src: T[] | undefined | null, labelOf: (x: T) => string | undefined | null) {
   const out: { label: string; to: string }[] = []
-  const seen = new Set<string>() // normalized label
+  const seen = new Set<string>()
   for (const row of src || []) {
     const label = (labelOf(row) || '').trim()
     if (!label) continue
@@ -220,37 +243,16 @@ function makeLinks<T>(
   }
   return out
 }
+const categoryLinks = computed(() => makeLinks(product.value?.categories, c => c?.name || c?.title))
+const manufacturerLinks = computed(() => makeLinks(product.value?.manufacturers, m => m?.title || m?.name))
+const brandLinks = computed(() => makeLinks(product.value?.brands, b => b?.name || (b as any)?.title))
 
-const categoryLinks = computed(() =>
-  makeLinks(product.value?.categories, c => c?.name || c?.title)
-)
-
-const manufacturerLinks = computed(() =>
-  makeLinks(product.value?.manufacturers, m => m?.title || m?.name)
-)
-
-const brandLinks = computed(() =>
-  makeLinks(product.value?.brands, b => b?.name || (b as any)?.title)
-)
-
-/* ---------------- Qty UI (default to min tier) ---------------- */
+/* ---------------- Qty UI ---------------- */
 const qty = ref(1)
-
-/** smallest min_qty from table tiers, if any */
-const tierMinQty = computed(() => {
-  const rows = (product.value?.table_price || []) as any[]
-  const mins = rows.map(r => Number(r?.min_qty)).filter(n => Number.isFinite(n) && n > 0)
-  return mins.length ? Math.min(...mins) : null
-})
-
-/** enforce the biggest minimum among: 1, min_purchase_qty, tier minimum */
 const minQty = computed(() => Math.max(1, Number(product.value?.min_purchase_qty ?? 1)))
-
 const canDecrement = computed(() => qty.value > minQty.value)
 function dec() { if (qty.value > minQty.value) qty.value-- }
 function inc() { qty.value++ }
-
-/** initialize qty to minQty once, and clamp if min changes */
 const qtyInitialized = ref(false)
 watch([() => product.value, () => minQty.value], ([p, min]) => {
   if (!p) return
@@ -262,18 +264,16 @@ watch([() => product.value, () => minQty.value], ([p, min]) => {
   }
 }, { immediate: true })
 
-/* ---------------- Live price (tier + discount aware) ---------------- */
+/* ---------------- Live price ---------------- */
 const rawFallback = computed(() => {
   const p = product.value as any
   return p ? (toNum(p.sale_price) ?? toNum(p.price) ?? toNum(p.regular_price) ?? 0) : 0
 })
-
 const unitPrice = computed(() => {
   if (!product.value) return 0
   const res = computeUnitPrice(product.value as any, qty.value)
   return res.unit > 0 ? res.unit : (rawFallback.value || 0)
 })
-
 const unitWithoutDiscount = computed(() => {
   if (!product.value) return 0
   const forcedBase =
@@ -293,7 +293,6 @@ const unitWithoutDiscount = computed(() => {
   }
   return computeUnitPrice(p, qty.value).unit
 })
-
 const displayPrice = computed(() => {
   if (!product.value) return { current: 0, old: null as number | null }
   const current = unitPrice.value
@@ -332,7 +331,6 @@ async function onAddToCart() {
   if (!product.value) return
   const p = product.value
   const { unit } = computeUnitPrice(p as any, qty.value)
-
   await cart.add(p.id, qty.value, {
     title: p.title,
     image: p.image || p.images?.[0]?.src,
@@ -375,151 +373,350 @@ async function onToggleWishlist() {
   }
 }
 
-/* ---------------- Debug (optional) ---------------- */
-watchEffect(() => {
-  if (!product.value) return
-  console.log('[WISHLIST DEBUG]', {
-    productId: String(product.value.id),
-    inWish: inWish.value,
-    wishing: wishing.value,
-  })
+/* ---------------- Tabs ---------------- */
+const tabs = [
+  { key: 'desc',    label: 'Description' },
+  { key: 'reviews', label: 'Reviews' },
+  { key: 'faq',     label: 'FAQ' },
+  { key: 'videos',  label: 'Videos' },
+  { key: 'contact', label: 'Contact Us' }
+] as const
+type TabKey = typeof tabs[number]['key']
+const activeTab = ref<TabKey>('desc')
+function setTab(k: TabKey) { activeTab.value = k }
+
+/* ---------------- Head ---------------- */
+const absUrl = computed(() => {
+  const origin = (requestURL && requestURL.origin) ? requestURL.origin : SITE_URL
+  const pathname = requestURL?.pathname || ''
+  return String(origin).replace(/\/+$/, '') + pathname
 })
 
-/* ---------------- SEO ---------------- */
 useHead(() => {
-  const title = product.value?.title || 'Product'
-  const desc = (product.value?.description || '').toString().replace(/<[^>]+>/g, '').slice(0, 160)
-  const img = product.value?.images?.[0]?.src || product.value?.image || ''
+  const p = product.value
+  const stripHtml = (html?: string | null) =>
+    (html || '').toString().replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+
+  const title = p?.meta_title || (p?.title || '')
+  const desc  = p?.meta_description || stripHtml(p?.description || '')
+
+  const imgList = (p?.images || []).map(i => i?.src).filter(Boolean) as string[]
+  const primaryImg = imgList[0] || p?.image || ''
+
+  let aggregateRating: any = null
+  const reviewsLd =
+    Array.isArray(p?.reviews) && p!.reviews!.length
+      ? p!.reviews!
+          .filter(r => r && (r.content || Number.isFinite(Number(r.rating))))
+          .map(r => ({
+            '@type': 'Review',
+            author: r.author_name || 'Customer',
+            reviewBody: r.content ? stripHtml(r.content) : undefined,
+            reviewRating: Number.isFinite(Number(r.rating))
+              ? { '@type': 'Rating', ratingValue: Number(r.rating) }
+              : undefined,
+            datePublished: r.created_at || undefined
+          }))
+      : undefined
+
+  if (Array.isArray(p?.reviews) && p!.reviews!.length) {
+    const rated = p!.reviews!.map(r => Number(r?.rating)).filter(n => Number.isFinite(n))
+    if (rated.length) {
+      const avg = rated.reduce((a, b) => a + b, 0) / rated.length
+      aggregateRating = {
+        '@type': 'AggregateRating',
+        ratingValue: Number(avg.toFixed(2)),
+        reviewCount: rated.length
+      }
+    }
+  }
+
+  const cur = currency.value || 'USD'
+  const qtyNum = Number(p?.quantity ?? 0)
+  const availability =
+    qtyNum > 0 ? 'http://schema.org/InStock' : 'http://schema.org/OutOfStock'
+
+  const priceNumber = p
+    ? Number(
+        (typeof p.sale_price === 'number' && p.sale_price > 0
+          ? p.sale_price
+          : typeof p.price === 'number' && p.price > 0
+          ? p.price
+          : p.regular_price) || 0
+      )
+    : 0
+
+  const offers: any = p
+    ? {
+        '@type': 'Offer',
+        url: absUrl.value,
+        priceCurrency: cur,
+        price: Math.max(0, Number(priceNumber || 0)).toFixed(2),
+        availability,
+        sku: p.sku || undefined,
+        priceValidUntil: p?.discount_active && p?.discount_end ? p.discount_end : undefined
+      }
+    : undefined
+
+  const brandName =
+    (p?.brands && p.brands[0] && (p.brands[0].name || (p.brands[0] as any).title)) ||
+    (p?.manufacturers && p.manufacturers[0] && (p.manufacturers[0].title || p.manufacturers[0].name)) ||
+    undefined
+
+  const productLd: any = p && {
+    '@type': 'Product',
+    '@id': absUrl.value + '#product',
+    name: title,
+    description: desc,
+    image: imgList.length ? imgList : (primaryImg ? [primaryImg] : undefined),
+    sku: p.sku || undefined,
+    brand: brandName ? { '@type': 'Brand', name: brandName } : undefined,
+    category:
+      (p?.categories && p.categories[0] && (p.categories[0].name || p.categories[0].title)) ||
+      undefined,
+    offers,
+    aggregateRating,
+    review: reviewsLd
+  }
+
+  const breadcrumbLd =
+    breadcrumb.value && breadcrumb.value.length
+      ? {
+          '@type': 'BreadcrumbList',
+          itemListElement: breadcrumb.value.map((b, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            name: b.label,
+            item: b.to ? (absUrl.value.replace(requestURL.pathname, '') + b.to) : absUrl.value
+          }))
+        }
+      : undefined
+
+  const faqs = Array.isArray(p?.faq)
+    ? p!.faq!
+        .filter(f => f && (f.q || f.a))
+        .map(f => ({
+          '@type': 'Question',
+          name: stripHtml(f.q || ''),
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: stripHtml(f.a || '')
+          }
+        }))
+    : []
+
+  const faqLd = faqs.length
+    ? {
+        '@type': 'FAQPage',
+        '@id': absUrl.value + '#faq',
+        mainEntity: faqs
+      }
+    : undefined
+
+  const videosLd =
+    Array.isArray(p?.videos) && p!.videos!.length
+      ? p!.videos!
+          .filter(v => v && v.url)
+          .map(v => ({
+            '@type': 'VideoObject',
+            name: v.title || title,
+            description: desc || undefined,
+            thumbnailUrl: primaryImg ? [primaryImg] : undefined,
+            contentUrl: v.url,
+            embedUrl: v.url,
+            url: v.url
+          }))
+      : undefined
+
+  const graph = [productLd, breadcrumbLd, faqLd, ...(Array.isArray(videosLd) ? videosLd : videosLd ? [videosLd] : [])].filter(Boolean)
+
   return {
     title,
     meta: [
       { name: 'description', content: desc },
+      { property: 'og:type', content: 'product' },
       { property: 'og:title', content: title },
       { property: 'og:description', content: desc },
-      ...(img ? [{ property: 'og:image', content: img }] : []),
-      { name: 'twitter:card', content: 'summary_large_image' }
-    ]
+      ...(primaryImg ? [{ property: 'og:image', content: primaryImg }] : []),
+      { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'og:url', content: absUrl.value },
+      { name: 'twitter:title', content: title },
+      { name: 'twitter:description', content: desc },
+      ...(primaryImg ? [{ name: 'twitter:image', content: primaryImg }] : [])
+    ],
+    link: [{ rel: 'canonical', href: absUrl.value }],
+    script: graph.length
+      ? [{
+          id: 'ld-json',
+          type: 'application/ld+json',
+          innerHTML: JSON.stringify({ '@context': 'https://schema.org', '@graph': graph })
+        }]
+      : []
   }
 })
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-6" :dir="dir">
+  <div class="container mx-auto px-4 py-8 lg:py-10" :dir="dir">
     <!-- Breadcrumb -->
-    <nav aria-label="Breadcrumb" class="text-sm text-gray-500 mb-4">
-      <ol class="flex flex-wrap gap-1 items-center">
+    <nav aria-label="Breadcrumb" class="mb-5">
+      <ol class="flex flex-wrap items-center gap-1 text-sm text-gray-500">
         <li v-for="(c, i) in breadcrumb" :key="i" class="flex items-center gap-1">
-          <NuxtLink v-if="c.to" :to="c.to" class="hover:text-gray-700 hover:underline">{{ c.label }}</NuxtLink>
-          <span v-else class="text-gray-700">{{ c.label }}</span>
-          <span v-if="i < breadcrumb.length - 1" class="px-1 text-gray-400">/</span>
+          <NuxtLink
+            v-if="c.to"
+            :to="c.to"
+            class="text-gray-600 hover:text-gray-900 hover:underline transition"
+          >{{ c.label }}</NuxtLink>
+          <span v-else class="text-gray-700 font-medium">{{ c.label }}</span>
+          <span v-if="i < breadcrumb.length - 1" class="px-1 text-gray-300">/</span>
         </li>
       </ol>
     </nav>
 
     <!-- Loading / Error -->
     <div v-if="loading" class="animate-pulse space-y-6">
-      <div class="h-8 w-2/3 bg-gray-200 rounded"></div>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+      <div class="h-7 w-2/3 bg-gray-200 rounded"></div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
         <div class="h-[520px] bg-gray-200 rounded-2xl"></div>
         <div class="space-y-4">
           <div class="h-6 w-2/3 bg-gray-200 rounded"></div>
           <div class="h-6 w-1/3 bg-gray-200 rounded"></div>
-          <div class="h-32 bg-gray-200 rounded"></div>
+          <div class="h-28 bg-gray-200 rounded"></div>
         </div>
       </div>
     </div>
 
-    <div v-else-if="error" class="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl">
+    <div v-else-if="error" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
       {{ (error as any)?.message || error }}
     </div>
 
     <div v-else-if="product" class="space-y-8">
       <!-- Two column layout -->
-      <section class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
         <!-- Gallery -->
         <div class="lg:order-1">
-          <ProductGallery
-            :images="product.images"
-            :maxWidth="680"
-            :maxHeight="520"
-            class="mx-auto"
-          />
+          <ProductGallery :images="product.images" :maxWidth="680" :maxHeight="520" class="mx-auto" />
         </div>
 
         <!-- Details -->
         <div class="lg:order-2">
-          <div class="sticky top-24 space-y-6">
-            <!-- Title + meta -->
-            <header class="space-y-3">
-              <h1 class="text-3xl font-semibold tracking-tight text-gray-900">
+          <div class="lg:sticky lg:top-24 space-y-6">
+            <!-- Title / meta -->
+            <div class="rounded-2xl border border-gray-200 bg-white/90 backdrop-blur p-6 shadow-sm">
+              <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-gray-900">
                 {{ product.title }}
               </h1>
-              <h2 class="text-lg text-green-600">{{ product.summary_name }}</h2>
-              <hr class="h-px my-8 bg-gray-200 border-0 dark:bg-gray-400" />
-              <p v-if="product.sku" class="text-lg font-bold font-weight-bold text-green-600">SKU: {{ product.sku }}</p>
-              <!-- Stacked meta with links -->
-              <div class="space-y-2 text-sm">
+              <p v-if="product.summary_name" class="mt-1 text-base text-green-800 text-gray-600">
+                {{ product.summary_name }}
+              </p>
+              <hr></hr>
+              <div class="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                <span v-if="product.sku" class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700 border border-emerald-200">
+                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> SKU: {{ product.sku }}
+                </span>
+              </div>
+
+              <!-- chips -->
+              <div class="mt-5 space-y-3 text-sm">
                 <div v-if="categoryLinks.length">
-                  <div class="text-gray-500 mb-1">Categories</div>
+                  <div class="mb-1 text-gray-500">Categories</div>
                   <div class="flex flex-wrap gap-2">
                     <NuxtLink
                       v-for="c in categoryLinks"
                       :key="c.to"
                       :to="c.to"
-                      class="inline-flex items-center rounded-full border border-gray-200 px-3 py-1 bg-gray-50 hover:bg-gray-100"
+                      class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 hover:bg-white hover:shadow-sm transition"
                     >{{ c.label }}</NuxtLink>
                   </div>
                 </div>
-
                 <div v-if="manufacturerLinks.length">
-                  <div class="text-gray-500 mb-1">Manufacturers</div>
+                  <div class="mb-1 text-gray-500">Manufacturers</div>
                   <div class="flex flex-wrap gap-2">
                     <NuxtLink
                       v-for="m in manufacturerLinks"
                       :key="m.to"
                       :to="m.to"
-                      class="inline-flex items-center rounded-full border border-gray-200 px-3 py-1 bg-gray-50 hover:bg-gray-100"
+                      class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 hover:bg-white hover:shadow-sm transition"
                     >{{ m.label }}</NuxtLink>
                   </div>
                 </div>
-
                 <div v-if="brandLinks.length">
-                  <div class="text-gray-500 mb-1">Brands</div>
+                  <div class="mb-1 text-gray-500">Brands</div>
                   <div class="flex flex-wrap gap-2">
                     <NuxtLink
                       v-for="b in brandLinks"
                       :key="b.to"
                       :to="b.to"
-                      class="inline-flex items-center rounded-full border border-gray-200 px-3 py-1 bg-gray-50 hover:bg-gray-100"
+                      class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 hover:bg-white hover:shadow-sm transition"
                     >{{ b.label }}</NuxtLink>
                   </div>
                 </div>
               </div>
-            </header>
+            </div>
 
             <!-- Price card -->
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <div class="flex items-end gap-3">
-                <span class="text-4xl font-bold tracking-tight text-red-600">
+                <span class="text-[28px] md:text-4xl text-red-600 font-bold tracking-tight text-gray-900">
                   {{ formatMoney(displayPrice.current) }}
                 </span>
                 <span v-if="displayPrice.old" class="text-lg text-gray-500 line-through">
                   {{ formatMoney(displayPrice.old) }}
                 </span>
-                <span
-                  v-if="discountEndsIn"
-                  class="ms-auto inline-flex items-center rounded-full bg-red-50 text-red-700 text-xs font-medium px-2 py-1 border border-red-200"
-                >
-                  Ends in {{ discountEndsIn }}
-                </span>
+                  <span
+                    v-if="discountEndsIn"
+                    class="ms-auto inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs md:text-sm font-semibold shadow-sm ring-1"
+                    :class="isUrgent
+                      ? 'bg-rose-50 text-rose-700 ring-rose-200'
+                      : 'bg-emerald-50 text-emerald-700 ring-emerald-200'"
+                    :title="product?.discount_end ? new Date(product.discount_end).toLocaleString() : ''"
+                    aria-live="polite"
+                  >
+                    <!-- clock icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                        class="h-4 w-4 shrink-0" fill="currentColor" aria-hidden="true">
+                      <path d="M10 2a8 8 0 1 0 8 8A8.009 8.009 0 0 0 10 2Zm.75 4.5a.75.75 0 0 0-1.5 0v4c0 .2.079.39.22.53l2.5 2.5a.75.75 0 1 0 1.06-1.06l-2.28-2.28V6.5Z"/>
+                    </svg>
+
+                    <!-- label + time with tabular digits -->
+                    <span class="hidden sm:inline opacity-80">Ends in</span>
+                    <span class="font-mono [font-variant-numeric:tabular-nums] tracking-wider">
+                      {{ discountEndsIn }}
+                    </span>
+
+                    <!-- tiny pulse dot -->
+                    <span
+                      class="h-2 w-2 rounded-full"
+                      :class="isUrgent ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'"
+                      aria-hidden="true"
+                    />
+                  </span>
               </div>
 
               <!-- Quantity input -->
-              <div class="mt-5 flex items-center gap-3">
-                <div class="inline-flex items-center rounded-xl border border-gray-300 overflow-hidden">
-                  <button type="button" class="px-3 py-2 hover:bg-gray-50 disabled:opacity-40" :disabled="!canDecrement" @click="dec">−</button>
-                  <input class="w-16 text-center py-2 outline-none" type="number" :min="minQty" v-model.number="qty" />
-                  <button type="button" class="px-3 py-2 hover:bg-gray-50" @click="inc">+</button>
+              <div class="mt-5 flex flex-wrap items-center gap-3" data-nosnippet>
+                <div class="inline-flex items-stretch rounded-xl border border-gray-300 bg-white overflow-hidden">
+                  <button
+                    type="button"
+                    class="px-3 py-2 hover:bg-gray-50 focus:outline-none focus-visible:ring focus-visible:ring-orange-200 disabled:opacity-40"
+                    :disabled="!canDecrement"
+                    @click="dec"
+                    aria-label="Decrease quantity"
+                  >−</button>
+                  <input
+                    class="w-16 text-center py-2 outline-none focus-visible:ring-0"
+                    type="number"
+                    :min="minQty"
+                    v-model.number="qty"
+                    inputmode="numeric"
+                    aria-label="Quantity"
+                  />
+                  <button
+                    type="button"
+                    class="px-3 py-2 hover:bg-gray-50 focus:outline-none focus-visible:ring focus-visible:ring-orange-200"
+                    @click="inc"
+                    aria-label="Increase quantity"
+                  >+</button>
                 </div>
                 <span class="text-sm text-gray-500">Min: {{ minQty }}</span>
               </div>
@@ -530,32 +727,32 @@ useHead(() => {
                   v-if="product.table_price && product.table_price.length"
                   :rows="product.table_price"
                   :currency="currency.value"
-                  :title="t('Quantity Pricing')"
+                  :title="t('Quantity Pricing', 'Quantity Pricing')"
                 />
               </div>
 
               <!-- Actions -->
-              <div class="mt-5 flex flex-wrap items-center gap-3">
+              <div class="mt-5 flex flex-wrap items-center gap-3" data-nosnippet>
                 <button
                   type="button"
-                  class="px-6 py-3 rounded-xl bg-orange-500 text-white font-medium hover:bg-orange-600 transition shadow-sm disabled:opacity-60"
+                  class="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-6 py-3 font-medium text-white shadow-sm ring-1 ring-orange-500/10 hover:bg-orange-600 focus:outline-none focus-visible:ring-4 focus-visible:ring-orange-200 disabled:opacity-60"
                   :disabled="adding"
                   @click="onAddToCart"
                 >
-                  <span v-if="!adding">{{ t('Add to Cart') }}</span>
-                  <span v-else>{{ t('Adding...') }}</span>
+                  <span v-if="!adding">Add to Cart</span>
+                  <span v-else>Adding…</span>
                 </button>
 
                 <button
                   type="button"
-                  class="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition disabled:opacity-60"
+                  class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-6 py-3 font-medium text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-4 focus-visible:ring-gray-200 disabled:opacity-60"
                   :disabled="wishing"
                   @click="onToggleWishlist"
                 >
                   <span v-if="!wishing">
-                    {{ inWish ? t('Remove from Wishlist') : t('Add to Wishlist') }}
+                    {{ inWish ? 'Remove from Wishlist' : 'Add to Wishlist' }}
                   </span>
-                  <span v-else>{{ t('Saving...') }}</span>
+                  <span v-else>Saving…</span>
                 </button>
               </div>
             </div>
@@ -577,37 +774,49 @@ useHead(() => {
         title="Bundle Products"
         :items="product!.bundles!"
       />
-      
+
       <!-- Specifications -->
       <ProductAttributesTable
         v-if="product?.attributes?.length"
         :groups="product!.attributes!"
       />
-      <!-- Description -->
-      <section v-if="product.description" class="mt-6">
-        <div class="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
-          <div class="px-4 py-3 bg-gray-50 font-medium">Description</div>
-          <div class="p-5">
-            <div class="prose max-w-none" v-html="product.description"></div>
-          </div>
-        </div>
-      </section>
 
-      <!-- Reviews -->
-      <section v-if="product.reviews && product.reviews.length" class="mt-6">
-        <div class="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
-          <div class="px-4 py-3 bg-gray-50 font-medium">Reviews</div>
-          <div class="p-5 space-y-4">
-            <article v-for="rev in product.reviews" :key="rev.id" class="border border-gray-200 rounded-xl p-4">
-              <div class="flex items-center justify-between">
-                <h4 class="font-semibold">{{ rev.author_name || 'Anonymous' }}</h4>
-                <ProductRatingStars :value="rev.rating || 0" />
-              </div>
-              <p v-if="rev.content" class="mt-2 text-gray-700 whitespace-pre-line">{{ rev.content }}</p>
-              <p v-if="rev.created_at" class="mt-2 text-xs text-gray-500">
-                {{ new Date(rev.created_at).toLocaleDateString() }}
-              </p>
-            </article>
+      <!-- Tabs -->
+      <section class="mt-6">
+        <div class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <!-- Tabs header -->
+          <div class="flex flex-wrap gap-1 px-2 py-2 bg-gray-50/70">
+            <button
+              v-for="tItem in tabs"
+              :key="tItem.key"
+              type="button"
+              class="px-4 py-2 text-sm font-medium rounded-xl border transition focus:outline-none focus-visible:ring-4 focus-visible:ring-orange-200"
+              :class="activeTab === tItem.key
+                ? 'bg-white border-gray-300 text-gray-900 shadow-sm'
+                : 'bg-transparent border-transparent text-gray-600 hover:bg-white hover:border-gray-300'"
+              @click="setTab(tItem.key as any)"
+              :aria-pressed="activeTab === tItem.key"
+            >
+              {{ tItem.label }}
+            </button>
+          </div>
+
+          <!-- Panels -->
+          <div class="p-5">
+            <ProductTabDescription v-if="activeTab === 'desc'" :key="'desc'" :html="product.description || ''" />
+            <ProductTabReviews     v-else-if="activeTab === 'reviews'" :key="'reviews'" :reviews="product.reviews || []" />
+            <ProductTabFAQ         v-else-if="activeTab === 'faq'" :key="'faq'" :items="product.faq || []" />
+            <ProductTabVideos      v-else-if="activeTab === 'videos'" :key="'videos'" :videos="product.videos || []" />
+            <ProductTabContact
+              v-else
+              :key="'contact'"
+              :api-base-url="API_BASE_URL"
+              :product-id="product.id"
+              :product-slug="product.slug"
+              :sku="product.sku"
+              :whatsapp="`https://wa.me/971504429045?text=${encodeURIComponent('Hello, I want to inquire about the product with SKU: ' + (product.sku ?? ''))}`"
+              data-nosnippet
+            />
           </div>
         </div>
       </section>

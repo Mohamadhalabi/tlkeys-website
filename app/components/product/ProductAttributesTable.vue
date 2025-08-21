@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-
 type AttrItem  = { id: number | string; slug?: string; name?: string; label?: string; value: string }
 type AttrGroup = { id: number | string; slug?: string; name: string; items: AttrItem[] }
 
-const props = defineProps<{ groups: AttrGroup[] }>()
-
-/* Build flat rows, using each item's own label/name when available. */
+const props = defineProps<{ groups: AttrGroup[]; title?: string }>()
 const rows = computed(() => {
   const out: { label: string; value: string }[] = []
   for (const g of props.groups || []) {
@@ -20,61 +17,66 @@ const rows = computed(() => {
   }
   return out
 })
-
-/* Split evenly into two columns */
-const mid = computed(() => Math.ceil(rows.value.length / 2))
-const leftRows  = computed(() => rows.value.slice(0, mid.value))
-const rightRows = computed(() => rows.value.slice(mid.value))
+const hasRows  = computed(() => rows.value.length > 0)
+const heading  = computed(() => props.title ?? 'Specifications')
+const mid      = computed(() => Math.ceil(rows.value.length / 2))
+const leftRows = computed(() => rows.value.slice(0, mid.value))
+const rightRows= computed(() => rows.value.slice(mid.value))
 </script>
 
 <template>
-  <section class="mt-6">
-    <!-- Optional section header; remove if you don't want it -->
-    <h3 class="mb-3 text-base font-semibold text-gray-900">Specifications</h3>
+  <section v-if="hasRows" class="mt-6">
+    <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div class="border-b border-gray-200 bg-gray-50 px-4 py-3 font-medium">
+        {{ heading }}
+      </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 md:gap-6 gap-4">
-      <!-- Left table -->
-      <table
-        class="w-full table-fixed border border-gray-200 rounded-md overflow-hidden border-collapse text-[13px] leading-5"
-      >
-        <tbody>
-          <tr v-for="(r, i) in leftRows" :key="'l-' + i + r.label">
-            <th
-              class="w-1/2 px-3 py-2.5 text-left font-bold text-gray-900 bg-white
-                     border-r border-b border-gray-200 align-top"
-            >
-              {{ r.label }}
-            </th>
-            <td
-              class="w-1/2 px-3 py-2.5 text-gray-800 align-top border-b border-gray-200 bg-gray-50"
-            >
-              {{ r.value }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="p-5">
+        <!-- Mobile: single table -->
+        <div class="md:hidden">
+          <table class="m-auto w-full table-fixed border-collapse text-[13px] leading-5">
+            <tbody>
+              <tr v-for="(r, i) in rows" :key="'m-' + i + r.label" class="odd:bg-white even:bg-gray-50">
+                <th class="w-1/2 border border-gray-200 px-3 py-2.5 text-left font-semibold text-gray-900 align-top">
+                  {{ r.label }}
+                </th>
+                <td class="w-1/2 border border-gray-200 px-3 py-2.5 text-gray-800 align-top">
+                  {{ r.value }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      <!-- Right table -->
-      <table
-        v-if="rightRows.length"
-        class="w-full table-fixed border border-gray-200 rounded-md overflow-hidden border-collapse text-[13px] leading-5"
-      >
-        <tbody>
-          <tr v-for="(r, i) in rightRows" :key="'r-' + i + r.label">
-            <th
-              class="w-1/2 px-3 py-2.5 text-left font-bold text-gray-900 bg-white
-                     border-r border-b border-gray-200 align-top"
-            >
-              {{ r.label }}
-            </th>
-            <td
-              class="w-1/2 px-3 py-2.5 text-gray-800 align-top border-b border-gray-200 bg-gray-50"
-            >
-              {{ r.value }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+        <!-- md+: two balanced tables -->
+        <div class="hidden gap-6 md:grid md:grid-cols-2">
+          <table class="m-auto w-full table-fixed border-collapse text-[13px] leading-5">
+            <tbody>
+              <tr v-for="(r, i) in leftRows" :key="'l-' + i + r.label" class="odd:bg-white even:bg-gray-50">
+                <th class="w-1/2 border border-gray-200 bg-gray-100 px-3 py-2.5 text-left font-semibold text-gray-900 align-top">
+                  {{ r.label }}
+                </th>
+                <td class="w-1/2 border border-gray-200 px-3 py-2.5 text-gray-800 align-top">
+                  {{ r.value }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table v-if="rightRows.length" class="m-auto w-full table-fixed border-collapse text-[13px] leading-5">
+            <tbody>
+              <tr v-for="(r, i) in rightRows" :key="'r-' + i + r.label" class="odd:bg-white even:bg-gray-50">
+                <th class="w-1/2 border border-gray-200 bg-gray-100 px-3 py-2.5 text-left font-semibold text-gray-900 align-top">
+                  {{ r.label }}
+                </th>
+                <td class="w-1/2 border border-gray-200 px-3 py-2.5 text-gray-800 align-top">
+                  {{ r.value }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </section>
 </template>

@@ -4,7 +4,7 @@ import AlertContainer from '../app/components/common/AlertContainer.vue' // or t
 
 <template>
   <NuxtLayout>
-    <NuxtLoadingIndicator color="orange" height="7" />
+    <NuxtLoadingIndicator color="orange" height="10" />
     <NuxtPage />
     <AlertContainer />
   </NuxtLayout>

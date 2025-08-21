@@ -24,7 +24,6 @@ const cart = useCart()
 const auth = useAuth()
 const { formatMoney } = useCurrency()
 
-// Track toggled state per card (simple local flag when logged in)
 const addedLocal = ref<Set<string>>(new Set())
 
 function toNum(x: unknown) {
@@ -34,11 +33,7 @@ function toNum(x: unknown) {
 
 function isInCart(p: MiniProduct) {
   const id = String(p.id)
-  if (auth.token.value) {
-    // server cart state unknown; use local indicator after click
-    return addedLocal.value.has(id)
-  }
-  // guest cart is reliable
+  if (auth.token.value) return addedLocal.value.has(id)
   return !!cart.guestItems?.value?.some?.(i => String(i.product_id) === id)
 }
 
@@ -70,95 +65,98 @@ async function toggle(p: MiniProduct) {
 
 <template>
   <section class="mt-6">
-    <div class="flex items-center justify-between mb-3">
-      <h3 class="text-xl font-semibold text-gray-900">{{ title }}</h3>
-    </div>
+    <!-- Card wrapper to match Description section -->
+    <div class="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+      <div class="px-4 py-3 bg-gray-50 font-medium">
+        {{ title }}
+      </div>
 
-    <!-- Always one per row -->
-    <div class="grid grid-cols-1 gap-4">
-      <article
-        v-for="p in items"
-        :key="String(p.id)"
-        class="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm hover:shadow-md transition"
-      >
-        <!-- Mobile: stacked; Desktop: image | info | controls -->
-        <div class="flex flex-col md:flex-row md:items-center gap-4">
-          <!-- IMAGE with divider (border-b on mobile, border-r on desktop) -->
-          <div
-            class="pb-3 mb-3 border-b border-gray-200 md:pb-0 md:mb-0 md:border-b-0 md:pr-4 md:mr-2 md:border-r md:border-gray-200 md:flex md:items-center"
+      <div class="p-5">
+        <!-- One per row -->
+        <div class="grid grid-cols-1 gap-4">
+          <article
+            v-for="p in items"
+            :key="String(p.id)"
+            class="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm hover:shadow-md transition"
           >
-            <NuxtLink :to="p.slug ? `/products/${p.slug}` : '#'" class="block">
-              <NuxtImg
-                :src="p.image || '/images/placeholder.webp'"
-                class="h-25 w-25 object-contain rounded-lg bg-white mx-auto md:mx-0"
-                alt=""
-                loading="lazy"
-              />
-            </NuxtLink>
-          </div>
-
-          <!-- TEXT: title, sku, price -->
-          <div class="flex-1 min-w-0 md:pr-4">
-            <NuxtLink :to="p.slug ? `/products/${p.slug}` : '#'" class="block">
-              <h4 class="text-base md:text-lg font-bold text-gray-900 line-clamp-2 hover:underline">
-                {{ p.title }}
-              </h4>
-            </NuxtLink>
-
-            <div v-if="p.sku" class="mt-1 text-xs md:text-lg text-green-600 font-semibold">
-              SKU: {{ p.sku }}
-            </div>
-
-            <div class="mt-2 flex items-end gap-2">
-              <span class="text-red-600 text-xl font-semibold">{{ formatMoney(p.price ?? 0) }}</span>
-              <span
-                v-if="isDiscounted(p)"
-                class="text-xs text-gray-500 line-through"
+            <!-- Mobile: stacked; Desktop: image | info | controls -->
+            <div class="flex flex-col md:flex-row md:items-center gap-4">
+              <!-- IMAGE with divider (bottom on mobile, right on desktop) -->
+              <div
+                class="pb-3 mb-3 border-b border-gray-200 md:pb-0 md:mb-0 md:border-b-0 md:pr-4 md:mr-2 md:border-r md:border-gray-200 md:flex md:items-center"
               >
-                {{ formatMoney(p.regular_price || 0) }}
-              </span>
-            </div>
+                <NuxtLink :to="p.slug ? `/products/${p.slug}` : '#'" class="block">
+                  <NuxtImg
+                    :src="p.image || '/images/placeholder.webp'"
+                    class="object-contain rounded-lg bg-white mx-auto md:mx-0"
+                    width="125"
+                    alt=""
+                    loading="lazy"
+                  />
+                </NuxtLink>
+              </div>
 
-            <!-- MOBILE controls (inline under text) -->
-            <div class="mt-3 flex items-center gap-2 md:hidden">
-              <button
-                type="button"
-                :aria-pressed="isInCart(p)"
-                class="relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-200 focus:outline-none"
-                :class="isInCart(p) ? 'bg-green-500' : 'bg-gray-300'"
-                @click="toggle(p)"
-              >
-                <span
-                  class="absolute left-1 top-1 h-6 w-6 rounded-full bg-white transition-transform duration-200 shadow"
-                  :class="isInCart(p) ? 'translate-x-6' : 'translate-x-0'"
-                />
-              </button>
-              <span class="text-sm font-medium" :class="isInCart(p) ? 'text-green-700' : 'text-gray-600'">
-                {{ isInCart(p) ? 'Added' : 'Add to Cart' }}
-              </span>
-            </div>
-          </div>
+              <!-- TEXT: title, sku, price -->
+              <div class="flex-1 min-w-0 md:pr-4">
+                <NuxtLink :to="p.slug ? `/products/${p.slug}` : '#'" class="block">
+                  <h4 class="text-base md:text-lg font-bold text-gray-900 line-clamp-2 hover:underline">
+                    {{ p.title }}
+                  </h4>
+                </NuxtLink>
 
-          <!-- DESKTOP controls pinned on the right -->
-          <div class="hidden md:flex md:flex-col md:items-end gap-2">
-            <button
-              type="button"
-              :aria-pressed="isInCart(p)"
-              class="relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-200 focus:outline-none"
-              :class="isInCart(p) ? 'bg-green-500' : 'bg-gray-300'"
-              @click="toggle(p)"
-            >
-              <span
-                class="absolute left-1 top-1 h-6 w-6 rounded-full bg-white transition-transform duration-200 shadow"
-                :class="isInCart(p) ? 'translate-x-6' : 'translate-x-0'"
-              />
-            </button>
-            <span class="text-xs font-medium" :class="isInCart(p) ? 'text-green-700' : 'text-gray-600'">
-              {{ isInCart(p) ? 'Added' : 'Add to Cart' }}
-            </span>
-          </div>
+                <div v-if="p.sku" class="mt-1 text-xs md:text-lg text-green-600 font-semibold">
+                  SKU: {{ p.sku }}
+                </div>
+
+                <div class="mt-2 flex items-end gap-2">
+                  <span class="text-red-600 text-xl font-semibold">{{ formatMoney(p.price ?? 0) }}</span>
+                  <span v-if="isDiscounted(p)" class="text-xs text-gray-500 line-through">
+                    {{ formatMoney(p.regular_price || 0) }}
+                  </span>
+                </div>
+
+                <!-- MOBILE controls (inline under text) -->
+                <div class="mt-3 flex items-center gap-2 md:hidden">
+                  <button
+                    type="button"
+                    :aria-pressed="isInCart(p)"
+                    class="relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-200 focus:outline-none"
+                    :class="isInCart(p) ? 'bg-green-500' : 'bg-gray-300'"
+                    @click="toggle(p)"
+                  >
+                    <span
+                      class="absolute left-1 top-1 h-6 w-6 rounded-full bg-white transition-transform duration-200 shadow"
+                      :class="isInCart(p) ? 'translate-x-6' : 'translate-x-0'"
+                    />
+                  </button>
+                  <span class="text-sm font-medium" :class="isInCart(p) ? 'text-green-700' : 'text-gray-600'">
+                    {{ isInCart(p) ? 'Added' : 'Add to Cart' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- DESKTOP controls pinned on the right -->
+              <div class="hidden md:flex md:flex-col md:items-end gap-2">
+                <button
+                  type="button"
+                  :aria-pressed="isInCart(p)"
+                  class="relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-200 focus:outline-none"
+                  :class="isInCart(p) ? 'bg-green-500' : 'bg-gray-300'"
+                  @click="toggle(p)"
+                >
+                  <span
+                    class="absolute left-1 top-1 h-6 w-6 rounded-full bg-white transition-transform duration-200 shadow"
+                    :class="isInCart(p) ? 'translate-x-6' : 'translate-x-0'"
+                  />
+                </button>
+                <span class="text-xs font-medium" :class="isInCart(p) ? 'text-green-700' : 'text-gray-600'">
+                  {{ isInCart(p) ? 'Added' : 'Add to Cart' }}
+                </span>
+              </div>
+            </div>
+          </article>
         </div>
-      </article>
+      </div>
     </div>
   </section>
 </template>
