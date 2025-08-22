@@ -2,7 +2,17 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 type Img = { src: string; alt?: string; id?: number; w?: number; h?: number }
 
-const props = defineProps<{ images: Img[]; maxWidth?: number; maxHeight?: number }>()
+const props = defineProps<{
+  images: Img[]
+  maxWidth?: number
+  maxHeight?: number
+  /** ISO string; if provided we show the countdown overlay */
+  discountEndsAt?: string | null
+  /** numeric amount to animate, e.g. 20 => "20.00$ OFF" */
+  discountAmount?: number | null
+}>()
+
+/* -------- main gallery state -------- */
 const activeIndex = ref(0)
 const activeImage = computed(() => props.images?.[activeIndex.value])
 
@@ -14,6 +24,7 @@ const thumbsStyle = computed(() => ({ maxWidth: `${viewW.value}px` }))
 function nextImage() { if (!props.images?.length) return; activeIndex.value = (activeIndex.value + 1) % props.images.length }
 function prevImage() { if (!props.images?.length) return; activeIndex.value = (activeIndex.value - 1 + props.images.length) % props.images.length }
 
+/* -------- lightbox -------- */
 const lightbox = ref(false)
 function openLightbox() { if (props.images?.length) lightbox.value = true }
 function closeLightbox() { lightbox.value = false }
@@ -46,7 +57,7 @@ function onTouchEnd(e: TouchEvent) {
   if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) dx < 0 ? nextImage() : prevImage()
 }
 
-/* thumbs */
+/* -------- thumbs -------- */
 const thumbWrapRef = ref<HTMLDivElement | null>(null)
 const thumbRefs = ref<HTMLElement[]>([])
 const canThumbPrev = ref(false)
@@ -77,12 +88,74 @@ onUnmounted(() => {
 
 watch(activeIndex, (idx) => { const el = thumbRefs.value[idx]; el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }) })
 watch(() => props.images, () => { activeIndex.value = 0; requestAnimationFrame(updateThumbNav) })
+
+/* -------- discount overlay logic -------- */
+const cardEl = ref<HTMLElement | null>(null)
+
+/* countdown */
+const endTs = computed<number | null>(() => {
+  const d = props.discountEndsAt
+  const t = d ? Date.parse(d) : NaN
+  return Number.isFinite(t) ? t : null
+})
+const now = ref(Date.now())
+let timer: number | undefined
+onMounted(() => { timer = window.setInterval(() => { now.value = Date.now() }, 1000) })
+onUnmounted(() => { if (timer) window.clearInterval(timer) })
+
+const remainingMs = computed(() => endTs.value ? Math.max(0, endTs.value - now.value) : 0)
+const hasTimer = computed(() => !!endTs.value && remainingMs.value > 0)
+function fmtParts(ms: number) {
+  const s = Math.floor(ms / 1000)
+  const days = Math.floor(s / 86400)
+  const hrs = Math.floor((s % 86400) / 3600)
+  const mins = Math.floor((s % 3600) / 60)
+  const secs = s % 60
+  return { days, hrs, mins, secs }
+}
+const countdownTop = computed(() => 'DISCOUNT ENDS IN')
+const countdownBottom = computed(() => {
+  const { days, hrs, mins, secs } = fmtParts(remainingMs.value)
+  const hms = `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`
+  return days > 0 ? `${days} DAYS, ${hms}` : hms
+})
+
+/* animated "$ OFF" pill */
+const offAnim = ref(0)
+let rafId: number | null = null
+function animateOff(to: number, duration = 900) {
+  const from = offAnim.value
+  const start = performance.now()
+  if (rafId) cancelAnimationFrame(rafId)
+  const tick = (t: number) => {
+    const p = Math.min(1, (t - start) / duration)
+    const eased = 1 - Math.pow(1 - p, 3) // easeOutCubic
+    offAnim.value = from + (to - from) * eased
+    if (p < 1) rafId = requestAnimationFrame(tick)
+  }
+  rafId = requestAnimationFrame(tick)
+}
+let visIO: IntersectionObserver | null = null
+onMounted(() => {
+  visIO = new IntersectionObserver(([entry]) => {
+    const target = Number(props.discountAmount || 0)
+    if (entry?.isIntersecting) animateOff(target)
+  }, { threshold: 0.35 })
+  if (cardEl.value) visIO.observe(cardEl.value)
+})
+onUnmounted(() => {
+  if (rafId) cancelAnimationFrame(rafId)
+  if (visIO && cardEl.value) visIO.unobserve(cardEl.value)
+})
+watch(() => props.discountAmount, (v) => animateOff(Number(v || 0)))
+const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
 </script>
 
 <template>
   <div class="space-y-4">
     <!-- Main image -->
     <div
+      ref="cardEl"
       class="group relative mx-auto cursor-zoom-in overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
       :style="boxStyle"
       @click="openLightbox"
@@ -95,6 +168,31 @@ watch(() => props.images, () => { activeIndex.value = 0; requestAnimationFrame(u
         loading="eager"
         draggable="false"
       />
+
+      <!-- top-left badges (animated OFF pill) -->
+      <div class="absolute left-3 top-3 flex flex-col gap-1">
+        <span
+          v-if="hasOffPill"
+          class="inline-flex items-center rounded-full bg-red-600 text-white ring-1 ring-white/70
+                 px-2.5 py-1 text-[10px] font-extrabold tracking-wide shadow-sm"
+        >
+          {{ offAnim.toFixed(2) }}$ OFF
+        </span>
+      </div>
+
+      <!-- bottom overlay like list card -->
+      <div
+        v-if="hasTimer"
+        class="absolute inset-x-0 bottom-0 px-3 py-2 sm:py-3 text-white text-center
+               bg-gradient-to-t from-slate-900/80 to-slate-900/10 backdrop-blur-[1px]"
+      >
+        <div class="text-[11px] sm:text-xs font-semibold tracking-wide opacity-95">
+          {{ countdownTop }}
+        </div>
+        <div class="text-[12px] sm:text-sm font-extrabold tracking-wide">
+          {{ countdownBottom }}
+        </div>
+      </div>
 
       <!-- arrows -->
       <button

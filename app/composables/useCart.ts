@@ -23,6 +23,8 @@ type CartItem = {
   discount_value?: number | null
   table_price?: PriceTableRow[] | null
   priceSnapshot?: number | null
+  /** NEW: available stock passed from caller (e.g., product.quantity) */
+  stock?: number | null
 }
 
 function toNum(x: unknown): number | undefined {
@@ -78,6 +80,8 @@ export function useCart() {
       discount_value: typeof meta?.discount_value === 'number' ? meta?.discount_value : (toNum(meta?.discount_value) ?? null),
       table_price: Array.isArray(meta?.table_price) ? meta?.table_price as PriceTableRow[] : (meta?.table_price ?? null),
       priceSnapshot: typeof meta?.priceSnapshot === 'number' ? meta?.priceSnapshot : (toNum(meta?.priceSnapshot) ?? null),
+      // NEW: persist stock (if provided)
+      stock: typeof meta?.stock === 'number' ? meta.stock : (toNum(meta?.stock) ?? null),
     }
 
     if (idx >= 0) {
@@ -133,10 +137,22 @@ export function useCart() {
     } else {
       addToGuest(product_id, quantity, meta)
     }
+
+    // Derive stock from meta to decide whether to append the red line
+    const stock =
+      typeof meta?.stock === 'number' ? meta.stock
+      : (toNum((meta as any)?.available_quantity) ?? toNum((meta as any)?.quantity))
+
+    const shortage =
+      typeof stock === 'number' && stock >= 0 && quantity > stock
+        ? `<br><span class="text-red-600">*The ordered quantity is currently not available, but we will try to get it to you.</span>`
+        : ''
+
+    // Single success alert (message may contain red shortage note)
     alerts.showAlert({
       type: 'success',
       title: meta?.title || 'Added to Cart',
-      message: 'The item has been added to your cart.',
+      message: `The item has been added to your cart.${shortage}`,
       image: meta?.image,
       sku: meta?.sku,
       actions: [{ label: 'View Cart', route: '/cart' }]
@@ -156,7 +172,7 @@ export function useCart() {
     }
   }
 
-  /** NEW: clear() for both guest & authed usage */
+  /** clear() for both guest & authed usage */
   async function clear() {
     if (isAuthed.value) {
       await clearServer()

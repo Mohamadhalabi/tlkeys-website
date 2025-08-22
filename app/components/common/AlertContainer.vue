@@ -70,9 +70,12 @@ function go(a: { route?: string; onClick?: () => void } | undefined) {
 
               <p v-if="a.title" class="mt-1 font-medium truncate text-sm sm:text-base">{{ a.title }}</p>
               <p v-if="a.sku" class="text-xs text-gray-500">SKU: {{ a.sku }}</p>
-              <p v-if="a.message" class="mt-1 text-[13px] sm:text-sm text-gray-700">
-                {{ a.message }}
-              </p>
+              <p
+                v-if="a.message"
+                class="mt-1 text-[13px] sm:text-sm text-gray-700"
+                v-html="a.message"
+              ></p>
+
 
               <div v-if="a.actions?.length" class="mt-2 flex flex-wrap gap-2">
                 <button

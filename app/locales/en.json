@@ -14,5 +14,9 @@
   "keyCuttingMachines": "Key cutting machines...",
   "logIn": "Log in",
   "wishlist": "Wishlist",
-  "cart": "Cart"
+  "cart": "Cart",
+  "softwareTokens" : "Software & Tokens",
+  "devicesMachines" : "Devices & Machines",
+  "downloads" : "Downloads",
+  "pinCodes" : "Pin Codes"
 }

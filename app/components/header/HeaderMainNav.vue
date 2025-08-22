@@ -1,7 +1,13 @@
 <template>
-  <nav class="header-main-nav bg-gray-900 text-white" v-cloak>
+  <!-- sticky + dynamic shadow on scroll -->
+  <nav
+    ref="mainNavRef"
+    class="header-main-nav sticky top-0 z-50 bg-gray-900/95 text-white backdrop-blur supports-[backdrop-filter]:bg-gray-900/80"
+    :class="scrolled ? 'shadow-lg ring-1 ring-black/10' : ''"
+    v-cloak
+  >
     <div class="container mx-auto relative" ref="containerRef">
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 justify-center">
         <!-- Cars -->
         <button
           type="button"
@@ -85,6 +91,24 @@
             <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
           </svg>
         </button>
+
+        <NuxtLink
+          to="/downloads"
+          class="px-4 py-3 hover:bg-gray-800 flex items-center gap-2"
+          :class="linkClass('/downloads')"
+          :aria-current="isActive('/downloads') ? 'page' : undefined"
+        >
+          {{ $t('downloads') || 'Downloads' }}
+        </NuxtLink>
+
+        <NuxtLink
+          to="/pin-code"
+          class="px-4 py-3 hover:bg-gray-800 flex items-center gap-2"
+          :class="linkClass('/pin-code')"
+          :aria-current="isActive('/pin-code') ? 'page' : undefined"
+        >
+          {{ $t('pinCodes') || 'Pin Codes' }}
+        </NuxtLink>
       </div>
 
       <!-- Cars dropdown -->
@@ -275,9 +299,23 @@
 
 <script setup>
 import { onMounted, onBeforeUnmount, ref, computed } from 'vue'
+
 const { public: { API_BASE_URL } } = useRuntimeConfig()
 const { t } = useI18n()
 const router = useRouter()
+const route = useRoute()
+
+/* ---------- sticky + scroll shadow ---------- */
+const scrolled = ref(false)
+let handleScroll = null
+
+/* ---------- expose main-nav height for a second sticky bar ---------- */
+const mainNavRef = ref(null)
+let ro = null
+const setMainNavHeightVar = () => {
+  const h = mainNavRef.value?.offsetHeight ?? 56
+  document.documentElement.style.setProperty('--main-nav-h', `${h}px`)
+}
 
 /* ---------- open states ---------- */
 const openCars = ref(false)
@@ -486,17 +524,37 @@ function onEsc(e) { if (e.key === 'Escape') closeAll() }
 onMounted(() => {
   document.addEventListener('click', onDocClick)
   document.addEventListener('keydown', onEsc)
+  // sticky shadow
+  handleScroll = () => { scrolled.value = window.scrollY > 8 }
+  window.addEventListener('scroll', handleScroll, { passive: true })
+  handleScroll()
+
+  // expose height for the secondary sticky bar
+  setMainNavHeightVar()
+  ro = new ResizeObserver(setMainNavHeightVar)
+  if (mainNavRef.value) ro.observe(mainNavRef.value)
+  window.addEventListener('resize', setMainNavHeightVar)
 })
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocClick)
   document.removeEventListener('keydown', onEsc)
+  if (handleScroll) window.removeEventListener('scroll', handleScroll)
+  ro?.disconnect()
+  window.removeEventListener('resize', setMainNavHeightVar)
 })
 
-// <script setup>
+// Button style when opened
 const btnClass = (isOpen) =>
   isOpen
     ? 'bg-orange-500 text-white hover:bg-orange-500 focus:bg-orange-500'
-    : 'text-white hover:bg-gray-800';
+    : 'text-white'
+
+// Link style & active state for plain links
+const isActive = (path) => route.path.startsWith(path)
+const linkClass = (path) =>
+  isActive(path)
+    ? 'bg-orange-500 text-white hover:bg-orange-500 focus:bg-orange-500'
+    : 'text-white'
 </script>
 
 <style scoped>

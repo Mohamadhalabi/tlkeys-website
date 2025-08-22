@@ -14,6 +14,7 @@ type P = {
   // optional but supported by ProductCard
   sku?: string | null
   category?: string | null
+  categorySlug?: string | null
 }
 
 const props = withDefaults(defineProps<{
@@ -50,7 +51,7 @@ const gridColsClass = computed(() => {
     case 3:
       return 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3'
     case 4:
-      return 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4'
+      return 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
     case 5:
       return 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-5'
     default: // 6
@@ -84,10 +85,8 @@ const visible = computed(() => (props.products || []).slice(0, limit.value))
       <!-- grid -->
       <div class="px-3 sm:px-4">
         <div
-          :class="[
-            'grid gap-3 sm:gap-4 md:gap-5 place-items-stretch',
-            gridColsClass
-          ]"
+          class="grid gap-3 sm:gap-4 md:gap-5 place-items-stretch custom-grid"
+          :class="gridColsClass"
         >
           <div v-for="product in visible" :key="product.id" class="h-full">
             <ProductCard
@@ -106,6 +105,13 @@ const visible = computed(() => (props.products || []).slice(0, limit.value))
 </template>
 
 <style scoped>
+/* Force 1 column on very small screens (<350px) */
+@media (max-width: 349px) {
+  .custom-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+}
+
 :deep(.pc-footer),
 :deep(.card-footer),
 :deep(.product-actions) {
