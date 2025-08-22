@@ -95,7 +95,7 @@ export default defineNuxtConfig({
     quality: 100,
     domains: [
       // allow your asset/CDN domains here
-      'dev-srv.tlkeys.com',
+      'https://www.dev-srv.tlkeys.com',
     ]
   },
 
