@@ -27,9 +27,9 @@ const localeProperties = i18nApi?.localeProperties ?? computed(() => ({ dir: 'lt
 
 /* ---------- helpers ---------- */
 const SHOP_PATH = '/shop'
-const managedKeys = ['brands','categories','manufacturers','models','q','sort','page','per_page'] as const
+const managedKeys = ['brands','categories','manufacturers','models','q','search','sort','page','per_page'] as const
 
-// NEW: flags we forward to the API if present in the URL
+// flags we forward to the API if present in the URL
 const flagKeys = ['offers','promotion','free-shipping','bundled','new-arrival'] as const
 
 // stable key that changes whenever path or query changes
@@ -62,17 +62,21 @@ function scrollTop(smooth = true) {
 }
 
 /** merge URL query with initialFilters (for first load & SSR) */
+/** merge URL query with initialFilters (for first load & SSR) */
 const mergedFilters = computed(() => {
-  const q = route.query
+  const qy = route.query
   return {
-    brands:        q.brands ? parseCsv(q.brands) : (props.initialFilters?.brands ?? []),
-    categories:    q.categories ? parseCsv(q.categories) : (props.initialFilters?.categories ?? []),
-    manufacturers: q.manufacturers ? parseCsv(q.manufacturers) : (props.initialFilters?.manufacturers ?? []),
-    models:        q.models ? parseCsv(q.models) : (props.initialFilters?.models ?? []),
-    q:    (q.q as string) || '',
-    sort: (q.sort as string) || 'newest',
-    page: Number(q.page || 1),
-    perPage: parsePerPage(q.per_page || q.page_size)
+    brands:        qy.brands ? parseCsv(qy.brands) : (props.initialFilters?.brands ?? []),
+    categories:    qy.categories ? parseCsv(qy.categories) : (props.initialFilters?.categories ?? []),
+    manufacturers: qy.manufacturers ? parseCsv(qy.manufacturers) : (props.initialFilters?.manufacturers ?? []),
+    models:        qy.models ? parseCsv(qy.models) : (props.initialFilters?.models ?? []),
+
+    // 👇 read q OR search (alias coming from the header)
+    q:    (qy.q as string) || (qy.search as string) || '',
+
+    sort: (qy.sort as string) || 'newest',
+    page: Number(qy.page || 1),
+    perPage: parsePerPage(qy.per_page || qy.page_size)
   }
 })
 
@@ -128,7 +132,10 @@ function buildQueryFromSel() {
   if (sel.categories.length)     q.categories     = sel.categories.join(',')
   if (sel.manufacturers.length)  q.manufacturers  = sel.manufacturers.join(',')
   if (sel.models.length)         q.models         = sel.models.join(',')
-  if (sel.q)                     q.q              = sel.q
+
+  // 👇 use 'search' so /shop?search=... remains canonical
+  if (sel.q)                     q.search         = sel.q
+
   if (sel.sort)                  q.sort           = sel.sort
   if (sel.page > 1)              q.page           = String(sel.page)
   q.per_page = sel.perPage === 'all' ? 'all' : String(sel.perPage || 32)
@@ -302,6 +309,9 @@ async function fetchOnce() {
       page: sel.page,
       per_page: effectivePerPage
     })
+
+    ;(params as any).search = sel.q
+    delete (params as any).q
 
     // Forward flags from the current URL to the API
     flagKeys.forEach((k) => {

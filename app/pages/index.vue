@@ -49,10 +49,17 @@ const categories = [
   { title: 'Xhorse Remotes',  href: '/xhorse-remotes', image: '/images/home/categories/xhorse-remote.webp' },
   { title: 'Keydiy Remotes',  href: '/keydiy-remotes', image: '/images/home/categories/keydiy-kd-remote.webp' },
   { title: 'Remote PCB',      href: '/remote-pcb',     image: '/images/home/categories/pcb-remote.webp' },
-  { title: 'Car Remotes',     href: '/car-remotes',    image: '/images/home/categories/car-remotes.webp' },
-  { title: 'Xhorse Remotes',  href: '/xhorse-remotes', image: '/images/home/categories/xhorse-remote.webp' },
-  { title: 'Keydiy Remotes',  href: '/keydiy-remotes', image: '/images/home/categories/keydiy-kd-remote.webp' },
-  { title: 'Remote PCB',      href: '/remote-pcb',     image: '/images/home/categories/pcb-remote.webp' },
+
+  { title: 'Key Programming Devices',     href: '/key-programming-diagnostics-tools',    image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/devices%20and%20machine.jpg' },
+  { title: 'Key Cutting Machines',  href: '/key-cutting-machine', image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/key%20cutting%20machines.jpg' },
+  { title: 'Cables',  href: '/cables', image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/cables%202.jpg' },
+  { title: 'Adapter',      href: '/adapter',     image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/adapers.jpg' },
+
+  { title: 'Cutter',     href: '/cutter',    image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/1698760907-Cutter.jpg' },
+  { title: 'Emulators',  href: '/emulators', image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/emulators.jpg' },
+  { title: 'Opening Tools',  href: '/opening-tools', image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/opening%20tools.jpg' },
+  { title: 'Immobilizer Smart Box',      href: '/immobilizer-smart-box',     image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/immobilizer-smart-box.jpg' },
+
 ]
 const catRows = computed(() => Math.ceil((categories?.length || 0) / 5))
 
