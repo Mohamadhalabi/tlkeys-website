@@ -529,7 +529,7 @@ function filteredItems(items: FacetTList, key: K) {
 }
 
 /* ---------- ProductGrid config ---------- */
-const PRODUCTS_PER_ROW: 3 | 4 | 5 | 6 = 4;
+const PRODUCTS_PER_ROW: 3 | 4 | 5 | 6 = 5;
 const rowsForGrid = computed(() =>
   Math.max(1, Math.ceil(items.value.length / PRODUCTS_PER_ROW))
 );
@@ -796,7 +796,7 @@ function clearMobileGroup() {
           :title="t('products')"
           :products="items"
           :rows="rowsForGrid"
-          :products-per-row="PRODUCTS_PER_ROW"
+          :productsPerRow="PRODUCTS_PER_ROW"
           :show-rewards="true"
           :show-add="true"
           :show-qty="true"

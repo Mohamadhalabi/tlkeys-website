@@ -103,7 +103,7 @@
 
         <NuxtLink
           to="/pin-code"
-          class="px-4 py-3 hover:bg-gray-800 flex items-center gap-2"
+          class="px-4 py-3 bg-red-500 hover:bg-gray-800 flex items-center gap-2"
           :class="linkClass('/pin-code')"
           :aria-current="isActive('/pin-code') ? 'page' : undefined"
         >

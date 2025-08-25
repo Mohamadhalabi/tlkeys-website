@@ -2,6 +2,7 @@
 import ProSlider from '~/components/ProSlider.vue'
 import CategoriesGrid from '~/components/home/CategoriesGrid.vue'
 import ProductCarousel from '~/components/products/ProductCarousel.vue'
+import { onMounted, ref, computed, watch } from 'vue'
 
 type SliderItem = { image: string; link?: string; title?: string; alt?: string; type?: string }
 
@@ -10,7 +11,7 @@ const imgSizes = '(min-width: 1280px) 1280px, (min-width: 1024px) 1024px, 100vw'
 
 const { public: { API_BASE_URL } } = useRuntimeConfig()
 const { $customApi } = useNuxtApp()
-const { locale } = useI18n()
+const { locale } = useI18n?.() as any || { locale: ref('en') }
 
 /* ---------------- Slider ---------------- */
 const sanitize = (arr: any[]): SliderItem[] =>
@@ -22,7 +23,6 @@ const sanitize = (arr: any[]): SliderItem[] =>
     type: x.type ? String(x.type) : undefined,
   })).filter(x => !!x.image)
 
-// ALWAYS return an array (never undefined) so SSR won’t crash
 const { data: slidersRaw, error: slidersErrObj, refresh: refreshSliders } = await useAsyncData<unknown>(
   () => `home:sliders:${locale.value}`,
   async () => {
@@ -38,10 +38,10 @@ const itemsForSlider = computed<SliderItem[]>(() =>
 )
 
 const slidersError = computed(() =>
-  (slidersErrObj.value as any)?.data?.message || slidersErrObj.value?.message || ''
+  (slidersErrObj.value as any)?.data?.message || (slidersErrObj.value as any)?.message || ''
 )
 
-if (process.client) watch(() => locale.value, () => refreshSliders())
+if (process.client && typeof watch === 'function') watch(() => locale.value, () => refreshSliders?.())
 
 /* ---------------- Categories (sample) ---------------- */
 const categories = [
@@ -50,39 +50,34 @@ const categories = [
   { title: 'Keydiy Remotes',  href: '/keydiy-remotes', image: '/images/home/categories/keydiy-kd-remote.webp' },
   { title: 'Remote PCB',      href: '/remote-pcb',     image: '/images/home/categories/pcb-remote.webp' },
 
-  { title: 'Key Programming Devices',     href: '/key-programming-diagnostics-tools',    image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/devices%20and%20machine.jpg' },
-  { title: 'Key Cutting Machines',  href: '/key-cutting-machine', image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/key%20cutting%20machines.jpg' },
-  { title: 'Cables',  href: '/cables', image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/cables%202.jpg' },
-  { title: 'Adapter',      href: '/adapter',     image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/adapers.jpg' },
+  { title: 'Key Programming Devices', href: '/key-programming-diagnostics-tools', image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/devices%20and%20machine.jpg' },
+  { title: 'Key Cutting Machines',    href: '/key-cutting-machine',               image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/key%20cutting%20machines.jpg' },
+  { title: 'Cables',                   href: '/cables',                            image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/cables%202.jpg' },
+  { title: 'Adapter',                  href: '/adapter',                           image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/adapers.jpg' },
 
-  { title: 'Cutter',     href: '/cutter',    image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/1698760907-Cutter.jpg' },
-  { title: 'Emulators',  href: '/emulators', image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/emulators.jpg' },
-  { title: 'Opening Tools',  href: '/opening-tools', image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/opening%20tools.jpg' },
-  { title: 'Immobilizer Smart Box',      href: '/immobilizer-smart-box',     image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/immobilizer-smart-box.jpg' },
-
+  { title: 'Cutter',                   href: '/cutter',                            image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/1698760907-Cutter.jpg' },
+  { title: 'Emulators',                href: '/emulators',                         image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/emulators.jpg' },
+  { title: 'Opening Tools',            href: '/opening-tools',                     image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/opening%20tools.jpg' },
+  { title: 'Immobilizer Smart Box',    href: '/immobilizer-smart-box',             image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/immobilizer-smart-box.jpg' },
 ]
 const catRows = computed(() => Math.ceil((categories?.length || 0) / 5))
 
-/* -------- helpers for product sections (unchanged logic) -------- */
+/* -------- helpers for product sections -------- */
 function unwrapApi(res: any) {
-  // Prefer object bodies; don't switch to array if that would drop meta
-  const body = (res && typeof res === 'object' && 'data' in res && !Array.isArray(res.data))
-    ? res.data
+  const body = (res && typeof res === 'object' && 'data' in res && !Array.isArray((res as any).data))
+    ? (res as any).data
     : res
 
-  // Items can be body.data (array) or body itself (array)
   const items = Array.isArray(body?.data) ? body.data
               : Array.isArray(body)       ? body
               : []
 
-  // Try meta on body first, then fall back to top-level (res.meta)
-  const meta = (body && body.meta) ?? (res && res.meta) ?? null
+  const meta = (body && body.meta) ?? (res && (res as any).meta) ?? null
 
-  // extra debug
   if (process.client) {
     console.log('[UNWRAP]', {
       gotArray: Array.isArray(items), len: items.length,
-      metaFrom: body?.meta ? 'body.meta' : (res?.meta ? 'res.meta' : 'none'),
+      metaFrom: body?.meta ? 'body.meta' : ((res as any)?.meta ? 'res.meta' : 'none'),
       meta
     })
   }
@@ -109,7 +104,7 @@ function mapApiProduct(p: any) {
     oldPrice: hasSale ? p.price : null,
     sku: p.sku ?? '',
     category: categoryName,
-    categorySlug, // ✅ now passed to ProductCard
+    categorySlug,
     slug: p.slug,
     href: p.slug ? `/products/${p.slug}` : `/products/${p.id}`,
   }
@@ -123,6 +118,7 @@ function lastFromMeta(meta: any) {
   const calc  = Math.ceil(total / size)
   return calc > 0 ? calc : 1
 }
+
 function useLazySection(cb: () => void) {
   const el = ref<HTMLElement | null>(null)
   onMounted(() => {
@@ -141,11 +137,14 @@ const featuredMeta    = ref<any | null>(null)
 const featuredPage    = ref(1)
 const featuredLastRef = ref(1)
 
-async function fetchFeatured(page = 1, rows = 2, perRow = 5) {
+async function fetchFeatured(page = 1, rows = 2, perRow = 6) {
   const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
     method: 'GET',
     params: { page, rows, per_row: perRow }
   })
+
+  console.log("TEST");
+  console.log(res);
   const { items, meta } = unwrapApi(res)
   featured.value         = items.map(mapApiProduct)
   featuredMeta.value     = meta
@@ -161,7 +160,7 @@ const newMeta     = ref<any | null>(null)
 const newPage     = ref(1)
 const newLastRef  = ref(1)
 
-async function fetchNew(page = 1, rows = 1, perRow = 5) {
+async function fetchNew(page = 1, rows = 1, perRow = 6) {
   const res = await $customApi(`${API_BASE_URL}/homepage-products/new-arrivals`, {
     method: 'GET',
     params: { page, rows, per_row: perRow, currency: 'USD' }
@@ -175,15 +174,44 @@ async function fetchNew(page = 1, rows = 1, perRow = 5) {
 }
 const { el: newEl } = useLazySection(() => fetchNew(1))
 
+/* -------- XHORSE REMOTES (category_id: 29) -------- */
+const XHORSE_LEFT_IMAGE = '/images/home/sections/xhorse-remotes-left.webp'
+
+const xhorse         = ref<any[]>([])
+const xhorseMeta     = ref<any | null>(null)
+const xhorsePage     = ref(1)
+const xhorseLastRef  = ref(1)
+
+/** Use perRow = 4 to match the lg layout (4 cards visible) */
+async function fetchXhorse(page = 1, rows = 1, perRow = 4) {
+  const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
+    method: 'GET',
+    params: {
+      page,
+      rows,
+      per_row: perRow,     // 👈 controls page size
+      category_id: 29,
+      only_featured: 0, // 👈 include all in cat 29 (not only featured)
+      currency: 'USD',
+    }
+  })
+  const { items, meta } = unwrapApi(res)
+  xhorse.value        = items.map(mapApiProduct)
+  xhorseMeta.value    = meta
+  xhorsePage.value    = Number(meta?.current_page || page || 1)
+  xhorseLastRef.value = lastFromMeta(meta)
+  console.log('[XHORSE] page=', xhorsePage.value, 'last=', xhorseLastRef.value, 'meta=', meta)
+}
+const { el: xhorseEl } = useLazySection(() => fetchXhorse(1, 1, 4))
+
 /* expose debug */
 if (process.client) (window as any).__home = {
   slidersRaw, itemsForSlider, slidersError,
-  featuredMeta, newMeta, featuredPage, newPage, featuredLastRef, newLastRef
+  featuredMeta, newMeta, xhorseMeta,
+  featuredPage, newPage, xhorsePage,
+  featuredLastRef, newLastRef, xhorseLastRef
 }
 </script>
-
-
-
 
 <template>
   <!-- Hero Slider -->
@@ -230,7 +258,7 @@ if (process.client) (window as any).__home = {
       title="FEATURED PRODUCTS"
       :products="featured"
       :rowsBase="1" :rowsSm="1" :rowsMd="1" :rowsLg="2" :rowsXl="2"
-      :perRowBase="2" :perRowSm="2" :perRowMd="3" :perRowLg="5" :perRowXl="5"
+      :perRowBase="2" :perRowSm="2" :perRowMd="3" :perRowLg="6" :perRowXl="6"
       :serverPaging="true"
       :currentPage="featuredPage"
       :lastPage="featuredLastRef"
@@ -250,7 +278,7 @@ if (process.client) (window as any).__home = {
       title="NEW ARRIVALS"
       :products="newArrivals"
       :rowsBase="1" :rowsSm="1" :rowsMd="1" :rowsLg="1" :rowsXl="1"
-      :perRowBase="2" :perRowSm="2" :perRowMd="3" :perRowLg="4" :perRowXl="5"
+      :perRowBase="2" :perRowSm="2" :perRowMd="3" :perRowLg="4" :perRowXl="6"
       :serverPaging="true"
       :currentPage="newPage"
       :lastPage="newLastRef"
@@ -264,4 +292,51 @@ if (process.client) (window as any).__home = {
       Loading new arrivals…
     </div>
   </section>
+
+  <!-- Xhorse Remotes (category_id: 29) -->
+  <section ref="xhorseEl" class="mt-6">
+    <div class="mx-auto max-w-screen-2xl px-3 sm:px-4">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+        <!-- Left image -->
+        <div class="hidden lg:block lg:col-span-3 m-auto">
+          <div class="hidden lg:flex lg:col-span-3 items-center justify-center">
+            <NuxtImg
+              v-if="XHORSE_LEFT_IMAGE"
+              src="/images/home/banners/xhorse-remote-banner.png"
+              alt="Xhorse Remotes"
+              class="max-h-[600px] w-auto object-contain rounded-3xl"
+              sizes="420px"
+              format="webp"
+              decoding="async"
+              loading="lazy"
+            />
+          </div>
+        </div>
+
+        <!-- Carousel -->
+        <div class="lg:col-span-9">
+          <ProductCarousel
+            v-if="xhorse.length"
+            title="Xhorse remotes"
+            :products="xhorse"
+            :rowsBase="1" :rowsSm="1" :rowsMd="1" :rowsLg="1" :rowsXl="1"
+            :perRowBase="2" :perRowSm="2" :perRowMd="4" :perRowLg="4" :perRowXl="6"
+            :serverPaging="true"
+            :currentPage="xhorsePage"
+            :lastPage="xhorseLastRef"
+            :show-arrows="true"
+            :show-dots="xhorseLastRef <= 12"
+            @request-page="(p) => fetchXhorse(p, 1, 4)"
+          />
+          <div v-else class="px-1 py-4 text-sm text-gray-500">
+            Loading Xhorse remotes…
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 </template>
+
+<style scoped>
+/* arrows are handled inside ProductCarousel */
+</style>

@@ -51,7 +51,7 @@ const gridColsClass = computed(() => {
     case 3:
       return 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3'
     case 4:
-      return 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
+      return 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4'
     case 5:
       return 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-5'
     default: // 6
@@ -106,7 +106,7 @@ const visible = computed(() => (props.products || []).slice(0, limit.value))
 
 <style scoped>
 /* Force 1 column on very small screens (<350px) */
-@media (max-width: 349px) {
+@media (max-width: 380px) {
   .custom-grid {
     grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
   }
