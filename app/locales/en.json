@@ -7,7 +7,8 @@
     "clear" : "Clear",
     "sending": "Sending",
     "home" : "Home",
-    "contactUs" :"Contact Us"
+    "contactUs" :"Contact Us",
+    "loading": "Loading…"
   },
   "searchPlaceholder": "I'm searching for",
   "myAccount": "My Account",
@@ -286,6 +287,22 @@
     "about": "Established in 1997, {company} has been your trusted locksmith partner for over two decades. We’re dedicated to professional, reliable solutions—from key cutting to advanced security systems—so your peace of mind stays our priority.",
     "contact": "Contact",
     "copyright": "© {year} {company}. All rights reserved."
+  },
+    "products": {
+    "home": "Home"
+  },
+  "labels": {
+    "products": "Products"
+  },
+  "pincode": {
+    "pincode": "PIN Code",
+    "pincodeoffline": "Offline PIN Codes",
+    "pincodeonline": "Online PIN Codes",
+    "togetpincode": "To get a PIN code, please log in above and follow the instructions.",
+    "seoTitle": "PIN Code Services — Techno Lock Keys",
+    "seoDescription": "Buy online and offline automotive PIN code services. Secure, fast, and supported by Techno Lock Keys.",
+    "ogTitle": "PIN Code — Online & Offline",
+    "ogDescription": "Automotive PIN code solutions with secure checkout and expert support from Techno Lock Keys."
   }
 
 }
