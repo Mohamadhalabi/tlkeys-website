@@ -163,10 +163,15 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
       <NuxtImg
         :src="activeImage?.src"
         :alt="activeImage?.alt || 'image'"
+        preset="productLCP"
         format="webp"
         class="h-full w-full select-none object-contain"
         loading="eager"
         draggable="false"
+        :sizes="`(max-width: 640px) 90vw, 420px`"
+        fetchpriority="high"
+        preload
+        decoding="async"
       />
 
       <!-- top-left badges (animated OFF pill) -->
@@ -240,6 +245,7 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
               class="h-20 w-20 rounded-xl bg-white object-contain"
               format="webp"
               loading="lazy"
+              preset="thumb80"
             />
           </button>
         </div>

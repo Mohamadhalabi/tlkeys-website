@@ -106,7 +106,7 @@ const visible = computed(() => (props.products || []).slice(0, limit.value))
 
 <style scoped>
 /* Force 1 column on very small screens (<350px) */
-@media (max-width: 380px) {
+@media (max-width: 340px) {
   .custom-grid {
     grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
   }

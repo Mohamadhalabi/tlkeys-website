@@ -8,7 +8,8 @@
     "sending": "Sending",
     "home" : "Home",
     "contactUs" :"Contact Us",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "comingSoon" : "Coming soon..."
   },
   "searchPlaceholder": "I'm searching for",
   "myAccount": "My Account",
@@ -303,7 +304,56 @@
     "seoDescription": "Buy online and offline automotive PIN code services. Secure, fast, and supported by Techno Lock Keys.",
     "ogTitle": "PIN Code — Online & Offline",
     "ogDescription": "Automotive PIN code solutions with secure checkout and expert support from Techno Lock Keys."
+  },
+  "validation": {
+    "current_password" : "The current password is incorrect"
+  },
+  "account": {
+    "pageTitle": "Acccount",
+    "profile": {
+      "title": "Profile details",
+      "fullName": "Full name",
+      "phone": "Phone",
+      "email": "Email",
+      "saveChanges": "Save changes",
+      "pageTitle": "My Account"
+    },
+    "dashboard": {
+      "total": "{n} total",
+      "available": "{n} available",
+      "saved": "{n} saved",
+      "items": "{n} items",
+      "manageProfile": "Manage profile"
+    },
+    "tabs": {
+      "dashboard": "Dashboard",
+      "accountDetails": "Account Details",
+      "editPassword": "Edit My Password",
+      "myOrders": "My Orders",
+      "myWallet": "My Wallet",
+      "myCoupons": "My Coupons",
+      "myAddresses": "My Addresses",
+      "myReview": "My Review",
+      "whatsNew": "What New",
+      "cart": "Cart"
+    },
+    "password": {
+      "title": "Change password",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Confirm new password",
+      "update": "Update password"
+    },
+    "messages": {
+      "profileUpdated": "Profile updated.",
+      "passwordChanged": "Password changed."
+    },
+    "errors": {
+      "loadProfile": "Failed to load profile.",
+      "updateProfile": "Update failed.",
+      "passwordsMismatch": "Passwords do not match.",
+      "passwordChange": "Password change failed."
+    }
   }
-
 }
 

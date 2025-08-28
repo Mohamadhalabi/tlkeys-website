@@ -64,7 +64,7 @@ const perRow = ref(2)
 const rows = ref(1)
 
 let ro: ResizeObserver | null = null
-const BP = { xsMicro: 380, sm: 640, md: 768, lg: 1024, xl: 1280 }
+const BP = { xsMicro: 340, sm: 640, md: 768, lg: 1024, xl: 1280 }
 
 function computeLayout() {
   const w = rootEl.value?.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 1024)
@@ -258,7 +258,6 @@ function onTouchEnd(e: TouchEvent) {
 /* --- arrow gutter system --- */
 .pc-stage {
   /* base sizes */
-  --pc-arrow-size: 36px; /* button diameter */
   --pc-arrow-gap: 10px;  /* space from content edge */
 
   position: relative;
@@ -289,6 +288,11 @@ function onTouchEnd(e: TouchEvent) {
 }
 .pc-arrow--prev { left: var(--pc-arrow-gap); }
 .pc-arrow--next { right: var(--pc-arrow-gap); }
+
+@media screen and (max-width:640px){
+.pc-arrow--prev { width: 8vw; height: 8vw; left: -10px; }
+.pc-arrow--next { width: 8vw; height: 8vw; right: -10px; }
+}
 
 /* smooth page transition */
 .slide-left-enter-active,

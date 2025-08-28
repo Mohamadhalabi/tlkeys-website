@@ -622,7 +622,7 @@ function normRelatedItem(x: any): GridProduct | null {
       : x.regular_price) ?? 0
   )
   const old = (x.regular_price && Number(x.regular_price) > price) ? Number(x.regular_price) : null
-  return { id, name, image: img, price, oldPrice: old, slug: x.slug }
+  return { id, name, image: img, price, oldPrice: old, slug: x.slug , sku: x.sku }
 }
 
 async function fetchRelatedOnce() {
@@ -652,6 +652,9 @@ async function fetchRelatedOnce() {
     const res = await $customApi(`${API_BASE_URL}/products/related`, { method: 'POST', body })
     const rows: any[] = (res?.data ?? res ?? []) as any[]
     relatedProducts.value = rows.map(normRelatedItem).filter(Boolean) as GridProduct[]
+
+    console.log("TESzT");
+    console.log(relatedProducts);
   } catch (e: any) {
     relatedError.value = e?.message || 'Failed to load related products'
   } finally {
@@ -899,7 +902,7 @@ watch(() => product.value?.id, () => {
           title="Related Products"
           :products="relatedProducts"
           :rowsBase="1" :rowsSm="1" :rowsMd="1" :rowsLg="1" :rowsXl="1"
-          :perRowBase="2" :perRowSm="2" :perRowMd="3" :perRowLg="4" :perRowXl="5"
+          :perRowBase="2" :perRowSm="2" :perRowMd="3" :perRowLg="4" :perRowXl="6"
           :showArrows="true" :showDots="true"
           @add-to-cart="(p) => cart.add(p.id, 1, { title: p.name, image: p.image, slug: p.slug, price: p.price })"
         />

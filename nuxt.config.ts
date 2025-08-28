@@ -9,14 +9,23 @@ export default defineNuxtConfig({
     '@nuxtjs/i18n',
     '@nuxt/image',
     '@pinia/nuxt',
-
+    '@nuxtjs/critters',
+    'nuxt-delay-hydration'
+    
     // 🔥 SEO modules
     // '@nuxtjs/seo',       // Canonicals, OG/Twitter defaults, schema helpers
     // '@nuxtjs/sitemap',   // /sitemap.xml (+ i18n aware)
     // '@nuxtjs/robots',    // /robots.txt
     // 'nuxt-og-image'      // On-the-fly social share images
   ],
-
+  delayHydration: { mode: 'mount' },
+  critters: {
+    // Options passed directly to beasties: https://github.com/danielroe/beasties#beasties-
+    config: {
+      // Default: 'media'
+      preload: 'swap',
+    },
+  },
   css: [
     fileURLToPath(new URL('./app/assets/css/main.css', import.meta.url)),
     fileURLToPath(new URL('./app/assets/css/common.css', import.meta.url)),
@@ -39,7 +48,13 @@ export default defineNuxtConfig({
         // Preconnects (adjust to your domains/CDNs)
         { rel: 'preconnect', href: 'https://www.google-analytics.com', crossorigin: 'anonymous' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
-        { rel: 'dns-prefetch', href: '//fonts.gstatic.com' }
+        { rel: 'dns-prefetch', href: '//fonts.gstatic.com' },
+              
+        { rel: 'preconnect', href: 'https://dev-srv.tlkeys.com', crossorigin: 'anonymous' },
+        // 🔑 Preload WOFF2 (self-hosted in /public/fonts)
+        { rel: 'preload', as: 'font', href: '/fonts/proximanova_regular.woff2', type: 'font/woff2', crossorigin: 'anonymous' },
+        { rel: 'preload', as: 'font', href: '/fonts/proximanova_bold.woff2',    type: 'font/woff2', crossorigin: 'anonymous' },
+
       ],
       meta: [
         { name: 'theme-color', content: '#ffffff' },
@@ -91,12 +106,14 @@ export default defineNuxtConfig({
    *  Images (lighter, faster, better)
    * =======================================*/
   image: {
-    format: ['webp', 'avif'],     // Prefer next-gen formats
-    quality: 100,
-    domains: [
-      // allow your asset/CDN domains here
-      'https://www.dev-srv.tlkeys.com',
-    ]
+    quality: 70,
+    domains: ['dev-srv.tlkeys.com', 'dev.tlkeys.com'], // no https://
+    presets: {
+      productLCP:  { modifiers: { width: 420,  fit: 'inside',  quality: 70, format: 'webp' } },
+      productCard: { modifiers: { width: 378,  fit: 'cover',   quality: 70, format: 'webp' } },
+      thumb80:     { modifiers: { width: 80,   height: 80,     fit: 'cover', quality: 60, format: 'webp' } },
+      logo96:      { modifiers: { width: 96,   height: 32,     fit: 'inside', quality: 70, format: 'webp' } },
+    }
   },
 
   /* =========================================
@@ -106,6 +123,8 @@ export default defineNuxtConfig({
     // Statically prerender evergreen pages
     '/': { prerender: true },
     '/products/**':  { isr: 60 * 60, headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
+    '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    '/fonts/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
   },
 
   /* =========================================
@@ -123,7 +142,8 @@ export default defineNuxtConfig({
    *  Misc performance that helps SEO
    * =======================================*/
   experimental: {
-    payloadExtraction: true // smaller HTML, faster TTFB for crawlers
+    payloadExtraction: true,
+    inlineSSRStyles: true,
   },
 
   compatibilityDate: '2025-07-15',
