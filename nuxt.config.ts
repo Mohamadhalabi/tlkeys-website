@@ -113,6 +113,8 @@ export default defineNuxtConfig({
       productCard: { modifiers: { width: 378,  fit: 'cover',   quality: 70, format: 'webp' } },
       thumb80:     { modifiers: { width: 80,   height: 80,     fit: 'cover', quality: 60, format: 'webp' } },
       logo96:      { modifiers: { width: 96,   height: 32,     fit: 'inside', quality: 70, format: 'webp' } },
+      hero:   { modifiers: { width: 1280, quality: 70, format: 'webp' } },
+      banner: { modifiers: { width: 1536, format: 'webp', quality: 70 } }, //
     }
   },
 

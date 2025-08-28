@@ -34,25 +34,15 @@
           :aria-hidden="active !== i"
         >
           <!-- Just the image; navigation handled in pointerup -->
-          <NuxtImg
-            v-if="useNuxtImg"
-            :src="s.image"
-            :alt="s.alt || s.title || ''"
-            :sizes="imgSizes"
-            :class="imgClass"
-            :loading="i === active ? 'eager' : 'lazy'"
-            decoding="async"
-            :draggable="false"
-          />
-          <img
-            v-else
-            :src="s.image"
-            :alt="s.alt || s.title || ''"
-            :class="imgClass"
-            :loading="i === active ? 'eager' : 'lazy'"
-            decoding="async"
-            draggable="false"
-          />
+            <NuxtImg
+              :src="s.image"
+              :preload="i === active"
+              :fetchpriority="i === active ? 'high' : undefined"
+              placeholder
+              decoding="async"
+              :alt="s.alt || s.title || ''"
+              :class="imgClass"
+            />
         </div>
       </div>
 
@@ -80,19 +70,14 @@
             :src="s.image"
             :alt="s.alt || s.title || ''"
             :sizes="imgSizes"
+            :preload="i === active"
             :class="imgClass + ' h-full w-full'"
             :loading="i === active ? 'eager' : 'lazy'"
             decoding="async"
+            preset="banner"
+            :fetchpriority="i === active ? 'high' : undefined"
+            placeholder
             :draggable="false"
-          />
-          <img
-            v-else
-            :src="s.image"
-            :alt="s.alt || s.title || ''"
-            :class="imgClass + ' h-full w-full'"
-            :loading="i === active ? 'eager' : 'lazy'"
-            decoding="async"
-            draggable="false"
           />
         </div>
       </div>
