@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useCart } from '~/composables/useCart'
+import { useCurrency } from '~/composables/useCurrency'
 import { computeUnitPrice, type PriceTableRow as TRow } from '~/utils/pricing'
 
 type Product = {
@@ -34,6 +35,8 @@ const props = withDefaults(defineProps<{
 })
 
 const cart = useCart()
+const { formatMoney } = useCurrency()
+
 const qty = ref(1)
 const cardEl = ref<HTMLElement | null>(null)
 
@@ -172,7 +175,7 @@ async function onAdd() {
            overflow-hidden flex flex-col"
   >
     <!-- IMAGE -->
-    <NuxtLink :to="linkTo" class="relative block rounded-t-xl overflow-hidden bg-white">
+    <NuxtLinkLocale :to="linkTo" class="relative block rounded-t-xl overflow-hidden bg-white">
       <div class="relative w-full aspect-[3/3]">
         <NuxtImg
           :src="product.image"
@@ -192,7 +195,7 @@ async function onAdd() {
           class="inline-flex items-center rounded-full bg-red-600 text-white ring-1 ring-white/70
                  px-2.5 py-1 text-[10px] font-extrabold tracking-wide shadow-sm"
         >
-          {{ offAnim.toFixed(2) }}$ OFF
+          {{ formatMoney(Number(offAnim.toFixed(2))) }} OFF
         </span>
         <span
           v-if="product.badgeText"
@@ -216,29 +219,20 @@ async function onAdd() {
           {{ countdownBottom }}
         </div>
       </div>
-    </NuxtLink>
+    </NuxtLinkLocale>
 
     <!-- BODY -->
     <div class="px-4 pb-4 flex flex-col grow">
       <!-- top content (grows) -->
       <div class="mt-2 flex-1">
-        <!-- one-line meta -->
         <div class="flex justify-center gap-1 text-[11px] leading-tight whitespace-nowrap overflow-hidden">
           <span v-if="product.sku" class="font-bold text-sm text-green-800 shrink-0">
             {{ product.sku }}
           </span>
-          <!-- <span v-if="product.sku && product.category" class="text-gray-300 shrink-0">•</span>
-          <NuxtLink
-            v-if="product.category"
-            :to="categoryLink"
-            class="uppercase tracking-wide font-bold text-gray-600 hover:underline truncate min-w-0"
-          >
-            {{ product.category }}
-          </NuxtLink> -->
         </div>
 
         <!-- title -->
-        <NuxtLink
+        <NuxtLinkLocale
           :to="linkTo"
           :aria-label="product.name"
           class="block mt-1 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-300"
@@ -251,7 +245,7 @@ async function onAdd() {
           >
             {{ product.name }}
           </h3>
-        </NuxtLink>
+        </NuxtLinkLocale>
       </div>
 
       <!-- bottom footer (pinned) -->
@@ -259,10 +253,10 @@ async function onAdd() {
         <!-- PRICE pinned at bottom, above qty -->
         <div class="flex items-end gap-2">
           <div class="text-lg sm:text-xl font-extrabold text-red-600">
-            ${{ unit.toFixed(2) }}
+            {{ formatMoney(unit) }}
           </div>
           <div v-if="hasDiscount" class="text-sm text-gray-400 line-through">
-            ${{ unitBefore.toFixed(2) }}
+            {{ formatMoney(unitBefore) }}
           </div>
         </div>
 

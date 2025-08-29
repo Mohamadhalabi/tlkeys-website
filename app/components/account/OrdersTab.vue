@@ -105,12 +105,12 @@ watch(
                 ${{ Number(o.total).toFixed(2) }}
               </td>
               <td class="py-3 pr-3">
-                <NuxtLink
+                <NuxtLinkLocale
                   :to="{ path: `/account/orders/${o.id}` }"
                   class="inline-flex items-center rounded border px-2 py-1 hover:bg-gray-50"
                 >
                   View
-                </NuxtLink>
+                </NuxtLinkLocale>
               </td>
             </tr>
           </tbody>

@@ -191,9 +191,9 @@ async function clearAll() {
     <!-- Empty state -->
     <div v-else-if="!rows.length" class="rounded-2xl border border-gray-200 p-8 text-center bg-white">
       <p class="text-gray-600">Your wishlist is empty.</p>
-      <NuxtLink to="/" class="mt-3 inline-block px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700">
+      <NuxtLinkLocale to="/" class="mt-3 inline-block px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700">
         Browse Products
-      </NuxtLink>
+      </NuxtLinkLocale>
     </div>
 
     <!-- List -->
@@ -205,13 +205,13 @@ async function clearAll() {
       >
         <div class="p-4 md:p-5 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
           <!-- Image -->
-          <NuxtLink
+          <NuxtLinkLocale
             v-if="row.slug"
             :to="`/products/${row.slug}`"
             class="shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex items-center justify-center"
           >
             <img :src="row.image || '/images/placeholder.webp'" alt="" class="max-h-full max-w-full object-contain" />
-          </NuxtLink>
+          </NuxtLinkLocale>
           <div
             v-else
             class="shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex items-center justify-center"
@@ -223,13 +223,13 @@ async function clearAll() {
           <div class="min-w-0 flex-1">
             <div class="flex items-start gap-3">
               <div class="min-w-0">
-                <NuxtLink
+                <NuxtLinkLocale
                   v-if="row.slug"
                   :to="`/products/${row.slug}`"
                   class="font-medium text-gray-900 hover:underline line-clamp-2"
                 >
                   {{ row.title }}
-                </NuxtLink>
+                </NuxtLinkLocale>
                 <div v-else class="font-medium text-gray-900 line-clamp-2">{{ row.title }}</div>
 
                 <p v-if="row.sku" class="mt-1 text-md font-medium text-green-600">
@@ -262,13 +262,13 @@ async function clearAll() {
               Add to Cart
             </button>
 
-            <NuxtLink
+            <NuxtLinkLocale
               v-if="row.slug"
               :to="`/products/${row.slug}`"
               class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition"
             >
               Details
-            </NuxtLink>
+            </NuxtLinkLocale>
 
             <button
               type="button"

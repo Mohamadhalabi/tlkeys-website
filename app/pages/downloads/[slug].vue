@@ -182,9 +182,9 @@ useHead(() => ({
     <!-- Breadcrumb -->
     <nav aria-label="Breadcrumb" class="text-sm mb-5">
       <ol class="flex flex-wrap items-center gap-1 text-gray-500">
-        <li><NuxtLink to="/" class="hover:text-gray-900 hover:underline">Home</NuxtLink></li>
+        <li><NuxtLinkLocale to="/" class="hover:text-gray-900 hover:underline">Home</NuxtLinkLocale></li>
         <li aria-hidden>›</li>
-        <li><NuxtLink to="/downloads" class="hover:text-gray-900 hover:underline">Downloads</NuxtLink></li>
+        <li><NuxtLinkLocale to="/downloads" class="hover:text-gray-900 hover:underline">Downloads</NuxtLinkLocale></li>
         <li aria-hidden>›</li>
         <li class="text-gray-900 font-medium line-clamp-1">{{ item?.title || slug }}</li>
       </ol>

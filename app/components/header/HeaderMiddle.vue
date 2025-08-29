@@ -2,9 +2,9 @@
   <div class="bg py-3">
     <div class="mx-auto px-6 max-w-screen-xl flex items-center justify-between gap-6 relative">
       <!-- Logo -->
-      <NuxtLink to="/" class="website-logo flex items-center justify-center">
+      <NuxtLinkLocale to="/" class="website-logo flex items-center justify-center">
         <NuxtImg src="/images/logo/techno-lock-desktop-logo.webp" alt="Logo" class="h-full object-contain" />
-      </NuxtLink>
+      </NuxtLinkLocale>
 
       <!-- Search + Suggestions -->
       <div class="relative flex-1 max-w-3xl" ref="searchWrap">
@@ -63,13 +63,13 @@
 
                 <!-- 3) Show more button with count -->
                 <li v-if="hasMore || totalResults > suggestions.length" class="border-t">
-                  <NuxtLink
+                  <NuxtLinkLocale
                     :to="`/shop?search=${encodeURIComponent(term.trim())}`"
                     class="block px-3 py-2 text-emerald-700 hover:bg-emerald-50 text-sm text-center font-medium"
                     @click="open=false"
                   >
                     Show more results<span v-if="totalResults"> ({{ totalResults }})</span>
-                  </NuxtLink>
+                  </NuxtLinkLocale>
                 </li>
               </ul>
 
@@ -83,25 +83,25 @@
 
       <!-- Wishlist / Account / Cart -->
       <div class="flex items-center gap-6 text-sm text-gray-700">
-        <NuxtLink v-if="!isAuthed" to="/auth/login-register" class="flex items-center gap-1">
+        <NuxtLinkLocale v-if="!isAuthed" to="/auth/login-register" class="flex items-center gap-1">
           <UserPlusIcon class="w-5 h-5" />
           <span>{{ t('logIn') }}</span>
-        </NuxtLink>
+        </NuxtLinkLocale>
 
-        <NuxtLink v-else to="/account" class="flex items-center gap-1">
+        <NuxtLinkLocale v-else to="/account" class="flex items-center gap-1">
           <UserPlusIcon class="w-5 h-5" />
           <span>{{ t('account') }}</span>
-        </NuxtLink>
+        </NuxtLinkLocale>
 
-        <NuxtLink to="/wishlist" class="flex items-center gap-1">
+        <NuxtLinkLocale to="/wishlist" class="flex items-center gap-1">
           <HeartIcon class="w-5 h-5" />
           <span>{{ t('wishlist') }}</span>
-        </NuxtLink>
+        </NuxtLinkLocale>
 
-        <NuxtLink to="/cart" class="flex items-center gap-1 relative">
+        <NuxtLinkLocale to="/cart" class="flex items-center gap-1 relative">
           <ShoppingCartIcon class="w-5 h-5" />
           <span>{{ t('cart') }}</span>
-        </NuxtLink>
+        </NuxtLinkLocale>
       </div>
     </div>
   </div>

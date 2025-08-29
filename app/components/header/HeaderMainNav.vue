@@ -92,23 +92,23 @@
           </svg>
         </button>
 
-        <NuxtLink
+        <NuxtLinkLocale
           to="/downloads"
           class="px-4 py-3 hover:bg-gray-800 flex items-center gap-2"
           :class="linkClass('/downloads')"
           :aria-current="isActive('/downloads') ? 'page' : undefined"
         >
           {{ $t('downloads') || 'Downloads' }}
-        </NuxtLink>
+        </NuxtLinkLocale>
 
-        <NuxtLink
+        <NuxtLinkLocale
           to="/pin-code"
           class="px-4 py-3 bg-red-500 hover:bg-gray-800 flex items-center gap-2"
           :class="linkClass('/pin-code')"
           :aria-current="isActive('/pin-code') ? 'page' : undefined"
         >
           {{ $t('pinCodes') || 'Pin Codes' }}
-        </NuxtLink>
+        </NuxtLinkLocale>
       </div>
 
       <!-- Cars dropdown -->

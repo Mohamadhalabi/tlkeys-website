@@ -36,7 +36,7 @@ const visible = computed(() => (props.items || []).slice(0, limit.value))
           class="grid gap-2 sm:gap-1 md:gap-3
                  grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6"
         >
-          <NuxtLink
+          <NuxtLinkLocale
             v-for="cat in visible"
             :key="cat.href + cat.title"
             :to="cat.href"
@@ -59,7 +59,7 @@ const visible = computed(() => (props.items || []).slice(0, limit.value))
                 {{ cat.title }}
               </p>
             </div>
-          </NuxtLink>
+          </NuxtLinkLocale>
         </div>
       </div>
     </div>

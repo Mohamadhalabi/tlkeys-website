@@ -6,9 +6,9 @@
       <div class="grid grid-cols-1 md:grid-cols-12 gap-10">
         <!-- Brand / about -->
         <section class="md:col-span-5">
-          <NuxtLink to="/" class="inline-flex items-center gap-2">
+          <NuxtLinkLocale to="/" class="inline-flex items-center gap-2">
             <NuxtImg :src="logoSrc" alt="Logo" class="w-auto object-contain" width="160" />
-          </NuxtLink>
+          </NuxtLinkLocale>
 
           <p class="mt-4 text-sm leading-6 text-neutral-300">
             {{ t('footer.about', { company: companyName }) }}
@@ -33,12 +33,12 @@
         <nav class="md:col-span-4" aria-label="Footer">
           <ul class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
             <li v-for="l in linksComputed" :key="l.to">
-              <NuxtLink
+              <NuxtLinkLocale
                 :to="l.to"
                 class="inline-flex items-center gap-2 rounded-md px-1 py-1 hover:text-white hover:bg-white/5 transition"
               >
                 <span>{{ l.label }}</span>
-              </NuxtLink>
+              </NuxtLinkLocale>
             </li>
           </ul>
         </nav>

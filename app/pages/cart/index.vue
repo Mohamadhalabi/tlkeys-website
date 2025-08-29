@@ -201,9 +201,9 @@ async function clearAll() {
 
     <div v-else-if="!rows.length" class="rounded-2xl border border-gray-200 p-8 text-center bg-white">
       <p class="text-gray-600">Your cart is empty.</p>
-      <NuxtLink to="/" class="mt-3 inline-block px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700">
+      <NuxtLinkLocale to="/" class="mt-3 inline-block px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700">
         Continue Shopping
-      </NuxtLink>
+      </NuxtLinkLocale>
     </div>
 
     <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -217,11 +217,11 @@ async function clearAll() {
           <img :src="row.image || '/images/placeholder.webp'" alt="" class="h-20 w-20 rounded-xl object-cover" />
           <div class="min-w-0 flex-1">
             <div class="flex items-start gap-2">
-              <NuxtLink
+              <NuxtLinkLocale
                 v-if="row.slug"
                 :to="`/products/${row.slug}`"
                 class="font-medium hover:underline truncate"
-                >{{ row.title }}</NuxtLink>
+                >{{ row.title }}</NuxtLinkLocale>
               <div v-else class="font-medium truncate">{{ row.title }}</div>
               <button class="ms-auto text-gray-400 hover:text-gray-600" @click="removeRow(row)">✕</button>
             </div>
@@ -290,14 +290,14 @@ async function clearAll() {
           </template>
           <template v-else>
             <div class="mt-2 grid grid-cols-2 gap-2">
-              <NuxtLink
+              <NuxtLinkLocale
                 to="/login"
                 class="px-5 py-3 rounded-xl border border-gray-300 text-gray-700 text-center hover:bg-gray-50"
-              >Log in</NuxtLink>
-              <NuxtLink
+              >Log in</NuxtLinkLocale>
+              <NuxtLinkLocale
                 to="/register"
                 class="px-5 py-3 rounded-xl bg-red-600 text-white text-center font-medium hover:bg-red-700"
-              >Register</NuxtLink>
+              >Register</NuxtLinkLocale>
             </div>
             <p class="text-xs text-gray-500 mt-1 text-center">
               Log in or create an account to checkout.

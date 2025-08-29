@@ -8,7 +8,7 @@
     <div class="container mx-auto px-3">
       <ul class="flex items-center justify-center gap-4 md:gap-6 py-1.5">
         <li v-for="item in items" :key="item.key">
-          <NuxtLink
+          <NuxtLinkLocale
             :to="item.to"
             :aria-current="isActive(item.key) ? 'page' : undefined"
             class="group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-md
@@ -27,7 +27,7 @@
               :class="isActive(item.key) ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'"
               aria-hidden="true"
             />
-          </NuxtLink>
+          </NuxtLinkLocale>
         </li>
       </ul>
     </div>

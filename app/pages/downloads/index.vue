@@ -162,7 +162,7 @@ useHead(() => ({
     <nav aria-label="Breadcrumb" class="text-sm mb-3">
       <ol class="flex flex-wrap items-center gap-1 text-gray-500">
         <li>
-          <NuxtLink to="/" class="hover:text-gray-900 hover:underline">Home</NuxtLink>
+          <NuxtLinkLocale to="/" class="hover:text-gray-900 hover:underline">Home</NuxtLinkLocale>
         </li>
         <li aria-hidden>›</li>
         <li class="text-gray-900 font-medium">Downloads</li>
@@ -183,7 +183,7 @@ useHead(() => ({
       class="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
       :class="{'opacity-50 pointer-events-none': firstLoad && loading}"
     >
-      <NuxtLink
+      <NuxtLinkLocale
         v-for="it in items"
         :key="it.slug"
         :to="`/downloads/${it.slug}`"
@@ -201,7 +201,7 @@ useHead(() => ({
           format="webp"
           loading="lazy"
         />
-      </NuxtLink>
+      </NuxtLinkLocale>
 
       <!-- Skeletons while fetching next pages -->
       <template v-if="loading && !firstLoad">

@@ -73,13 +73,13 @@ const visible = computed(() => (props.products || []).slice(0, limit.value))
       <!-- header -->
       <div class="mb-3 flex items-center justify-between px-3 sm:px-4">
         <h2 class="text-base font-bold">{{ title }}</h2>
-        <NuxtLink
+        <NuxtLinkLocale
           v-if="linkMoreHref"
           :to="linkMoreHref"
           class="text-sm font-medium text-red-600 hover:text-red-700"
         >
           View all →
-        </NuxtLink>
+        </NuxtLinkLocale>
       </div>
 
       <!-- grid -->

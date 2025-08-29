@@ -5,7 +5,7 @@
       <div class="mx-auto max-w-7xl px-4">
         <ol class="flex items-center gap-2 py-3 text-sm text-gray-600">
           <li>
-            <NuxtLink :to="localePath('/')" class="hover:text-gray-900 underline-offset-2 hover:underline">
+            <NuxtLink to="/" class="hover:text-gray-900 underline-offset-2 hover:underline">
               {{ t('shop.home') }}
             </NuxtLink>
           </li>
@@ -28,9 +28,9 @@
 
         <p>
           {{ t('privacypolicy.websitePolicies') }}
-          <NuxtLink :to="localePath('/terms')" class="text-blue-600 hover:underline">
+          <NuxtLinkLocale :to="('/terms')" class="text-blue-600 hover:underline">
             {{ t('privacypolicy.TermsAndConditions') }}
-          </NuxtLink>
+          </NuxtLinkLocale>
           {{ t('privacypolicy.mayBeChanged') }}<br />
           {{ t('privacypolicy.therfore') }}<br />
           {{ t('privacypolicy.modifications') }}
@@ -53,7 +53,7 @@
 
         <p>
           {{ t('privacypolicy.at') }}
-          <NuxtLink :to="localePath('/')" class="text-blue-600 hover:underline">tlkeys.com</NuxtLink>,
+          <NuxtLinkLocale :to="('/')" class="text-blue-600 hover:underline">tlkeys.com</NuxtLinkLocale>,
           {{ t('privacypolicy.WeAre') }}
         </p>
 
@@ -61,7 +61,7 @@
 
         <p>
           {{ t('privacypolicy.PleasebeAware') }}
-          <NuxtLink :to="localePath('/')" class="text-blue-600 hover:underline">tlkeys.com</NuxtLink>
+          <NuxtLinkLocale :to="('/')" class="text-blue-600 hover:underline">tlkeys.com</NuxtLinkLocale>
           {{ t('privacypolicy.mayContain') }}
         </p>
 
@@ -71,19 +71,19 @@
 
         <p>
           {{ t('privacypolicy.yourPrivacy') }}
-          <NuxtLink :to="localePath('/')" class="text-blue-600 hover:underline">tlkeys.com</NuxtLink>,
+          <NuxtLinkLocale :to="('/')" class="text-blue-600 hover:underline">tlkeys.com</NuxtLinkLocale>,
           {{ t('privacypolicy.doNotHesitate') }}
-          <NuxtLink :to="localePath('/contact')" class="text-blue-600 hover:underline">
+          <NuxtLinkLocale :to="('/contact')" class="text-blue-600 hover:underline">
             {{ t('privacypolicy.contactUs') }}
-          </NuxtLink>.
+          </NuxtLinkLocale>.
           {{ t('privacypolicy.ThankYouFor') }}
         </p>
 
         <p>
           {{ t('privacypolicy.ifYouHaveAny') }}
-          <NuxtLink :to="localePath('/contact')" class="text-blue-600 hover:underline">
+          <NuxtLinkLocale :to="('/contact')" class="text-blue-600 hover:underline">
             {{ t('privacypolicy.contactUs') }}
-          </NuxtLink>
+          </NuxtLinkLocale>
           {{ t('privacypolicy.viaThe') }}
           <a :href="`mailto:${email}`" class="text-blue-600 hover:underline">{{ t('privacypolicy.email') }}</a>
           {{ t('privacypolicy.or') }}
@@ -98,7 +98,6 @@
 
 <script setup lang="ts">
 const { t, locale } = useI18n()
-const localePath = useLocalePath()
 
 /* ---- Constants ---- */
 const baseUrl = 'https://www.tlkeys.com'

@@ -209,9 +209,9 @@ watch([selectedShipping, coupon], async () => {
     <!-- Breadcrumbs -->
     <nav class="text-sm mb-4">
       <ol class="flex gap-2 text-gray-500">
-        <li><NuxtLink to="/">{{ $t('shop.home') }}</NuxtLink></li>
+        <li><NuxtLinkLocale to="/">{{ $t('shop.home') }}</NuxtLinkLocale></li>
         <li>/</li>
-        <li><NuxtLink to="/cart">{{ $t('dashboard.cart') }}</NuxtLink></li>
+        <li><NuxtLinkLocale to="/cart">{{ $t('dashboard.cart') }}</NuxtLinkLocale></li>
         <li>/</li>
         <li class="text-gray-900 font-medium">{{ $t('dashboard.checkout') }}</li>
       </ol>
@@ -423,9 +423,9 @@ watch([selectedShipping, coupon], async () => {
               <input type="checkbox" v-model="acceptTerms" class="mt-1 accent-emerald-600" />
               <span>
                 {{ $t('checkout.iAgreeTo') }}
-                <NuxtLink to="/terms" class="underline decoration-emerald-600 text-emerald-700 hover:text-emerald-800">
+                <NuxtLinkLocale to="/terms" class="underline decoration-emerald-600 text-emerald-700 hover:text-emerald-800">
                   {{ $t('checkout.terms') }}
-                </NuxtLink>
+                </NuxtLinkLocale>
               </span>
             </label>
 
@@ -444,7 +444,7 @@ watch([selectedShipping, coupon], async () => {
     <div v-else class="text-center py-20 text-gray-500">
       {{ $t('checkout.CheckoutNotAvailable') }}
       <div class="mt-4">
-        <NuxtLink to="/shop" class="underline">{{ $t('checkout.returnToShop') }}</NuxtLink>
+        <NuxtLinkLocale to="/shop" class="underline">{{ $t('checkout.returnToShop') }}</NuxtLinkLocale>
       </div>
     </div>
 

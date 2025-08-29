@@ -690,9 +690,9 @@ watch(() => product.value?.id, () => {
     <nav aria-label="Breadcrumb" class="mb-5">
       <ol class="flex flex-wrap items-center gap-1 text-sm text-gray-500">
         <li v-for="(c, i) in breadcrumb" :key="i" class="flex items-center gap-1">
-          <NuxtLink v-if="c.to" :to="c.to" class="text-gray-600 hover:text-gray-900 hover:underline transition">
+          <NuxtLinkLocale v-if="c.to" :to="c.to" class="text-gray-600 hover:text-gray-900 hover:underline transition">
             {{ c.label }}
-          </NuxtLink>
+          </NuxtLinkLocale>
           <span v-else class="text-gray-700 font-medium">{{ c.label }}</span>
           <span v-if="i < breadcrumb.length - 1" class="px-1 text-gray-300">/</span>
         </li>
@@ -753,28 +753,28 @@ watch(() => product.value?.id, () => {
                 <div v-if="categoryLinks.length">
                   <div class="mb-1 text-gray-500">Categories</div>
                   <div class="flex flex-wrap gap-2">
-                    <NuxtLink v-for="c in categoryLinks" :key="c.to" :to="c.to"
+                    <NuxtLinkLocale v-for="c in categoryLinks" :key="c.to" :to="c.to"
                       class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 hover:bg-white hover:shadow-sm transition">
                       {{ c.label }}
-                    </NuxtLink>
+                    </NuxtLinkLocale>
                   </div>
                 </div>
                 <div v-if="manufacturerLinks.length">
                   <div class="mb-1 text-gray-500">Manufacturers</div>
                   <div class="flex flex-wrap gap-2">
-                    <NuxtLink v-for="m in manufacturerLinks" :key="m.to" :to="m.to"
+                    <NuxtLinkLocale v-for="m in manufacturerLinks" :key="m.to" :to="m.to"
                       class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 hover:bg-white hover:shadow-sm transition">
                       {{ m.label }}
-                    </NuxtLink>
+                    </NuxtLinkLocale>
                   </div>
                 </div>
                 <div v-if="brandLinks.length">
                   <div class="mb-1 text-gray-500">Brands</div>
                   <div class="flex flex-wrap gap-2">
-                    <NuxtLink v-for="b in brandLinks" :key="b.to" :to="b.to"
+                    <NuxtLinkLocale v-for="b in brandLinks" :key="b.to" :to="b.to"
                       class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 hover:bg-white hover:shadow-sm transition">
                       {{ b.label }}
-                    </NuxtLink>
+                    </NuxtLinkLocale>
                   </div>
                 </div>
               </div>

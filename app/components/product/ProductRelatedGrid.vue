@@ -85,7 +85,7 @@ async function toggle(p: MiniProduct) {
               <div
                 class="pb-3 mb-3 border-b border-gray-200 md:pb-0 md:mb-0 md:border-b-0 md:pr-4 md:mr-2 md:border-r md:border-gray-200 md:flex md:items-center"
               >
-                <NuxtLink :to="p.slug ? `/products/${p.slug}` : '#'" class="block">
+                <NuxtLinkLocale :to="p.slug ? `/products/${p.slug}` : '#'" class="block">
                   <NuxtImg
                     :src="p.image || '/images/placeholder.webp'"
                     class="object-contain rounded-lg bg-white mx-auto md:mx-0"
@@ -93,16 +93,16 @@ async function toggle(p: MiniProduct) {
                     alt=""
                     loading="lazy"
                   />
-                </NuxtLink>
+                </NuxtLinkLocale>
               </div>
 
               <!-- TEXT: title, sku, price -->
               <div class="flex-1 min-w-0 md:pr-4">
-                <NuxtLink :to="p.slug ? `/products/${p.slug}` : '#'" class="block">
+                <NuxtLinkLocale :to="p.slug ? `/products/${p.slug}` : '#'" class="block">
                   <h4 class="text-base md:text-lg font-bold text-gray-900 line-clamp-2 hover:underline">
                     {{ p.title }}
                   </h4>
-                </NuxtLink>
+                </NuxtLinkLocale>
 
                 <div v-if="p.sku" class="mt-1 text-xs md:text-lg text-green-600 font-semibold">
                   SKU: {{ p.sku }}

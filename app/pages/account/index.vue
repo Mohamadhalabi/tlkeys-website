@@ -139,51 +139,51 @@ const tabHeading = computed(() => {
 
           <!-- DASHBOARD -->
           <div v-if="active === 'dashboard'" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <NuxtLink :to="{ query: { tab: 'orders' } }" class="tile group">
+            <NuxtLinkLocale :to="{ query: { tab: 'orders' } }" class="tile group">
               <OrdersIcon class="h-8 w-8" />
               <div class="tile-label">{{ $t('account.tabs.myOrders') }}</div>
               <div v-if="!loadingStats" class="tile-sub">
                 {{ $t('account.dashboard.total', { n: stats.orders || 0 }) }}
               </div>
-            </NuxtLink>
+            </NuxtLinkLocale>
 
-            <NuxtLink :to="{ query: { tab: 'wallet' } }" class="tile group">
+            <NuxtLinkLocale :to="{ query: { tab: 'wallet' } }" class="tile group">
               <WalletIcon class="h-8 w-8" />
               <div class="tile-label">{{ $t('account.tabs.myWallet') }}</div>
               <div v-if="!loadingStats" class="tile-sub">
                 {{ (stats.wallet ?? 0).toLocaleString() }}
               </div>
-            </NuxtLink>
+            </NuxtLinkLocale>
 
-            <NuxtLink :to="{ query: { tab: 'coupons' } }" class="tile group">
+            <NuxtLinkLocale :to="{ query: { tab: 'coupons' } }" class="tile group">
               <TicketIcon class="h-8 w-8" />
               <div class="tile-label">{{ $t('account.tabs.myCoupons') }}</div>
               <div v-if="!loadingStats" class="tile-sub">
                 {{ $t('account.dashboard.available', { n: stats.coupons || 0 }) }}
               </div>
-            </NuxtLink>
+            </NuxtLinkLocale>
 
-            <NuxtLink :to="{ query: { tab: 'addresses' } }" class="tile group">
+            <NuxtLinkLocale :to="{ query: { tab: 'addresses' } }" class="tile group">
               <MapPinIcon class="h-8 w-8" />
               <div class="tile-label">{{ $t('account.tabs.myAddresses') }}</div>
               <div v-if="!loadingStats" class="tile-sub">
                 {{ $t('account.dashboard.saved', { n: stats.addresses || 0 }) }}
               </div>
-            </NuxtLink>
+            </NuxtLinkLocale>
 
-            <NuxtLink :to="{ query: { tab: 'profile' } }" class="tile group">
+            <NuxtLinkLocale :to="{ query: { tab: 'profile' } }" class="tile group">
               <UserCircleIcon class="h-8 w-8" />
               <div class="tile-label">{{ $t('account.tabs.accountDetails') }}</div>
               <div class="tile-sub">{{ $t('account.dashboard.manageProfile') }}</div>
-            </NuxtLink>
+            </NuxtLinkLocale>
 
-            <NuxtLink :to="{ query: { tab: 'cart' } }" class="tile group">
+            <NuxtLinkLocale :to="{ query: { tab: 'cart' } }" class="tile group">
               <ShoppingCartIcon class="h-8 w-8" />
               <div class="tile-label">{{ $t('account.tabs.cart') }}</div>
               <div v-if="!loadingStats" class="tile-sub">
                 {{ $t('account.dashboard.items', { n: stats.cart || 0 }) }}
               </div>
-            </NuxtLink>
+            </NuxtLinkLocale>
           </div>
 
           <!-- ACCOUNT DETAILS -->

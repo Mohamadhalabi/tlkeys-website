@@ -4,7 +4,7 @@ const props = defineProps<{ item: Category }>()
 </script>
 
 <template>
-  <NuxtLink
+  <NuxtLinkLocale
     :to="item.href"
     :aria-label="`Browse ${item.title}`"
     class="block rounded-2xl bg-white/95 ring-1 ring-black/5 shadow-[0_1px_1px_rgba(0,0,0,0.05)]
@@ -36,5 +36,5 @@ const props = defineProps<{ item: Category }>()
         />
       </div>
     </div>
-  </NuxtLink>
+  </NuxtLinkLocale>
 </template>

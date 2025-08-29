@@ -21,22 +21,22 @@
         </button>
 
         <!-- Logo -->
-        <NuxtLink to="/" class="flex items-center">
+        <NuxtLinkLocale to="/" class="flex items-center">
           <NuxtImg
             src="/images/logo/techno-lock-desktop-logo.webp"
             alt="Logo"
             class="h-16 object-contain"
           />
-        </NuxtLink>
+        </NuxtLinkLocale>
 
         <!-- Right icons -->
         <div class="flex items-center gap-3 ml-auto">
-          <NuxtLink to="/account" class="flex items-center">
+          <NuxtLinkLocale to="/account" class="flex items-center">
             <UserPlusIcon class="w-6 h-6 text-gray-700" />
-          </NuxtLink>
-          <NuxtLink to="/cart" class="relative flex items-center">
+          </NuxtLinkLocale>
+          <NuxtLinkLocale to="/cart" class="relative flex items-center">
             <ShoppingCartIcon class="w-6 h-6 text-gray-700" />
-          </NuxtLink>
+          </NuxtLinkLocale>
         </div>
       </div>
     </div>
@@ -99,13 +99,13 @@
                   </li>
 
                   <li v-if="hasMore || totalResults > suggestions.length" class="border-t">
-                    <NuxtLink
+                    <NuxtLinkLocale
                       :to="`/shop?search=${encodeURIComponent(term.trim())}`"
                       class="block px-3 py-2 text-emerald-700 hover:bg-emerald-50 text-sm text-center font-medium"
                       @click="open=false"
                     >
                       Show more results<span v-if="totalResults"> ({{ totalResults }})</span>
-                    </NuxtLink>
+                    </NuxtLinkLocale>
                   </li>
                 </ul>
 
@@ -141,13 +141,13 @@
         <nav class="px-1 ">
           <ul class=" divide-y">
             <li>
-              <NuxtLink
+              <NuxtLinkLocale
                 class="block px-3 py-3 hover:bg-gray-50"
                 to="/"
                 @click="close"
               >
                 {{ t('header.home') }}
-              </NuxtLink>
+              </NuxtLinkLocale>
             </li>
           </ul>
         </nav>
@@ -315,22 +315,22 @@
           <div class="">
             <ul class="divide-y">
               <li>
-                <NuxtLink
+                <NuxtLinkLocale
                   to="/downloads"
                   class="block px-3 py-3 hover:bg-gray-50"
                   @click="close"
                 >
                   {{ $t('downloads') || 'Downloads' }}
-                </NuxtLink>
+                </NuxtLinkLocale>
               </li>
               <li class="bg-red-600 text-white">
-                <NuxtLink
+                <NuxtLinkLocale
                   to="/pin-code"
                   class="block px-3 py-3 hover:bg-gray-50"
                   @click="close"
                 >
                   {{ $t('pinCodes') || 'Pin Codes' }}
-                </NuxtLink>
+                </NuxtLinkLocale>
               </li>
             </ul>
           </div>

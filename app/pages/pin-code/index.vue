@@ -5,9 +5,9 @@
       <div class="container mx-auto max-w-7xl px-4">
         <ol class="flex items-center gap-2 py-3 text-sm text-gray-600">
           <li>
-            <NuxtLink :to="localePath('/')" class="hover:text-gray-900 underline-offset-2 hover:underline">
+            <NuxtLinkLocale :to="localePath('/')" class="hover:text-gray-900 underline-offset-2 hover:underline">
               {{ t('products.home') }}
-            </NuxtLink>
+            </NuxtLinkLocale>
           </li>
           <li aria-hidden="true" class="text-gray-400">/</li>
           <li class="text-gray-900 font-medium">
@@ -31,7 +31,7 @@
               :key="index"
               class="group rounded-lg bg-white shadow-sm ring-1 ring-gray-200 p-3 flex flex-col transition hover:shadow-md"
             >
-              <NuxtLink
+              <NuxtLinkLocale
                 :to="`/products/${brand.slug}`"
                 class="flex flex-col h-full text-current no-underline"
               >
@@ -51,7 +51,7 @@
                 <b class="mt-auto text-center block text-base text-orange-700">
                   {{ brand?.price?.value }} {{ brand?.price?.currency }}
                 </b>
-              </NuxtLink>
+              </NuxtLinkLocale>
             </article>
           </div>
         </section>

@@ -67,7 +67,7 @@ async function doRegister() {
 <template>
   <div class="container mx-auto px-4 py-8">
     <nav class="text-sm text-gray-500 mb-6">
-      <NuxtLink to="/" class="hover:underline">Home</NuxtLink>
+      <NuxtLinkLocale to="/" class="hover:underline">Home</NuxtLinkLocale>
       <span class="mx-2">›</span>
       <span class="text-gray-700">Login / Register</span>
     </nav>
@@ -88,7 +88,7 @@ async function doRegister() {
             <input v-model="lRemember" type="checkbox" class="rounded border-gray-300" />
             Remember me
           </label>
-          <NuxtLink to="/auth/forgot-password" class="text-sm text-gray-600 hover:underline">Forgot password?</NuxtLink>
+          <NuxtLinkLocale to="/auth/forgot-password" class="text-sm text-gray-600 hover:underline">Forgot password?</NuxtLinkLocale>
         </div>
 
         <button

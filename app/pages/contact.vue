@@ -5,9 +5,9 @@
       <div class="mx-auto max-w-7xl px-4">
         <ol class="flex items-center gap-2 py-3 text-sm text-gray-600">
           <li>
-            <NuxtLink :to="localePath('/')" class="hover:text-gray-900 underline-offset-2 hover:underline">
+            <NuxtLinkLocale :to="localePath('/')" class="hover:text-gray-900 underline-offset-2 hover:underline">
               {{ t('common.home') }}
-            </NuxtLink>
+            </NuxtLinkLocale>
           </li>
           <li aria-hidden="true" class="text-gray-400">/</li>
           <li class="text-gray-900 font-medium" aria-current="page">
