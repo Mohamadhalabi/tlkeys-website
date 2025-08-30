@@ -9,7 +9,12 @@
     "home" : "Home",
     "contactUs" :"Contact Us",
     "loading": "Loading…",
-    "comingSoon" : "Coming soon..."
+    "comingSoon" : "Coming soon...",
+    "tryAgain": "Try again."
+  },
+  "auth": {
+    "login": "Log in",
+    "register": "Register"
   },
   "searchPlaceholder": "I'm searching for",
   "myAccount": "My Account",
@@ -26,7 +31,6 @@
   "keyCuttingMachines": "Key cutting machines...",
   "logIn": "Log in",
   "wishlist": "Wishlist",
-  "cart": "Cart",
   "softwareTokens" : "Software & Tokens",
   "devicesMachines" : "Devices & Machines",
   "downloads" : "Downloads",
@@ -52,6 +56,12 @@
     "editAddress": "Edit address",
     "newAddress": "New address",
     "countryId": "Country ID",
+    "street": "Street",
+    "country" : "Country",
+    "selectCountry" :"Select a country",
+    "localShipping": "Locale Shipping",
+    "pickup" : "Pick Up",
+    "postalCode":"Postal Code",
     "city": "City",
     "address": "Address",
     "phone": "Phone",
@@ -353,6 +363,31 @@
       "updateProfile": "Update failed.",
       "passwordsMismatch": "Passwords do not match.",
       "passwordChange": "Password change failed."
+    }
+  },
+  "cart": {
+    "cart": "Cart",
+    "title": "Your Cart",
+    "clear": "Clear Cart",
+    "clearing": "Clearing…",
+    "empty": "Your cart is empty.",
+    "continueShopping": "Continue Shopping",
+    "summary": "Order Summary",
+    "subtotal": "Subtotal",
+    "shippingNote": "Shipping is calculated at checkout.",
+    "checkout": "Checkout",
+    "loginNotice": "Log in or create an account to checkout.",
+    "sku": "SKU:",
+    "unit": "Unit:",
+    "confirm": {
+      "clearAll": "Clear all items from your cart?"
+    },
+    "alert": {
+      "removedTitle": "Removed from Cart",
+      "updateFailedTitle": "Cart update failed",
+      "removeFailedTitle": "Remove failed",
+      "clearedTitle": "Cart cleared",
+      "clearFailedTitle": "Clear cart failed"
     }
   }
 }

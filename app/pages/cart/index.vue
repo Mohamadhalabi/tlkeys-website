@@ -7,6 +7,9 @@ import { useAlertStore } from '~/stores/alert'
 import { useCurrency } from '~/composables/useCurrency'
 import type { PriceTableRow as TRow, ProductLike } from '~/utils/pricing'
 import { computeUnitPrice as priceCalc } from '~/utils/pricing'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 type Id = number | string
 type BasePrices = { price?: number | null; regular_price?: number | null; sale_price?: number | null }
@@ -28,7 +31,7 @@ type CartRow = {
 
 const { $customApi } = useNuxtApp()
 const config = useRuntimeConfig()
-const API_BASE_URL = config.public.API_BASE_URL as string
+const API_BASE_URL = config.public.API_BASE_URL as string // (kept in case you use it later)
 
 const cart = useCart()
 const alerts = useAlertStore()
@@ -145,7 +148,7 @@ async function setQty(row: CartRow, qty: number) {
   try {
     await cart.setQuantity(row.product_id, qty)
   } catch (e: any) {
-    alerts.showAlert({ type: 'error', title: 'Cart update failed', message: e?.message || 'Try again.' })
+    alerts.showAlert({ type: 'error', title: t('cart.alert.updateFailedTitle'), message: e?.message || t('common.tryAgain') })
     await load()
   }
 }
@@ -154,23 +157,23 @@ async function removeRow(row: CartRow) {
   rows.value = rows.value.filter(r => r.product_id !== id)
   try {
     await cart.remove(id)
-    alerts.showAlert({ type: 'info', title: 'Removed from Cart', image: row.image, sku: row.sku })
+    alerts.showAlert({ type: 'info', title: t('cart.alert.removedTitle'), image: row.image, sku: row.sku })
     if (rows.value.length === 0) await load()
   } catch (e: any) {
-    alerts.showAlert({ type: 'error', title: 'Remove failed', message: e?.message || 'Try again.' })
+    alerts.showAlert({ type: 'error', title: t('cart.alert.removeFailedTitle'), message: e?.message || t('common.tryAgain') })
     await load()
   }
 }
 async function clearAll() {
   if (clearing.value) return
-  if (!window.confirm('Clear all items from your cart?')) return
+  if (!window.confirm(t('cart.confirm.clearAll'))) return
   clearing.value = true
   try {
     await cart.clear()
     rows.value = []
-    alerts.showAlert({ type: 'info', title: 'Cart cleared' })
+    alerts.showAlert({ type: 'info', title: t('cart.alert.clearedTitle') })
   } catch (e: any) {
-    alerts.showAlert({ type: 'error', title: 'Clear cart failed', message: e?.message || 'Try again.' })
+    alerts.showAlert({ type: 'error', title: t('cart.alert.clearFailedTitle'), message: e?.message || t('common.tryAgain') })
     await load()
   } finally {
     clearing.value = false
@@ -181,7 +184,7 @@ async function clearAll() {
 <template>
   <div class="container mx-auto px-4 py-6">
     <div class="mb-4 flex items-center justify-between gap-3">
-      <h1 class="text-2xl font-semibold">Your Cart</h1>
+      <h1 class="text-2xl font-semibold">{{ t('cart.title') }}</h1>
       <button
         v-if="rows.length"
         type="button"
@@ -189,7 +192,7 @@ async function clearAll() {
         :disabled="clearing"
         @click="clearAll"
       >
-        {{ clearing ? 'Clearing…' : 'Clear Cart' }}
+        {{ clearing ? t('cart.clearing') : t('cart.clear') }}
       </button>
     </div>
 
@@ -200,9 +203,9 @@ async function clearAll() {
     </div>
 
     <div v-else-if="!rows.length" class="rounded-2xl border border-gray-200 p-8 text-center bg-white">
-      <p class="text-gray-600">Your cart is empty.</p>
+      <p class="text-gray-600">{{ t('cart.empty') }}</p>
       <NuxtLinkLocale to="/" class="mt-3 inline-block px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700">
-        Continue Shopping
+        {{ t('cart.continueShopping') }}
       </NuxtLinkLocale>
     </div>
 
@@ -226,8 +229,10 @@ async function clearAll() {
               <button class="ms-auto text-gray-400 hover:text-gray-600" @click="removeRow(row)">✕</button>
             </div>
 
-            <!-- SKU in green -->
-            <p v-if="row.sku" class="text-xs font-medium text-green-600">SKU: {{ row.sku }}</p>
+            <!-- SKU -->
+            <p v-if="row.sku" class="text-xs font-medium text-green-600">
+              {{ t('cart.sku') }} {{ row.sku }}
+            </p>
 
             <div class="mt-2 flex flex-wrap items-center gap-4">
               <div class="inline-flex items-center rounded-xl border border-gray-300 overflow-hidden">
@@ -242,7 +247,7 @@ async function clearAll() {
                 <button type="button" class="px-3 py-2 hover:bg-gray-50" @click="inc(row)">+</button>
               </div>
 
-              <!-- Pricing (big red current price, gray strikethrough old) -->
+              <!-- Pricing -->
               <div class="ms-auto text-right">
                 <div class="text-2xl font-extrabold text-red-600">
                   {{ formatMoney((row.price || 0) * (row.quantity || 1)) }}
@@ -254,7 +259,7 @@ async function clearAll() {
                   {{ formatMoney((row.price_before || 0) * (row.quantity || 1)) }}
                 </div>
                 <div class="text-xs">
-                  Unit:
+                  {{ t('cart.unit') }}
                   <span
                     v-if="row.price_before != null && row.price_before > (row.price || 0)"
                     class="line-through text-gray-400 mr-1"
@@ -272,35 +277,36 @@ async function clearAll() {
       <!-- Summary -->
       <aside class="lg:col-span-1">
         <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-3">
-          <h2 class="font-semibold text-gray-900">Order Summary</h2>
+          <h2 class="font-semibold text-gray-900">{{ t('cart.summary') }}</h2>
           <div class="flex items-center justify-between text-lg">
-            <span>Subtotal</span>
+            <span>{{ t('cart.subtotal') }}</span>
             <span class="text-red-600">{{ formatMoney(subtotal) }}</span>
           </div>
-          <p class="text-xs text-gray-500">Shipping is calculated at checkout.</p>
+          <p class="text-xs text-gray-500">{{ t('cart.shippingNote') }}</p>
 
           <!-- Auth-aware CTA -->
           <template v-if="isAuthed">
-            <button
-              type="button"
-              class="w-full mt-2 px-5 py-3 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700"
+            <NuxtLinkLocale
+              to="/checkout"
+              class="block w-full mt-2 px-5 py-3 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700 text-center"
             >
-              Checkout
-            </button>
+              {{ t('cart.checkout') }}
+            </NuxtLinkLocale>
           </template>
+
           <template v-else>
             <div class="mt-2 grid grid-cols-2 gap-2">
               <NuxtLinkLocale
                 to="/login"
                 class="px-5 py-3 rounded-xl border border-gray-300 text-gray-700 text-center hover:bg-gray-50"
-              >Log in</NuxtLinkLocale>
+              >{{ t('auth.login') }}</NuxtLinkLocale>
               <NuxtLinkLocale
                 to="/register"
                 class="px-5 py-3 rounded-xl bg-red-600 text-white text-center font-medium hover:bg-red-700"
-              >Register</NuxtLinkLocale>
+              >{{ t('auth.register') }}</NuxtLinkLocale>
             </div>
             <p class="text-xs text-gray-500 mt-1 text-center">
-              Log in or create an account to checkout.
+              {{ t('cart.loginNotice') }}
             </p>
           </template>
         </div>

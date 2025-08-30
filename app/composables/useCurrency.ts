@@ -1,7 +1,7 @@
 // composables/useCurrency.ts
 import { watch } from 'vue'
 
-export type CurrencyCode = 'USD' | 'EUR' | 'TRY'
+export type CurrencyCode = 'USD' | 'EUR' | 'TRY' | 'AED' | 'GBP'
 
 export const useCurrency = () => {
   const cookie = useCookie<CurrencyCode>('currency', {
@@ -25,7 +25,7 @@ export const useCurrency = () => {
   return {
     currency: current,                         // Ref<'USD'|'EUR'|'TRY'>
     setCurrency: (c: CurrencyCode) => (current.value = c),
-    options: ['USD', 'EUR', 'TRY'] as CurrencyCode[],
+    options: ['USD', 'EUR', 'TRY','AED','GBP'] as CurrencyCode[],
     formatMoney,                               // <- use this everywhere
   }
 }
