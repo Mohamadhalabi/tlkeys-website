@@ -2,6 +2,30 @@
   "header" : {
     "home" :"Home"
   },
+    "home": {
+    "browseCategories": "Browse Categories",
+    "featuredProducts": "FEATURED PRODUCTS",
+    "newArrivals": "NEW ARRIVALS",
+    "loadingFeatured": "Loading featured…",
+    "loadingNewArrivals": "Loading new arrivals…",
+    "xhorseRemotes": "Xhorse remotes",
+    "xhorseRemotesAlt": "Xhorse Remotes",
+    "loadingXhorseRemotes": "Loading Xhorse remotes…",
+    "categories": {
+      "carRemotes": "Car Remotes",
+      "xhorseRemotes": "Xhorse Remotes",
+      "keydiyRemotes": "Keydiy Remotes",
+      "remotePcb": "Remote PCB",
+      "keyProgrammingDevices": "Key Programming Devices",
+      "keyCuttingMachines": "Key Cutting Machines",
+      "cables": "Cables",
+      "adapter": "Adapter",
+      "cutter": "Cutter",
+      "emulators": "Emulators",
+      "openingTools": "Opening Tools",
+      "immobilizerSmartBox": "Immobilizer Smart Box"
+    }
+  },
   "common" : {
     "aboutUs" : "About us",
     "clear" : "Clear",
