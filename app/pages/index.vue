@@ -266,7 +266,7 @@ const localizedHref = (lang: string) => {
   return `${siteUrl.value}${lang === defaultLocale ? base : `/${lang}${base}`}`
 }
 const toAbs = (src?: string) => {
-  if (!src) return `${siteUrl.value}${defaultOgImage || '/images/og-default.jpg'}`
+  if (!src) return `${siteUrl.value}${defaultOgImage || '/images/og-image.jpg'}`
   return src.startsWith('http') ? src : `${siteUrl.value}${src.startsWith('/') ? src : `/${src}`}`
 }
 const ogImage = computed(() => toAbs(itemsForSlider.value?.[0]?.image))

@@ -513,9 +513,6 @@ watchEffect(() => {
 
 /* ---------- mount-only: infinite scroll observer ---------- */
 onMounted(() => {
-
-  console.log("TESTT");
-  console.log(entryType);
   const io = new IntersectionObserver((entries) => {
     const [entry] = entries
     if (!entry?.isIntersecting) return
@@ -815,12 +812,23 @@ const seoDescription = computed(() => {
   return `${preface}${body}`.slice(0, 300)
 })
 
-const canonicalUrl = computed<string | undefined>(() => {
-  const base = (SITE_URL || '').replace(/\/+$/,'')
-  const path = route.fullPath || route.path || '/'
-  return base ? `${base}${path}` : undefined
-})
 
+const hasQuery = computed(() => Object.keys(route.query || {}).length > 0)
+
+/** Treat any query-string page (filters/sort/search/pagination) as non-indexable */
+const shouldNoindex = hasQuery
+
+/** Canonical:
+ * - Clean path (no query) when we're noindexing
+ * - Full path (with query) otherwise (e.g., plain /shop without params)
+ */
+const canonicalUrl = computed<string | undefined>(() => {
+  const base = (SITE_URL || '').replace(/\/+$/, '')
+  if (!base) return undefined
+  const pathOnly = route.path || '/'
+  const full = route.fullPath || pathOnly
+  return shouldNoindex.value ? `${base}${pathOnly}` : `${base}${full}`
+})
 useSeoMeta({
   title: seoTitle,
   description: seoDescription,
