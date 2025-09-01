@@ -243,22 +243,62 @@ async function createOrder() {
   if (!paymentMethod.value)     return alert(t('checkout.selectPaymentFirst') || 'Please select a payment method')
   if (!acceptTerms.value)       return alert(t('checkout.acceptTermsFirst') || 'Please accept Terms & Conditions')
 
-  const res = await $customApi<any>('/checkout/orders', {
-    method: 'POST',
-    body: {
-      address_id: selectedAddressId.value,
-      shipping_method: selectedShipping.value,
-      payment_method: paymentMethod.value,
-      coupon: coupon.value || null
-    }
-  })
+  const paymentMap: Record<'card'|'paypal'|'transfer', string> = {
+    card: 'ccavenue',          // CCAvenue
+    paypal: 'paypal',          // PayPal
+    transfer: 'transfer_online'
+  }
 
-  if (paymentMethod.value === 'paypal' && res?.paypal_url) {
-    window.location.href = res.paypal_url
-  } else if (paymentMethod.value === 'card' && res?.card_url) {
-    window.location.href = res.card_url
-  } else {
-    router.push({ path: '/complete-order', query: { orderId: res?.order?.order_id } })
+  const body = {
+    address:         selectedAddressId.value,
+    shipping_method: selectedShipping.value,
+    payment_method:  paymentMap[paymentMethod.value],
+    coupon_code:     coupon.value || null,
+  }
+
+  try {
+    // Auth: this route is under auth:api
+    const res = await $customApi<any>('/user/orders/create', {
+      method: 'POST',
+      body,
+      headers: {
+        currency: 'USD',
+        'Accept-Language': 'en',
+      },
+    })
+
+    // ---- Unwrap your API envelope ----
+    const payload = res?.data || res // in case $customApi already unwraps
+    const order   = payload?.order
+    const payment = payload?.payment
+    const paypalUrl = (payload?.paypal_url || '').trim()
+
+    // --- Redirects ---
+    // 1) PayPal → if a non-empty URL is present, go there
+    if (paymentMethod.value === 'paypal' && paypalUrl) {
+      window.location.href = paypalUrl
+      return
+    }
+
+    // 2) CCAvenue (our "card") → go to the on-site page that posts to CCAvenue
+    if (paymentMethod.value === 'card' && order?.order_id) {
+      // total is an object { value, currency, code }
+      const total = String(order?.total?.value ?? '')
+      const uuid  = String(order.order_id)
+      window.location.href = `/online-payment?uuid=${encodeURIComponent(uuid)}&total=${encodeURIComponent(total)}`
+      return
+    }
+
+    // 3) Transfer online (or any flow with no external redirect) → complete-order
+    if (order?.order_id) {
+      router.push({ path: '/complete-order', query: { orderId: order.order_id } })
+      return
+    }
+
+    // Fallback
+    alert('Order created but missing order id in response.')
+  } catch (e: any) {
+    alert(e?.message || 'Failed to create order')
   }
 }
 
