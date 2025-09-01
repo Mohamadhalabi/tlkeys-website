@@ -109,18 +109,18 @@ export default defineNuxtConfig({
   /* =========================================
    *  Images (lighter, faster, better)
    * =======================================*/
-  image: {
-    quality: 70,
-    domains: ['dev-srv.tlkeys.com', 'dev.tlkeys.com'], // no https://
-    presets: {
-      productLCP:  { modifiers: { width: 420,  fit: 'inside',  quality: 100, format: 'webp' } },
-      productCard: { modifiers: { width: 378,  fit: 'cover',   quality: 100, format: 'webp' } },
-      thumb80:     { modifiers: { width: 80,   height: 80,     fit: 'cover', quality: 100, format: 'webp' } },
-      logo96:      { modifiers: { width: 96,   height: 32,     fit: 'inside', quality: 100, format: 'webp' } },
-      // hero:   { modifiers: { width: 1280, quality: 100, format: 'webp' } },
-      // banner: { modifiers: { width: 1536, format: 'webp', quality: 100 } }, //
-    }
-  },
+  // image: {
+  //   quality: 70,
+  //   domains: ['dev-srv.tlkeys.com', 'dev.tlkeys.com'], // no https://
+  //   presets: {
+  //     productLCP:  { modifiers: { width: 420,  fit: 'inside',  quality: 100, format: 'webp' } },
+  //     productCard: { modifiers: { width: 378,  fit: 'cover',   quality: 100, format: 'webp' } },
+  //     thumb80:     { modifiers: { width: 80,   height: 80,     fit: 'cover', quality: 100, format: 'webp' } },
+  //     logo96:      { modifiers: { width: 96,   height: 32,     fit: 'inside', quality: 100, format: 'webp' } },
+  //     // hero:   { modifiers: { width: 1280, quality: 100, format: 'webp' } },
+  //     // banner: { modifiers: { width: 1536, format: 'webp', quality: 100 } }, //
+  //   }
+  // },
 
   /* =========================================
    *  Route rules (ISR + caching for SEO)

@@ -532,5 +532,13 @@
     "serialRequiredMsg": "Please enter a valid serial number before adding to cart."
   },
   "actions": { "addToCart": "ADD TO CART" },
-  "a11y": { "decreaseQty": "Decrease quantity", "increaseQty": "Increase quantity" }
+  "a11y": { "decreaseQty": "Decrease quantity", "increaseQty": "Increase quantity" },
+  "sortBy" : "Sort By",
+  "perPage": "Per page",
+  "menu": {
+    "cart" :"Cart",
+    "wishlist": "Wishlist",
+    "account" : "Account",
+    "logIn" :"Log In"
+  }
 }

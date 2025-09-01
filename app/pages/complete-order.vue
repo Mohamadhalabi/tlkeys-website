@@ -92,7 +92,7 @@ function goHome() {
 }
 function goOrders() {
   // adjust this path to your real “My Orders” page if different
-  router.push('/account/orders')
+  router.push('/account?tab=orders')
 }
 
 useHead({

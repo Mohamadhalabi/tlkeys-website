@@ -77,6 +77,7 @@ function countryDisplayName(c: Country, loc: string): string {
 /* ---------------- State ---------------- */
 const quote = ref<Quote | null>(null)
 const loading = ref(false)
+const creatingOrder = ref(false) // 🔒 prevent double submits after click
 
 const coupon = ref<string>('')
 
@@ -238,10 +239,14 @@ async function deleteAddress(a: Address) {
 }
 
 async function createOrder() {
+  // guard basic requirements first
   if (!selectedAddressId.value) return alert(t('checkout.selectAddressFirst') || 'Please select an address')
   if (!selectedShipping.value)  return alert(t('checkout.selectShippingFirst') || 'Please choose a shipping method')
   if (!paymentMethod.value)     return alert(t('checkout.selectPaymentFirst') || 'Please select a payment method')
   if (!acceptTerms.value)       return alert(t('checkout.acceptTermsFirst') || 'Please accept Terms & Conditions')
+
+  if (creatingOrder.value) return // already submitting
+  creatingOrder.value = true
 
   const paymentMap: Record<'card'|'paypal'|'transfer', string> = {
     card: 'ccavenue',          // CCAvenue
@@ -268,28 +273,26 @@ async function createOrder() {
     })
 
     // ---- Unwrap your API envelope ----
-    const payload = res?.data || res // in case $customApi already unwraps
+    const payload = res?.data || res
     const order   = payload?.order
-    const payment = payload?.payment
     const paypalUrl = (payload?.paypal_url || '').trim()
 
-    // --- Redirects ---
-    // 1) PayPal → if a non-empty URL is present, go there
+    // PayPal: if a non-empty URL is present, go there
     if (paymentMethod.value === 'paypal' && paypalUrl) {
       window.location.href = paypalUrl
       return
     }
 
-    // 2) CCAvenue (our "card") → go to the on-site page that posts to CCAvenue
+    // Card (CCAvenue): add 3% to total and redirect
     if (paymentMethod.value === 'card' && order?.order_id) {
-      // total is an object { value, currency, code }
-      const total = String(order?.total?.value ?? '')
-      const uuid  = String(order.order_id)
-      window.location.href = `/online-payment?uuid=${encodeURIComponent(uuid)}&total=${encodeURIComponent(total)}`
+      const baseTotal = Number(order?.total?.value ?? order?.total ?? 0)
+      const amount = (Math.round((baseTotal * 1.03 + Number.EPSILON) * 100) / 100).toFixed(2)
+      location.href =
+        `https://dev-srv.tlkeys.com/online-order?order_id=${encodeURIComponent(order.order_id)}&amount=${amount}`
       return
     }
 
-    // 3) Transfer online (or any flow with no external redirect) → complete-order
+    // Transfer or any non-redirect flow
     if (order?.order_id) {
       router.push({ path: '/complete-order', query: { orderId: order.order_id } })
       return
@@ -297,8 +300,10 @@ async function createOrder() {
 
     // Fallback
     alert('Order created but missing order id in response.')
+    creatingOrder.value = false
   } catch (e: any) {
     alert(e?.message || 'Failed to create order')
+    creatingOrder.value = false // re-enable on error so user can retry
   }
 }
 
@@ -327,7 +332,6 @@ const pageDescription = computed(() => {
   return `${t('checkout.reviewAndPlace') || 'Review your cart and place your order.'} Subtotal: ${subtotal}. ${shipLabel}.`
 })
 
-// ✅ Pass an OBJECT, with refs/computed for values (no wrapper function)
 useSeoMeta({
   title: pageTitle,
   description: pageDescription,
@@ -337,7 +341,7 @@ useSeoMeta({
   twitterCard: 'summary'
 })
 
-// Optional: keep checkout out of search results; remove if you want indexing
+// Keep checkout out of search results
 useHead({ meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
 
 /* ---------------- Effects ---------------- */
@@ -382,7 +386,8 @@ watch([selectedShipping, coupon], async () => {
               :placeholder="$t('checkout.enterCouponCode')"
             />
             <button class="rounded-xl border px-4 py-2 font-medium hover:bg-gray-50"
-                    :disabled="!coupon" @click="fetchQuote">
+                    :disabled="!coupon || creatingOrder"
+                    @click="fetchQuote">
               {{ $t('checkout.applyCoupon') }}
             </button>
           </div>
@@ -397,7 +402,7 @@ watch([selectedShipping, coupon], async () => {
               </svg>
               {{ $t('checkout.addrress') }}
             </h3>
-            <button class="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50" @click="openAddressForm()">
+            <button class="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50" @click="openAddressForm()" :disabled="creatingOrder">
               + {{ $t('checkout.addAddress') }}
             </button>
           </div>
@@ -409,7 +414,7 @@ watch([selectedShipping, coupon], async () => {
               class="rounded-2xl border p-3 cursor-pointer flex gap-3 items-start transition ring-offset-2 bg-white hover:shadow-sm"
               :class="selectedAddressId === a.id ? 'ring-2 ring-emerald-500' : ''"
             >
-              <input type="radio" class="mt-1" :value="a.id" v-model="selectedAddressId" />
+              <input type="radio" class="mt-1" :value="a.id" v-model="selectedAddressId" :disabled="creatingOrder" />
               <div class="w-full">
                 <div class="font-medium">
                   {{ a.country_name || '—' }} <span v-if="a.city">— {{ a.city }}</span>
@@ -424,8 +429,8 @@ watch([selectedShipping, coupon], async () => {
                   <span v-if="a.is_default" class="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 border border-emerald-200">
                     <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>{{ $t('checkout.default') }}
                   </span>
-                  <button class="px-2 py-1 rounded border hover:bg-gray-50" @click.stop="openAddressForm(a)">{{ $t('edit') }}</button>
-                  <button class="px-2 py-1 rounded border hover:bg-gray-50" @click.stop="deleteAddress(a)">{{ $t('delete') }}</button>
+                  <button class="px-2 py-1 rounded border hover:bg-gray-50" @click.stop="openAddressForm(a)" :disabled="creatingOrder">{{ $t('edit') }}</button>
+                  <button class="px-2 py-1 rounded border hover:bg-gray-50" @click.stop="deleteAddress(a)" :disabled="creatingOrder">{{ $t('delete') }}</button>
                 </div>
               </div>
             </label>
@@ -433,7 +438,7 @@ watch([selectedShipping, coupon], async () => {
         </div>
 
         <!-- Step 2: Shipping -->
-        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="shippingDisabled ? 'opacity-50 pointer-events-none' : ''">
+        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="(shippingDisabled || creatingOrder) ? 'opacity-50 pointer-events-none' : ''">
           <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
               <path d="M2 6a2 2 0 012-2h10a2 2 0 012 2v8h-1.18a3 3 0 10-5.64 0H8.82a3 3 0 10-5.64 0H2V6z"/>
@@ -469,7 +474,7 @@ watch([selectedShipping, coupon], async () => {
         </div>
 
         <!-- Step 3: Payment -->
-        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="paymentDisabled ? 'opacity-50 pointer-events-none' : ''">
+        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="(paymentDisabled || creatingOrder) ? 'opacity-50 pointer-events-none' : ''">
           <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
               <path d="M2 6a2 2 0 012-2h16a2 2 0 012 2v2H2V6z"/>
@@ -555,6 +560,7 @@ watch([selectedShipping, coupon], async () => {
               type="button"
               class="w-full rounded-xl bg-orange-500 text-white px-4 py-2 font-medium shadow-sm hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500"
               :aria-expanded="showAllProducts"
+              :disabled="creatingOrder"
               @click="showAllProducts = !showAllProducts"
             >
               <template v-if="showAllProducts">
@@ -591,7 +597,7 @@ watch([selectedShipping, coupon], async () => {
           <!-- Place order -->
           <div class="mt-5 rounded-2xl border p-4 bg-emerald-50/60">
             <label class="flex items-start gap-2 text-sm text-emerald-900">
-              <input type="checkbox" v-model="acceptTerms" class="mt-1 accent-emerald-600" />
+              <input type="checkbox" v-model="acceptTerms" class="mt-1 accent-emerald-600" :disabled="creatingOrder" />
               <span>
                 {{ $t('checkout.iAgreeTo') }}
                 <NuxtLinkLocale to="/terms" class="underline decoration-emerald-600 text-emerald-700 hover:text-emerald-800">
@@ -601,11 +607,22 @@ watch([selectedShipping, coupon], async () => {
             </label>
 
             <button
-              class="w-full mt-3 rounded-xl bg-orange-500 text-white px-6 py-3 font-medium shadow-sm hover:bg-emerald-700 disabled:opacity-50"
-              :disabled="!selectedAddressId || !selectedShipping || !paymentMethod || !acceptTerms || loading"
+              class="w-full mt-3 rounded-xl bg-orange-500 text-white px-6 py-3 font-medium shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="!selectedAddressId || !selectedShipping || !paymentMethod || !acceptTerms || creatingOrder"
+              :aria-busy="creatingOrder ? 'true' : 'false'"
               @click="createOrder"
             >
-              {{ $t('checkout.createOrder') }}
+              <span v-if="creatingOrder" class="inline-flex items-center gap-2">
+                <svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                </svg>
+                {{ $t('checkout.creatingOrder') || 'Creating your order…' }}
+              </span>
+              <span v-else>
+                {{ $t('checkout.createOrder') }}
+              </span>
             </button>
           </div>
         </div>
@@ -638,6 +655,7 @@ watch([selectedShipping, coupon], async () => {
                 v-model.number="addressForm.country_id"
                 class="w-full rounded-xl border px-3 py-2"
                 required
+                :disabled="creatingOrder"
               >
                 <option value="">{{ $t('checkout.selectCountry') }}</option>
                 <option
@@ -654,37 +672,37 @@ watch([selectedShipping, coupon], async () => {
 
             <div>
               <label class="text-sm block mb-1">{{ $t('checkout.city') }}</label>
-              <input v-model="addressForm.city" type="text" class="w-full rounded-xl border px-3 py-2" required />
+              <input v-model="addressForm.city" type="text" class="w-full rounded-xl border px-3 py-2" required :disabled="creatingOrder" />
             </div>
 
             <div>
               <label class="text-sm block mb-1">{{ $t('checkout.street') }}</label>
-              <input v-model="addressForm.street" type="text" class="w-full rounded-xl border px-3 py-2" required />
+              <input v-model="addressForm.street" type="text" class="w-full rounded-xl border px-3 py-2" required :disabled="creatingOrder" />
             </div>
 
             <div>
               <label class="text-sm block mb-1">{{ $t('checkout.address') }}</label>
-              <textarea v-model="addressForm.address" rows="3" class="w-full rounded-xl border px-3 py-2" required></textarea>
+              <textarea v-model="addressForm.address" rows="3" class="w-full rounded-xl border px-3 py-2" required :disabled="creatingOrder"></textarea>
             </div>
 
             <div>
               <label class="text-sm block mb-1">{{ $t('checkout.postalCode') }}</label>
-              <input v-model="addressForm.postal_code" type="text" class="w-full rounded-xl border px-3 py-2" required />
+              <input v-model="addressForm.postal_code" type="text" class="w-full rounded-xl border px-3 py-2" required :disabled="creatingOrder" />
             </div>
 
             <div>
               <label class="text-sm block mb-1">{{ $t('checkout.phone') }}</label>
-              <input v-model="addressForm.phone" type="text" class="w-full rounded-xl border px-3 py-2" required />
+              <input v-model="addressForm.phone" type="text" class="w-full rounded-xl border px-3 py-2" required :disabled="creatingOrder" />
             </div>
 
             <label class="inline-flex items-center gap-2 mt-1">
-              <input type="checkbox" v-model="addressForm.is_default" class="accent-emerald-600" />
+              <input type="checkbox" v-model="addressForm.is_default" class="accent-emerald-600" :disabled="creatingOrder" />
               <span class="text-sm">{{ $t('checkout.setAsDefault') }}</span>
             </label>
 
             <div class="pt-2 flex justify-end gap-3">
-              <button type="button" class="px-4 py-2 rounded border hover:bg-gray-50" @click="closeAddressForm">{{ $t('cancel') }}</button>
-              <button type="submit" class="px-4 py-2 rounded bg-orange-500 text-white hover:bg-emerald-700">{{ $t('save') }}</button>
+              <button type="button" class="px-4 py-2 rounded border hover:bg-gray-50" @click="closeAddressForm" :disabled="creatingOrder">{{ $t('cancel') }}</button>
+              <button type="submit" class="px-4 py-2 rounded bg-orange-500 text-white hover:bg-emerald-700" :disabled="creatingOrder">{{ $t('save') }}</button>
             </div>
           </form>
         </div>

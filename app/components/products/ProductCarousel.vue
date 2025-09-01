@@ -47,7 +47,7 @@ const props = withDefaults(defineProps<{
   lastPage: 1,
   rtl: null,
   autoSlide: true,          // turn on by default since you asked for it
-  autoSlideMs: 5000,        // 5 seconds
+  autoSlideMs: 10000,        // 5 seconds
   pauseOnHover: true
 })
 

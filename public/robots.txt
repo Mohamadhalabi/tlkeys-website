@@ -1,2 +1,120 @@
-User-Agent: *
-Disallow:
+User-agent: *
+
+# Block unwanted pages (English version - no prefix)
+Disallow: /Cart
+Disallow: /Checkout
+Disallow: /Compares
+Disallow: /wishlist
+Disallow: /complete-order
+Disallow: /Orders
+Disallow: /PvFreeShippingAmount
+Disallow: /Register-completed
+Disallow: /Routes
+Disallow: /Verify-mail
+Disallow: /Wishlist
+Disallow: /routes
+Disallow: /Auth/
+Disallow: /Apps/validation
+Disallow: /paypal-pay-now
+
+# Block unwanted pages (all other languages - with prefix)
+Disallow: /ar/Cart
+Disallow: /fr/Cart
+Disallow: /es/Cart
+Disallow: /ru/Cart
+Disallow: /de/Cart
+
+Disallow: /ar/Checkout
+Disallow: /fr/Checkout
+Disallow: /es/Checkout
+Disallow: /ru/Checkout
+Disallow: /de/Checkout
+
+Disallow: /ar/Compares
+Disallow: /fr/Compares
+Disallow: /es/Compares
+Disallow: /ru/Compares
+Disallow: /de/Compares
+
+Disallow: /ar/wishlist
+Disallow: /fr/wishlist
+Disallow: /es/wishlist
+Disallow: /ru/wishlist
+Disallow: /de/wishlist
+
+Disallow: /ar/complete-order
+Disallow: /fr/complete-order
+Disallow: /es/complete-order
+Disallow: /ru/complete-order
+Disallow: /de/complete-order
+
+Disallow: /ar/Orders
+Disallow: /fr/Orders
+Disallow: /es/Orders
+Disallow: /ru/Orders
+Disallow: /de/Orders
+
+Disallow: /ar/PvFreeShippingAmount
+Disallow: /fr/PvFreeShippingAmount
+Disallow: /es/PvFreeShippingAmount
+Disallow: /ru/PvFreeShippingAmount
+Disallow: /de/PvFreeShippingAmount
+
+Disallow: /ar/Register-completed
+Disallow: /fr/Register-completed
+Disallow: /es/Register-completed
+Disallow: /ru/Register-completed
+Disallow: /de/Register-completed
+
+Disallow: /ar/Routes
+Disallow: /fr/Routes
+Disallow: /es/Routes
+Disallow: /ru/Routes
+Disallow: /de/Routes
+
+Disallow: /ar/Verify-mail
+Disallow: /fr/Verify-mail
+Disallow: /es/Verify-mail
+Disallow: /ru/Verify-mail
+Disallow: /de/Verify-mail
+
+Disallow: /ar/Wishlist
+Disallow: /fr/Wishlist
+Disallow: /es/Wishlist
+Disallow: /ru/Wishlist
+Disallow: /de/Wishlist
+
+Disallow: /ar/routes
+Disallow: /fr/routes
+Disallow: /es/routes
+Disallow: /ru/routes
+Disallow: /de/routes
+
+Disallow: /ar/Auth/
+Disallow: /fr/Auth/
+Disallow: /es/Auth/
+Disallow: /ru/Auth/
+Disallow: /de/Auth/
+
+Disallow: /ar/Apps/validation
+Disallow: /fr/Apps/validation
+Disallow: /es/Apps/validation
+Disallow: /ru/Apps/validation
+Disallow: /de/Apps/validation
+
+Disallow: /ar/paypal-pay-now
+Disallow: /fr/paypal-pay-now
+Disallow: /es/paypal-pay-now
+Disallow: /ru/paypal-pay-now
+Disallow: /de/paypal-pay-now
+
+# Block all URLs with query parameters
+Disallow: /*?*
+
+# Sitemaps
+Sitemap: https://www.tlkeys.com/sitemap-english.xml
+Sitemap: https://www.tlkeys.com/sitemap-arabic.xml
+Sitemap: https://www.tlkeys.com/sitemap-french.xml
+Sitemap: https://www.tlkeys.com/sitemap-spanish.xml
+Sitemap: https://www.tlkeys.com/sitemap-russian.xml
+Sitemap: https://www.tlkeys.com/sitemap-deutsch.xml

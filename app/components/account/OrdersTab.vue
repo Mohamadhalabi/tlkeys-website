@@ -92,7 +92,7 @@ watch(
               <th class="py-2 pr-3">Status</th>
               <th class="py-2 pr-3">Payment</th>
               <th class="py-2 pr-3 text-right">Total</th>
-              <th class="py-2 pr-3"></th>
+              <!-- <th class="py-2 pr-3"></th> -->
             </tr>
           </thead>
           <tbody class="divide-y">
@@ -104,14 +104,14 @@ watch(
               <td class="py-3 pr-3 text-right font-semibold">
                 ${{ Number(o.total).toFixed(2) }}
               </td>
-              <td class="py-3 pr-3">
+              <!-- <td class="py-3 pr-3">
                 <NuxtLinkLocale
                   :to="{ path: `/account/orders/${o.id}` }"
                   class="inline-flex items-center rounded border px-2 py-1 hover:bg-gray-50"
                 >
                   View
                 </NuxtLinkLocale>
-              </td>
+              </td> -->
             </tr>
           </tbody>
         </table>

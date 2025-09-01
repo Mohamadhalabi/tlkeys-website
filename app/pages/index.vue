@@ -69,7 +69,31 @@ const categories = [
 ]
 const catRows = computed(() => Math.ceil((categories?.length || 0) / 5))
 
-/* -------- helpers for product sections used on this page (featured/new) -------- */
+/* ---------------- LIMIT LOGIC (max 48 per section) ---------------- */
+const MAX_PER_SECTION = 48
+
+// compute server page size & capped last page
+function pageSizeFrom(meta: any, fallbackRows: number, fallbackPerRow: number, itemsLen: number) {
+  const byMeta = Number(meta?.per_page ?? meta?.page_size)
+  if (Number.isFinite(byMeta) && byMeta > 0) return byMeta
+  const byProps = Math.max(1, (fallbackRows || 1) * (fallbackPerRow || 1))
+  return Math.max(1, byMeta || byProps || itemsLen || 1)
+}
+function lastFromMeta(meta: any) {
+  const lp = Number(meta?.last_page)
+  if (Number.isFinite(lp) && lp > 1) return lp
+  const total = Number(meta?.total || 0)
+  const size  = Math.max(1, Number(meta?.page_size || meta?.per_page || 1))
+  const calc  = Math.ceil(total / size)
+  return calc > 0 ? calc : 1
+}
+function cappedLastPage(meta: any, rows: number, perRow: number, itemsLen: number) {
+  const size = pageSizeFrom(meta, rows, perRow, itemsLen)
+  const serverLast = lastFromMeta(meta)
+  const capLast = Math.ceil(MAX_PER_SECTION / size)
+  return Math.max(1, Math.min(serverLast, capLast))
+}
+
 function unwrapApi(res: any) {
   const body = (res && typeof res === 'object' && 'data' in res && !Array.isArray((res as any).data))
     ? (res as any).data
@@ -108,8 +132,8 @@ function mapApiProduct(p: any) {
   // categories (need ids to detect software/token)
   const cats = Array.isArray(p?.categories) ? p.categories : []
   const catIds = cats.map((c:any) => Number(c?.id)).filter((n:number) => Number.isFinite(n))
-  const requiresSerial = catIds.includes(47) || catIds.includes(48)     // ⬅️ Token/Software
-  const hidePrice = Number(p?.hide_price ?? 0) === 1                     // ⬅️ Hide price flag
+  const requiresSerial = catIds.includes(47) || catIds.includes(48)     // Token/Software
+  const hidePrice = Number(p?.hide_price ?? 0) === 1
 
   const categoryName = cats[0]?.name ? String(cats[0].name) : ''
   const categorySlug = cats[0]?.slug ? String(cats[0].slug).toLowerCase() : ''
@@ -140,19 +164,9 @@ function mapApiProduct(p: any) {
     freeShipping: isFree,
     badgeText: isFree ? 'FREE SHIPPING' : null,
 
-    // ⬇️ NEW FLAGS
     hide_price: hidePrice,
     requires_serial: requiresSerial,
   }
-}
-
-function lastFromMeta(meta: any) {
-  const lp = Number(meta?.last_page)
-  if (Number.isFinite(lp) && lp > 1) return lp
-  const total = Number(meta?.total || 0)
-  const size  = Math.max(1, Number(meta?.page_size || 1))
-  const calc  = Math.ceil(total / size)
-  return calc > 0 ? calc : 1
 }
 function useLazySection(cb: () => void) {
   const el = ref<HTMLElement | null>(null)
@@ -173,6 +187,9 @@ const featuredPage    = ref(1)
 const featuredLastRef = ref(1)
 
 async function fetchFeatured(page = 1, rows = 2, perRow = 6) {
+  // stop if we already reached the cap and someone asks for more pages
+  if (page > 1 && featured.value.length >= MAX_PER_SECTION) return
+
   const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
     method: 'GET',
     params: {
@@ -182,10 +199,22 @@ async function fetchFeatured(page = 1, rows = 2, perRow = 6) {
     }
   })
   const { items, meta } = unwrapApi(res)
-  featured.value         = items.map(mapApiProduct)
+  const capLast = cappedLastPage(meta, rows, perRow, items.length)
+  if (page > capLast) return
+
+  if (page <= 1) {
+    featured.value = items.map(mapApiProduct)
+  } else {
+    featured.value = [...featured.value, ...items.map(mapApiProduct)]
+  }
+  // enforce hard cap
+  if (featured.value.length > MAX_PER_SECTION) {
+    featured.value = featured.value.slice(0, MAX_PER_SECTION)
+  }
+
   featuredMeta.value     = meta
   featuredPage.value     = Number(meta?.current_page || page || 1)
-  featuredLastRef.value  = lastFromMeta(meta)
+  featuredLastRef.value  = capLast
 }
 const { el: featuredEl } = useLazySection(() => fetchFeatured(1))
 
@@ -196,6 +225,8 @@ const newPage     = ref(1)
 const newLastRef  = ref(1)
 
 async function fetchNew(page = 1, rows = 1, perRow = 6) {
+  if (page > 1 && newArrivals.value.length >= MAX_PER_SECTION) return
+
   const res = await $customApi(`${API_BASE_URL}/homepage-products/new-arrivals`, {
     method: 'GET',
     params: {
@@ -205,10 +236,21 @@ async function fetchNew(page = 1, rows = 1, perRow = 6) {
     }
   })
   const { items, meta } = unwrapApi(res)
-  newArrivals.value = items.map(mapApiProduct)
+  const capLast = cappedLastPage(meta, rows, perRow, items.length)
+  if (page > capLast) return
+
+  if (page <= 1) {
+    newArrivals.value = items.map(mapApiProduct)
+  } else {
+    newArrivals.value = [...newArrivals.value, ...items.map(mapApiProduct)]
+  }
+  if (newArrivals.value.length > MAX_PER_SECTION) {
+    newArrivals.value = newArrivals.value.slice(0, MAX_PER_SECTION)
+  }
+
   newMeta.value     = meta
   newPage.value     = Number(meta?.current_page || page || 1)
-  newLastRef.value  = lastFromMeta(meta)
+  newLastRef.value  = capLast
 }
 const { el: newEl } = useLazySection(() => fetchNew(1))
 

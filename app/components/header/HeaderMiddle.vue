@@ -120,22 +120,22 @@
       <div class="flex items-center gap-6 text-sm text-gray-700">
         <NuxtLinkLocale v-if="!isAuthed" to="/auth/login-register" class="flex items-center gap-1">
           <UserPlusIcon class="w-5 h-5" />
-          <span>{{ t('logIn') }}</span>
+          <span>{{ t('menu.logIn') }}</span>
         </NuxtLinkLocale>
 
         <NuxtLinkLocale v-else to="/account" class="flex items-center gap-1">
           <UserPlusIcon class="w-5 h-5" />
-          <span>{{ t('account') }}</span>
+          <span>{{ t('menu.account') }}</span>
         </NuxtLinkLocale>
 
         <NuxtLinkLocale to="/wishlist" class="flex items-center gap-1">
           <HeartIcon class="w-5 h-5" />
-          <span>{{ t('wishlist') }}</span>
+          <span>{{ t('menu.wishlist') }}</span>
         </NuxtLinkLocale>
 
         <NuxtLinkLocale to="/cart" class="flex items-center gap-1 relative">
           <ShoppingCartIcon class="w-5 h-5" />
-          <span>{{ t('cart') }}</span>
+          <span>{{ t('menu.cart') }}</span>
         </NuxtLinkLocale>
       </div>
     </div>

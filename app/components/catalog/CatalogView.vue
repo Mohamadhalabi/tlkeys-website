@@ -28,7 +28,7 @@ const localeProperties = i18nApi?.localeProperties ?? computed(() => ({ dir: 'lt
 
 /* ---------- helpers ---------- */
 const SHOP_PATH = '/shop'
-const managedKeys = ['brands','categories','manufacturers','models','q','search','sort','page','per_page'] as const
+const managedKeys = ['brands','categories','manufacturers','models','q','search','sort','page','per_page','attributes'] as const
 
 // flags we forward to the API if present in the URL
 const flagKeys = ['offers','promotion','free-shipping','bundled','new-arrival'] as const
@@ -53,13 +53,34 @@ function prettify(slug: string) {
 }
 function parsePerPage(v: unknown): number | 'all' {
   const raw = (Array.isArray(v) ? v[0] : v) as string | undefined
-  if (!raw) return 35
+  if (!raw) return 25
   if (raw === 'all') return 'all'
   const n = Number(raw)
-  return Number.isFinite(n) && n > 0 ? n : 35
+  return Number.isFinite(n) && n > 0 ? n : 25
 }
 function scrollTop(smooth = true) {
   if (process.client) window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' })
+}
+
+// ---- attributes param helpers ----
+function stableStringify(obj: Record<string, string[]>): string {
+  const out: Record<string, string[]> = {}
+  Object.keys(obj).sort().forEach(k => { out[k] = [...obj[k]].sort() })
+  return JSON.stringify(out)
+}
+function parseAttributesParam(v: unknown): Record<string, string[]> {
+  if (!v) return {}
+  try {
+    const raw = typeof v === 'string' ? JSON.parse(v) : v
+    if (!raw || typeof raw !== 'object') return {}
+    const out: Record<string, string[]> = {}
+    Object.entries(raw as Record<string, any>).forEach(([k, list]) => {
+      const arr = Array.isArray(list) ? list : [list]
+      const cleaned = arr.map(String).map(s => s.trim().toLowerCase()).filter(Boolean)
+      if (cleaned.length) out[k.toLowerCase()] = Array.from(new Set(cleaned)).sort()
+    })
+    return out
+  } catch { return {} }
 }
 
 /** merge URL query with initialFilters (for first load & SSR) */
@@ -70,6 +91,7 @@ const mergedFilters = computed(() => {
     categories:    qy.categories ? parseCsv(qy.categories) : (props.initialFilters?.categories ?? []),
     manufacturers: qy.manufacturers ? parseCsv(qy.manufacturers) : (props.initialFilters?.manufacturers ?? []),
     models:        qy.models ? parseCsv(qy.models) : (props.initialFilters?.models ?? []),
+    attributes:    parseAttributesParam(qy.attributes),
 
     // 👇 read q OR search (alias coming from the header)
     q:    (qy.q as string) || (qy.search as string) || '',
@@ -90,22 +112,25 @@ const entryType = computed<'brand'|'category'|'manufacturer'|'unknown'>(() => {
 })
 
 /** local UI state (mirrors URL; URL is the source of truth) */
+type AttrMap = Record<string, string[]>
 const sel = reactive({
   brands: [] as string[],
   categories: [] as string[],
   manufacturers: [] as string[],
   models: [] as string[],
+  attributes: {} as AttrMap, // NEW
   q: '',
   sort: 'newest',
   page: 1,
-  perPage: 35 as number | 'all'
+  perPage: 25 as number | 'all'
 })
 
 /** collapsible + UI state per section */
-type K = 'brands'|'models'|'categories'|'manufacturers'
+type KFixed = 'brands'|'models'|'categories'|'manufacturers'
 const ui = reactive({
-  open:    { brands: false, models: false, categories: false, manufacturers: false } as Record<K, boolean>,
-  search:  { brands: '',    models: '',    categories: '',    manufacturers: ''    } as Record<K, string>,
+  // allow dynamic keys for attribute sections too
+  open:   { brands: false, models: false, categories: false, manufacturers: false } as Record<string, boolean>,
+  search: { brands: '',    models: '',    categories: '',    manufacturers: ''    } as Record<string, string>,
 })
 
 /** Initialize once from mergedFilters (first render) */
@@ -115,6 +140,7 @@ const ui = reactive({
   sel.categories = [...v.categories]
   sel.manufacturers = [...v.manufacturers]
   sel.models = [...v.models]
+  sel.attributes = { ...v.attributes } // NEW
   sel.q = v.q
   sel.sort = v.sort
   sel.page = v.page
@@ -133,12 +159,16 @@ function buildQueryFromSel() {
   if (sel.manufacturers.length)  q.manufacturers  = sel.manufacturers.join(',')
   if (sel.models.length)         q.models         = sel.models.join(',')
 
+  // attributes → stable JSON only if any picked
+  const hasAttrs = Object.values(sel.attributes || {}).some(arr => (arr?.length ?? 0) > 0)
+  if (hasAttrs) q.attributes = stableStringify(sel.attributes)
+
   // 👇 use 'search' so /shop?search=... remains canonical
   if (sel.q)                     q.search         = sel.q
 
   if (sel.sort)                  q.sort           = sel.sort
   if (sel.page > 1)              q.page           = String(sel.page)
-  q.per_page = sel.perPage === 'all' ? 'all' : String(sel.perPage || 35)
+  q.per_page = sel.perPage === 'all' ? 'all' : String(sel.perPage || 25)
 
   // preserve unknown params
   const next: Record<string, any> = {}
@@ -158,7 +188,8 @@ function computeTargetPath() {
   const baseMan = (props.initialFilters?.manufacturers?.[0] || '').toLowerCase()
 
   const hasAnyFilter =
-    sel.brands.length || sel.categories.length || sel.manufacturers.length || sel.models.length || !!sel.q
+    sel.brands.length || sel.categories.length || sel.manufacturers.length || sel.models.length ||
+    Object.values(sel.attributes).some(a => a.length) || !!sel.q
 
   const hasBaseCat = sel.categories.map(s => s.toLowerCase()).includes(baseCat)
   const hasBaseMan = sel.manufacturers.map(s => s.toLowerCase()).includes(baseMan)
@@ -182,16 +213,17 @@ function toggle(list: string[], slug: string) {
   const i = list.indexOf(slug)
   i >= 0 ? list.splice(i, 1) : list.push(slug)
 }
-function toggleSection(which: K) { ui.open[which] = !ui.open[which] }
+function toggleSection(which: string) { ui.open[which] = !ui.open[which] }
 
-function clearGroup(which: K) {
+function clearGroup(which: KFixed) {
   if (which === 'brands') sel.brands = []
   else if (which === 'categories') sel.categories = []
   else if (which === 'manufacturers') sel.manufacturers = []
   else sel.models = []
 
   const totalAfter =
-    sel.brands.length + sel.models.length + sel.categories.length + sel.manufacturers.length
+    sel.brands.length + sel.models.length + sel.categories.length + sel.manufacturers.length +
+    Object.values(sel.attributes).reduce((n, a) => n + a.length, 0)
 
   if (totalAfter === 0) { router.push({ path: SHOP_PATH }); return }
   if (which === entryType.value) {
@@ -199,6 +231,21 @@ function clearGroup(which: K) {
     return
   }
   applyAndResetPage()
+}
+
+// ---- attributes toggle/clear ----
+function toggleAttr(attrSlug: string, subSlug: string) {
+  const key = attrSlug.toLowerCase()
+  const list = sel.attributes[key] || []
+  const i = list.indexOf(subSlug)
+  if (i >= 0) list.splice(i, 1)
+  else list.push(subSlug)
+  if (list.length) sel.attributes[key] = list
+  else delete sel.attributes[key]
+}
+function clearAttr(attrSlug: string) {
+  const key = attrSlug.toLowerCase()
+  if (sel.attributes[key]) delete sel.attributes[key]
 }
 
 /* ---------- API unwrap + pricing helpers ---------- */
@@ -230,24 +277,20 @@ function applyDiscount(base: number, disc: { discount_type: 'percent'|'fixed'|nu
 /** Map API → card item with sale/discount awareness */
 function mapApiProduct(p: any) {
   const discRaw = (p?.discount?.data ?? p?.discount) || null
-  const disc    = normalizeDiscount(discRaw) // ← uses active window
-
-  // free shipping, chips, etc… (unchanged)
+  const disc    = normalizeDiscount(discRaw)
 
   return {
     id: p.id,
     name: p.title ?? p.short_title ?? '',
     image: p.image,
 
-    // DO NOT force sale here; let the card compute final
-    price: p.price,                           // ← base from API
-    oldPrice: null,                           // optional; card computes strikethrough itself
+    price: p.price,
+    oldPrice: null,
 
     regular_price: p.regular_price ?? null,
     sale_price:    p.sale_price ?? null,
     table_price:   Array.isArray(p?.table_price) ? p.table_price : null,
 
-    // only pass discount when active
     discount_type:  disc.discount_type,
     discount_value: disc.discount_value,
     discount_start_date: discRaw?.start_date ?? null,
@@ -268,7 +311,7 @@ function lastFromMeta(meta: any) {
   const lp = Number(meta?.last_page)
   if (Number.isFinite(lp) && lp > 1) return lp
   const total = Number(meta?.total || 0)
-  const size  = Math.max(1, Number(meta?.page_size || meta?.per_page || (sel.perPage === 'all' ? 35 : sel.perPage || 24)))
+  const size  = Math.max(1, Number(meta?.page_size || meta?.per_page || (sel.perPage === 'all' ? 25 : sel.perPage || 24)))
   const calc  = Math.ceil(total / size)
   return calc > 0 ? calc : 1
 }
@@ -277,14 +320,21 @@ function lastFromMeta(meta: any) {
 const items   = ref<any[]>([])
 const meta    = ref<any | null>(null)
 type FacetT = { id?: number|string; slug: string; name: string; count: number }
-const facets  = ref<{brands:FacetT[];models:FacetT[];categories:FacetT[];manufacturers:FacetT[]}|null>(null)
+type AttrFacet = { slug: string; name: string; priority: number; items: FacetT[] }
+const facets  = ref<{
+  brands: FacetT[];
+  models: FacetT[];
+  categories: FacetT[];
+  manufacturers: FacetT[];
+  attributes?: AttrFacet[];
+} | null>(null)
 const pending = ref(false)
 const errorMsg = ref('')
 
 /* ---------- Infinite scroll ---------- */
 const infiniteSentinel = ref<HTMLElement | null>(null)
 const isInfinite = computed(() => sel.perPage === 'all')
-const CHUNK = 35
+const CHUNK = 25
 const canLoadMore = computed(() => {
   if (!meta.value) return false
   const current = Number(meta.value.current_page || sel.page || 1)
@@ -292,10 +342,16 @@ const canLoadMore = computed(() => {
   return current < last
 })
 
+
+// after entryType / sel definitions
+const showAttrFilters = computed(() => {
+  // true unless we are on a manufacturer landing with no category chosen yet
+  return !(entryType.value === 'manufacturer' && sel.categories.length === 0)
+})
 /* ---------- SSR fetch (first load) ---------- */
 const keyForSSR = computed(() => `catalog:${JSON.stringify({
   brands: sel.brands, categories: sel.categories, manufacturers: sel.manufacturers, models: sel.models,
-  q: sel.q, sort: sel.sort, page: sel.page, per_page: sel.perPage
+  attributes: sel.attributes, q: sel.q, sort: sel.sort, page: sel.page, per_page: sel.perPage
 })}`)
 
 async function fetchOnce() {
@@ -303,52 +359,87 @@ async function fetchOnce() {
   errorMsg.value = ''
   try {
     const effectivePerPage = sel.perPage === 'all' ? CHUNK : sel.perPage
+
+    // --- build params ---
     const params = buildCatalogParams({
-      brands: sel.brands,
-      categories: sel.categories,
+      brands:        sel.brands,
+      categories:    sel.categories,
       manufacturers: sel.manufacturers,
-      models: sel.models,
-      q: sel.q,
-      sort: sel.sort,
-      page: sel.page,
-      per_page: effectivePerPage
+      models:        sel.models,
+      attributes:    sel.attributes,    // will stringify just below
+      q:             sel.q,
+      sort:          sel.sort,
+      page:          sel.page,
+      per_page:      effectivePerPage,
     })
 
+    // API uses ?search= instead of ?q=
     ;(params as any).search = sel.q
     delete (params as any).q
 
-    // Forward flags from the current URL to the API
+    // ensure attributes are a stable JSON string
+    if ((params as any).attributes && typeof (params as any).attributes !== 'string') {
+      ;(params as any).attributes = stableStringify(sel.attributes)
+    }
+
+    // forward any flag-like params from the current URL
     flagKeys.forEach((k) => {
       if (Object.prototype.hasOwnProperty.call(route.query, k)) {
         ;(params as any)[k] = (route.query as any)[k] === '' ? 1 : (route.query as any)[k]
       }
     })
 
+    // include extra product bits you already depend on
     ;(params as any).include = 'table_price,categories'
 
+    // ✅ tell backend whether to compute attribute facets
+    ;(params as any).attr_facets = showAttrFilters.value ? 1 : 0
+
+    // --- request ---
     const res = await $customApi(`${API_BASE_URL}/catalog`, { method: 'GET', params })
     const { items: list, meta: m, body } = unwrapApi(res)
 
+    // --- items/meta ---
     const mapped = list.map(mapApiProduct)
     if (isInfinite.value && sel.page > 1) items.value = items.value.concat(mapped)
     else items.value = mapped
+    meta.value = m
 
-    meta.value   = m
-
+    // --- facets: fixed groups ---
     const fix = (arr: any[] = []): FacetT[] =>
       arr.map((f: any) => ({
         id: f.id,
         slug: String(f.slug),
         name: (f.name ?? '').toString() || prettify(String(f.slug)),
-        count: Number(f.count ?? 0)
+        count: Number(f.count ?? 0),
       }))
 
-    facets.value = body?.facets ? {
+    const hasFacets = body && body.facets
+    const baseFacets = hasFacets ? {
       brands:        fix(body.facets.brands),
       models:        fix(body.facets.models || []),
       categories:    fix(body.facets.categories),
       manufacturers: fix(body.facets.manufacturers),
     } : null
+
+    // --- facets: dynamic attribute groups (only when requested) ---
+    const attrFacets: AttrFacet[] =
+      (showAttrFilters.value && hasFacets && Array.isArray(body.facets.attributes))
+        ? body.facets.attributes
+            .map((a: any) => ({
+              slug: String(a.slug),
+              name: (a.name ?? '').toString() || prettify(String(a.slug)),
+              priority: Number(a.priority ?? 0),
+              items: fix(a.items || []),
+            }))
+            .filter(a => a.items.length > 0)                       // hide empty attributes
+            .sort((x, y) => y.priority - x.priority || x.name.localeCompare(y.name))
+        : []
+
+    facets.value = baseFacets
+      ? { ...baseFacets, attributes: attrFacets }
+      : null
+
   } catch (e: any) {
     errorMsg.value = e?.data?.message || e?.message || 'Failed to load catalog'
   } finally {
@@ -373,6 +464,7 @@ async function resyncFromUrlAndFetch() {
     models: sel.models.join(','),
     cats: sel.categories.join(','),
     mans: sel.manufacturers.join(','),
+    attrs: stableStringify(sel.attributes),
     q: sel.q,
   }
 
@@ -381,6 +473,7 @@ async function resyncFromUrlAndFetch() {
   sel.categories    = [...v.categories]
   sel.manufacturers = [...v.manufacturers]
   sel.models        = [...v.models]
+  sel.attributes    = { ...v.attributes }
   sel.q             = v.q
   sel.sort          = v.sort
   sel.page          = v.page
@@ -393,11 +486,12 @@ async function resyncFromUrlAndFetch() {
                   prev.models  !== sel.models.join(',') ||
                   prev.cats    !== sel.categories.join(',') ||
                   prev.mans    !== sel.manufacturers.join(',') ||
+                  prev.attrs   !== stableStringify(sel.attributes) ||
                   prev.q       !== sel.q) ? [] : items.value
   meta.value   = null
   facets.value = null
 
-  // open sections that have selections
+  // open sections that have selections (fixed)
   ui.open.brands        = sel.brands.length > 0
   ui.open.models        = sel.models.length > 0
   ui.open.categories    = sel.categories.length > 0
@@ -408,8 +502,20 @@ async function resyncFromUrlAndFetch() {
 // Not immediate -> prevents double fetch after SSR
 watch(routeKey, () => { resyncFromUrlAndFetch() }, { immediate: false })
 
+// open attribute sections that have selections when facets load / selection changes
+watchEffect(() => {
+  if (facets.value?.attributes?.length) {
+    facets.value.attributes.forEach(a => {
+      if ((sel.attributes[a.slug]?.length || 0) > 0) ui.open[a.slug] = true
+    })
+  }
+})
+
 /* ---------- mount-only: infinite scroll observer ---------- */
 onMounted(() => {
+
+  console.log("TESTT");
+  console.log(entryType);
   const io = new IntersectionObserver((entries) => {
     const [entry] = entries
     if (!entry?.isIntersecting) return
@@ -486,23 +592,51 @@ const facetSections = computed(() => {
   return order.map(k => sectionsMap[k])
 })
 
+type Chip =
+  | { type:'page'; value:number; active:boolean }
+  | { type:'gap'; dir:'prev'|'next' }
+
 const selectedChips = computed(() => {
-  const chips: { group: K; slug: string; label: string }[] = []
+  const chips: Array<{ group: KFixed | 'attr'; slug: string; label: string; attrSlug?: string }> = []
   const { b, mdl, c, m } = facetMaps.value
   sel.brands.forEach(s => chips.push({ group: 'brands', slug: s, label: b.get(s) || prettify(s) }))
   sel.models.forEach(s => chips.push({ group: 'models', slug: s, label: mdl.get(s) || prettify(s) }))
   sel.manufacturers.forEach(s => chips.push({ group: 'manufacturers', slug: s, label: m.get(s) || prettify(s) }))
   sel.categories.forEach(s => chips.push({ group: 'categories', slug: s, label: c.get(s) || prettify(s) }))
+
+  // attributes (labels from facets.attributes)
+  if (facets.value?.attributes?.length) {
+    const attrMap = new Map<string, AttrFacet>()
+    facets.value.attributes.forEach(a => attrMap.set(a.slug, a))
+    Object.entries(sel.attributes).forEach(([aSlug, subs]) => {
+      const sec = attrMap.get(aSlug)
+      const nameMap = new Map(sec?.items.map(i => [i.slug, i.name]))
+      subs.forEach(sub => chips.push({
+        group: 'attr',
+        slug: sub,
+        attrSlug: aSlug,
+        label: nameMap.get(sub) || prettify(sub)
+      }))
+    })
+  }
   return chips
 })
 
-function removeChip(group: K, slug: string) {
-  const map = { brands: sel.brands, models: sel.models, categories: sel.categories, manufacturers: sel.manufacturers }[group]
-  const i = map.indexOf(slug)
-  if (i >= 0) map.splice(i, 1)
+function removeChip(group: KFixed | 'attr', slug: string, attrSlug?: string) {
+  if (group === 'attr' && attrSlug) {
+    const list = sel.attributes[attrSlug] || []
+    const i = list.indexOf(slug)
+    if (i >= 0) list.splice(i, 1)
+    if (!list.length) delete sel.attributes[attrSlug]
+  } else {
+    const map = { brands: sel.brands, models: sel.models, categories: sel.categories, manufacturers: sel.manufacturers }[group as KFixed]
+    const i = map.indexOf(slug)
+    if (i >= 0) map.splice(i, 1)
+  }
 
   const totalAfter =
-    sel.brands.length + sel.models.length + sel.categories.length + sel.manufacturers.length
+    sel.brands.length + sel.models.length + sel.categories.length + sel.manufacturers.length +
+    Object.values(sel.attributes).reduce((n, a) => n + a.length, 0)
 
   if (totalAfter === 0) { router.push({ path: SHOP_PATH }); return }
 
@@ -523,7 +657,7 @@ function removeChip(group: K, slug: string) {
 
 /* inline search (no "show more" on purpose) */
 type FacetTList = FacetT[]
-function filteredItems(items: FacetTList, key: K) {
+function filteredItems(items: FacetTList, key: string) {
   const q = (ui.search[key] || '').toLowerCase()
   return q
     ? items.filter(i =>
@@ -561,7 +695,6 @@ const pageInfo = computed(() => {
   return { current, size, total, last, from, to }
 })
 
-type Chip = { type:'page'; value:number; active:boolean } | { type:'gap'; dir:'prev'|'next' }
 const paginationItems = computed<Chip[]>(() => {
   if (isInfinite.value) return []
   const { current, last } = pageInfo.value
@@ -593,8 +726,8 @@ function goLast(){  if (pageInfo.value.current < pageInfo.value.last) goPage(pag
 const isRTL = computed(() => localeProperties.value?.dir === 'rtl')
 
 /* ---------- Mobile modal state ---------- */
-const activeMobileModal = ref<null | K>(null)
-function openMobileModal(k: K) { activeMobileModal.value = k; ui.search[k] = '' }
+const activeMobileModal = ref<null | KFixed>(null)
+function openMobileModal(k: KFixed) { activeMobileModal.value = k; ui.search[k] = '' }
 function closeMobileModal() { activeMobileModal.value = null }
 const modalSection = computed(() => {
   if (!activeMobileModal.value || !facets.value) return null
@@ -780,7 +913,7 @@ useHead(() => ({
         <button
           v-if="selectedChips.length"
           class="text-xs text-red-600 border border-red-200 rounded-lg px-2 py-1 hover:bg-red-50"
-          @click="sel.brands=[]; sel.models=[]; sel.categories=[]; sel.manufacturers=[]; router.push({ path: SHOP_PATH })"
+          @click="sel.brands=[]; sel.models=[]; sel.categories=[]; sel.manufacturers=[]; sel.attributes={}; router.push({ path: SHOP_PATH })"
         >
           {{ t('filters.clearAll') }}
         </button>
@@ -790,9 +923,11 @@ useHead(() => ({
       <div v-if="selectedChips.length" class="mb-3 flex flex-wrap gap-2">
         <button
           v-for="chip in selectedChips"
-          :key="chip.group + ':' + chip.slug"
+          :key="(chip.group==='attr' ? 'attr:'+chip.attrSlug+':' : chip.group + ':') + chip.slug"
           class="inline-flex items-center gap-1 rounded-full bg-gray-100 border px-2.5 py-1.5 text-xs"
-          @click="removeChip(chip.group, chip.slug)"
+          @click="chip.group==='attr'
+                    ? removeChip('attr', chip.slug, chip.attrSlug)
+                    : removeChip(chip.group as any, chip.slug)"
         >
           <span>{{ chip.label }}</span>
           <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
@@ -813,16 +948,18 @@ useHead(() => ({
     <!-- Sidebar (desktop only) -->
     <ClientOnly>
       <aside class="hidden min-[993px]:block col-span-12 min-[993px]:col-span-3" :class="isRTL ? 'min-[993px]:order-2' : 'min-[993px]:order-1'">
-        <div class="lg:sticky lg:top-32 space-y-4 max-h-[calc(100vh-6rem)] overflow-auto pr-1">
+        <div class="lg:top-32 space-y-4  overflow-auto pr-1">
           <!-- Selected chips -->
           <div v-if="selectedChips.length" class="rounded-2xl border bg-white/80 backdrop-blur p-3 shadow-sm">
             <div class="mb-2 text-sm font-semibold text-gray-700">{{ t('filters.active') }}</div>
             <div class="flex flex-wrap gap-2">
               <button
                 v-for="chip in selectedChips"
-                :key="chip.group + ':' + chip.slug"
+                :key="(chip.group==='attr' ? 'attr:'+chip.attrSlug+':' : chip.group + ':') + chip.slug"
                 class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-xs bg-gray-50 hover:bg-gray-100 shadow-sm"
-                @click="removeChip(chip.group, chip.slug)"
+                @click="chip.group==='attr'
+                          ? removeChip('attr', chip.slug, chip.attrSlug)
+                          : removeChip(chip.group as any, chip.slug)"
                 :title="t('filters.remove', { label: chip.label })"
               >
                 <span class="font-medium line-clamp-1 max-w-[10rem]">{{ chip.label }}</span>
@@ -832,13 +969,14 @@ useHead(() => ({
               </button>
             </div>
             <button class="mt-3 text-xs text-red-600 hover:underline"
-                    @click="sel.brands=[]; sel.models=[]; sel.categories=[]; sel.manufacturers=[]; router.push({ path: SHOP_PATH })">
+                    @click="sel.brands=[]; sel.models=[]; sel.categories=[]; sel.manufacturers=[]; sel.attributes={}; router.push({ path: SHOP_PATH })">
               {{ t('filters.clearAll') }}
             </button>
           </div>
 
           <!-- Facets (desktop sidebar) -->
           <div v-if="facets" class="space-y-3">
+            <!-- Fixed sections -->
             <div v-for="section in facetSections" :key="section.key" class="rounded-2xl border bg-white/80 backdrop-blur shadow-sm overflow-hidden">
               <!-- Header -->
               <button class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition"
@@ -882,6 +1020,62 @@ useHead(() => ({
                 </div>
               </div>
             </div>
+
+            <!-- Dynamic Attribute Facets -->
+            <div v-if="facets?.attributes?.length" class="space-y-3">
+              <div v-for="attr in facets.attributes" :key="'attr:' + attr.slug"
+                   class="rounded-2xl border bg-white/80 backdrop-blur shadow-sm overflow-hidden">
+
+                <!-- Header -->
+                <button class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition"
+                        @click="toggleSection(attr.slug)" :aria-expanded="ui.open[attr.slug]">
+                  <div class="flex items-center gap-2">
+                    <span class="font-semibold text-gray-800">{{ attr.name }}</span>
+                    <span v-if="(sel.attributes[attr.slug]?.length || 0) > 0"
+                          class="inline-flex items-center rounded-full text-[10px] px-1.5 py-0.5 bg-gray-100 border">
+                      {{ sel.attributes[attr.slug].length }} {{ t('filters.selectedSuffix') }}
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <button v-if="(sel.attributes[attr.slug]?.length || 0) > 0"
+                            @click.stop="clearAttr(attr.slug); applyAndResetPage()"
+                            class="text-xs text-gray-500 hover:text-red-600 underline underline-offset-2">
+                      {{ t('filters.clear') }}
+                    </button>
+                    <svg :class="['w-4 h-4 text-gray-500 transition-transform', ui.open[attr.slug] ? 'rotate-180' : 'rotate-0']"
+                         viewBox="0 0 20 20" fill="currentColor"><path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"/></svg>
+                  </div>
+                </button>
+
+                <!-- Body -->
+                <div v-show="ui.open[attr.slug]" class="px-4 pb-4">
+                  <div class="relative mb-3">
+                    <input v-model="ui.search[attr.slug]" type="search"
+                           :placeholder="t('filters.searchPlaceholder', { label: attr.name.toLowerCase() })"
+                           class="w-full border rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200" />
+                    <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M12.9 14.32a7 7 0 111.414-1.414l3.387 3.387-1.414 1.414-3.387-3.387zM8 13a5 5 0 100-10 5 5 0 000 10z" clip-rule="evenodd"/>
+                    </svg>
+                  </div>
+
+                  <div class="space-y-1.5 max-h-64 overflow-auto pr-1">
+                    <div v-for="f in filteredItems(attr.items, attr.slug)" :key="f.slug"
+                         class="group flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 hover:bg-gray-50">
+                      <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox"
+                               :checked="(sel.attributes[attr.slug] || []).includes(f.slug)"
+                               @change="toggleAttr(attr.slug, f.slug); applyAndResetPage()"
+                               class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-300" />
+                        <span class="text-sm text-gray-800 line-clamp-1">{{ f.name }}</span>
+                      </label>
+                      <span class="text-[11px] text-gray-500">{{ f.count }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- /Dynamic Attribute Facets -->
+
           </div>
         </div>
       </aside>
@@ -895,7 +1089,7 @@ useHead(() => ({
       <!-- Top toolbar -->
       <div class="rounded-2xl border bg-white/80 backdrop-blur p-4 shadow-sm mb-4">
         <div class="grid grid-cols-1 min-[993px]:grid-cols-12 gap-3 items-center">
-          <div class="min-[993px]:col-span-5">
+          <!-- <div class="min-[993px]:col-span-5">
             <label class="block text-xs font-medium text-gray-600 mb-1">{{ t('search') }}</label>
             <input
               :value="sel.q"
@@ -906,7 +1100,7 @@ useHead(() => ({
               :placeholder="t('filters.searchPlaceholder')"
               class="w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gray-200"
             />
-          </div>
+          </div> -->
 
           <div class="min-[993px]:col-span-4">
             <label class="block text-xs font-medium text-gray-600 mb-1">{{ t('sortBy') }}</label>
@@ -930,7 +1124,7 @@ useHead(() => ({
               class="w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gray-200"
             >
               <option value="16">16</option>
-              <option value="35">35</option>
+              <option value="25">25</option>
               <option value="all">{{ t('perPageAll') }}</option>
             </select>
           </div>
@@ -972,7 +1166,7 @@ useHead(() => ({
             <button class="px-3 py-1.5 border rounded-lg bg-white disabled:opacity-40"
                     :disabled="pageInfo.current <= 1" @click="goFirst" :aria-label="t('pagination.firstAria')">«</button>
             <button class="px-3 py-1.5 border rounded-lg bg-white disabled:opacity-40"
-                    :disabled="pageInfo.current <= 1" @click="goPage(pageInfo.current - 1)" :aria-label="t('pagination.prevAria')">‹</button>
+                    :disabled="pageInfo.current <= 1" @click="goPage(pageInfo.value.current - 1)" :aria-label="t('pagination.prevAria')">‹</button>
 
             <template v-for="(it, idx) in paginationItems" :key="idx">
               <button v-if="it.type==='page'"
@@ -988,7 +1182,7 @@ useHead(() => ({
             </template>
 
             <button class="px-3 py-1.5 border rounded-lg bg-white disabled:opacity-40"
-                    :disabled="pageInfo.current >= pageInfo.last" @click="goPage(pageInfo.current + 1)" :aria-label="t('pagination.nextAria')">›</button>
+                    :disabled="pageInfo.current >= pageInfo.last" @click="goPage(pageInfo.value.current + 1)" :aria-label="t('pagination.nextAria')">›</button>
             <button class="px-3 py-1.5 border rounded-lg bg-white disabled:opacity-40"
                     :disabled="pageInfo.current >= pageInfo.last" @click="goLast" :aria-label="t('pagination.lastAria')">»</button>
           </nav>
@@ -1036,7 +1230,7 @@ useHead(() => ({
               </svg>
             </div>
 
-            <div class="space-y-1.5 max-h-[45vh] overflow-auto pr-1">
+            <div class="space-y-1.5 max-h-64 overflow-auto pr-1">
               <div v-for="f in (modalSection ? filteredItems(modalSection.items, modalSection.key) : [])"
                    :key="f.slug" class="flex items-center justify-between gap-3 rounded-lg px-2 py-2 hover:bg-gray-50">
                 <label class="flex items-center gap-2 cursor-pointer">

@@ -70,7 +70,7 @@ const side = computed(() => {
     { key: 'orders',     label: t('account.tabs.myOrders'),     badge: stats.value.orders },
     { key: 'wallet',     label: t('account.tabs.myWallet') },
     { key: 'coupons',    label: t('account.tabs.myCoupons'),    badge: stats.value.coupons },
-    { key: 'addresses',  label: t('account.tabs.myAddresses'),  badge: stats.value.addresses },
+    // { key: 'addresses',  label: t('account.tabs.myAddresses'),  badge: stats.value.addresses },
     { key: 'reviews',    label: t('account.tabs.myReview') },
     { key: 'whatsnew',   label: t('account.tabs.whatsNew'),     badge: 0 },
   ]
