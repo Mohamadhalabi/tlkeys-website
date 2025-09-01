@@ -2,16 +2,25 @@
 import ProSlider from '~/components/ProSlider.vue'
 import CategoriesGrid from '~/components/home/CategoriesGrid.vue'
 import ProductCarousel from '~/components/products/ProductCarousel.vue'
+import BrandSection from '~/components/home/BrandSection.vue'
 import { onMounted, ref, computed, watch } from 'vue'
+import { useSeoMeta, useHead, useRoute, useRequestURL, useRuntimeConfig, useNuxtApp } from '#imports'
+import { useI18n } from 'vue-i18n'
 
 type SliderItem = { image: string; link?: string; title?: string; alt?: string; type?: string }
 
 const heightClasses = 'h-[180px] sm:h-[240px] md:h-[320px] lg:h-[420px] xl:h-[480px]'
 const imgSizes = '(min-width: 1280px) 1280px, (min-width: 1024px) 1024px, 100vw'
 
-const { public: { API_BASE_URL } } = useRuntimeConfig()
+const { public: { API_BASE_URL, siteName: cfgSiteName, siteUrl: cfgSiteUrl, defaultOgImage } } = useRuntimeConfig()
 const { $customApi } = useNuxtApp()
-const { locale } = useI18n?.() as any || { locale: ref('en') }
+
+// i18n
+const i18n = (useI18n?.() as any) || null
+const t = i18n?.t ?? ((s: string) => s)
+const locale = i18n?.locale ?? ref('en')
+const availableLocales: string[] = i18n?.availableLocales ?? [locale.value]
+const defaultLocale: string = i18n?.defaultLocale ?? 'en'
 
 /* ---------------- Slider ---------------- */
 const sanitize = (arr: any[]): SliderItem[] =>
@@ -36,77 +45,104 @@ const { data: slidersRaw, error: slidersErrObj, refresh: refreshSliders } = awai
 const itemsForSlider = computed<SliderItem[]>(() =>
   sanitize(Array.isArray(slidersRaw.value) ? (slidersRaw.value as any[]) : [])
 )
-
 const slidersError = computed(() =>
   (slidersErrObj.value as any)?.data?.message || (slidersErrObj.value as any)?.message || ''
 )
-
 if (process.client && typeof watch === 'function') watch(() => locale.value, () => refreshSliders?.())
 
-/* ---------------- Categories (sample) ---------------- */
+/* ---------------- Categories ---------------- */
 const categories = [
-  { title: 'Car Remotes',     href: '/car-remotes',    image: '/images/home/categories/car-remotes.webp' },
-  { title: 'Xhorse Remotes',  href: '/xhorse-remotes', image: '/images/home/categories/xhorse-remote.webp' },
-  { title: 'Keydiy Remotes',  href: '/keydiy-remotes', image: '/images/home/categories/keydiy-kd-remote.webp' },
-  { title: 'Remote PCB',      href: '/remote-pcb',     image: '/images/home/categories/pcb-remote.webp' },
+  { title: t('home.categories.carRemotes') || 'Car Remotes',     href: '/car-remotes',    image: '/images/home/categories/car-remotes.webp' },
+  { title: t('home.categories.xhorseRemotes') || 'Xhorse Remotes',  href: '/xhorse-remotes', image: '/images/home/categories/xhorse-remote.webp' },
+  { title: t('home.categories.keydiyRemotes') || 'Keydiy Remotes',  href: '/keydiy-remotes', image: '/images/home/categories/keydiy-kd-remote.webp' },
+  { title: t('home.categories.remotePcb') || 'Remote PCB',      href: '/remote-pcb',     image: '/images/home/categories/pcb-remote.webp' },
 
-  { title: 'Key Programming Devices', href: '/key-programming-diagnostics-tools', image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/devices%20and%20machine.jpg' },
-  { title: 'Key Cutting Machines',    href: '/key-cutting-machine',               image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/key%20cutting%20machines.jpg' },
-  { title: 'Cables',                   href: '/cables',                            image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/cables%202.jpg' },
-  { title: 'Adapter',                  href: '/adapter',                           image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/adapers.jpg' },
+  { title: t('home.categories.keyProgrammingDevices') || 'Key Programming Devices', href: '/key-programming-diagnostics-tools', image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/devices%20and%20machine.jpg' },
+  { title: t('home.categories.keyCuttingMachines') || 'Key Cutting Machines',    href: '/key-cutting-machine',               image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/key%20cutting%20machines.jpg' },
+  { title: t('home.categories.cables') || 'Cables',                   href: '/cables',                            image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/cables%202.jpg' },
+  { title: t('home.categories.adapter') || 'Adapter',                  href: '/adapter',                           image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/adapers.jpg' },
 
-  { title: 'Cutter',                   href: '/cutter',                            image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/1698760907-Cutter.jpg' },
-  { title: 'Emulators',                href: '/emulators',                         image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/emulators.jpg' },
-  { title: 'Opening Tools',            href: '/opening-tools',                     image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/opening%20tools.jpg' },
-  { title: 'Immobilizer Smart Box',    href: '/immobilizer-smart-box',             image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/immobilizer-smart-box.jpg' },
+  { title: t('home.categories.cutter') || 'Cutter',                   href: '/cutter',                            image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/1698760907-Cutter.jpg' },
+  { title: t('home.categories.emulators') || 'Emulators',                href: '/emulators',                         image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/emulators.jpg' },
+  { title: t('home.categories.openingTools') || 'Opening Tools',            href: '/opening-tools',                     image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/opening%20tools.jpg' },
+  { title: t('home.categories.immobilizerSmartBox') || 'Immobilizer Smart Box',    href: '/immobilizer-smart-box',             image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/immobilizer-smart-box.jpg' },
 ]
 const catRows = computed(() => Math.ceil((categories?.length || 0) / 5))
 
-/* -------- helpers for product sections -------- */
+/* -------- helpers for product sections used on this page (featured/new) -------- */
 function unwrapApi(res: any) {
   const body = (res && typeof res === 'object' && 'data' in res && !Array.isArray((res as any).data))
     ? (res as any).data
     : res
-
-  const items = Array.isArray(body?.data) ? body.data
-              : Array.isArray(body)       ? body
-              : []
-
+  const items = Array.isArray(body?.data) ? body.data : (Array.isArray(body) ? body : [])
   const meta = (body && body.meta) ?? (res && (res as any).meta) ?? null
-
-  if (process.client) {
-    console.log('[UNWRAP]', {
-      gotArray: Array.isArray(items), len: items.length,
-      metaFrom: body?.meta ? 'body.meta' : ((res as any)?.meta ? 'res.meta' : 'none'),
-      meta
-    })
-  }
-
   return { items, meta }
 }
 
 function mapApiProduct(p: any) {
   const hasSale = p?.sale_price != null && p?.sale_price !== 0
-  const categoryName =
-    Array.isArray(p?.categories) && p.categories[0]?.name
-      ? String(p.categories[0].name)
-      : ''
-  const categorySlug =
-    Array.isArray(p?.categories) && p.categories[0]?.slug
-      ? String(p.categories[0].slug).toLowerCase()
-      : ''
+
+  // discount
+  const d = p?.discount || {}
+  const typeRaw = d?.type
+  const valueNum =
+    typeof d?.value === 'number' ? d.value
+    : d?.value != null ? Number(d.value)
+    : null
+  const start = d?.start_date ?? null
+  const end   = d?.end_date ?? null
+  const active = !!d?.active && (typeRaw === 'fixed' || typeRaw === 'percent') && valueNum != null
+
+  // table price
+  const tablePrice: any[] =
+    Array.isArray(p?.table_price) ? p.table_price
+    : Array.isArray(p?.table_price?.data) ? p.table_price.data
+    : []
+
+  // free shipping
+  const isFree =
+    p?.is_free_shipping === 1 ||
+    p?.is_free_shipping === '1' ||
+    p?.is_free_shipping === true
+
+  // categories (need ids to detect software/token)
+  const cats = Array.isArray(p?.categories) ? p.categories : []
+  const catIds = cats.map((c:any) => Number(c?.id)).filter((n:number) => Number.isFinite(n))
+  const requiresSerial = catIds.includes(47) || catIds.includes(48)     // ⬅️ Token/Software
+  const hidePrice = Number(p?.hide_price ?? 0) === 1                     // ⬅️ Hide price flag
+
+  const categoryName = cats[0]?.name ? String(cats[0].name) : ''
+  const categorySlug = cats[0]?.slug ? String(cats[0].slug).toLowerCase() : ''
 
   return {
     id: p.id,
     name: p.title ?? p.short_title ?? '',
     image: p.image,
+
     price: hasSale ? p.sale_price : p.price,
     oldPrice: hasSale ? p.price : null,
+
+    // knobs used by ProductCard/computeUnitPrice()
+    regular_price: p.regular_price ?? p.price ?? null,
+    sale_price: p.sale_price ?? null,
+    table_price: tablePrice,
+    discount_type: active ? (typeRaw as 'fixed'|'percent') : null,
+    discount_value: active ? valueNum : null,
+    discount_start_date: start,
+    discount_end_date:   end,
+
+    // meta / badges
     sku: p.sku ?? '',
     category: categoryName,
     categorySlug,
     slug: p.slug,
     href: p.slug ? `/products/${p.slug}` : `/products/${p.id}`,
+    freeShipping: isFree,
+    badgeText: isFree ? 'FREE SHIPPING' : null,
+
+    // ⬇️ NEW FLAGS
+    hide_price: hidePrice,
+    requires_serial: requiresSerial,
   }
 }
 
@@ -118,7 +154,6 @@ function lastFromMeta(meta: any) {
   const calc  = Math.ceil(total / size)
   return calc > 0 ? calc : 1
 }
-
 function useLazySection(cb: () => void) {
   const el = ref<HTMLElement | null>(null)
   onMounted(() => {
@@ -140,17 +175,17 @@ const featuredLastRef = ref(1)
 async function fetchFeatured(page = 1, rows = 2, perRow = 6) {
   const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
     method: 'GET',
-    params: { page, rows, per_row: perRow }
+    params: {
+      page, rows, per_row: perRow,
+      include: 'table_price,categories',
+      currency: 'USD'
+    }
   })
-
-  console.log("TEST");
-  console.log(res);
   const { items, meta } = unwrapApi(res)
   featured.value         = items.map(mapApiProduct)
   featuredMeta.value     = meta
   featuredPage.value     = Number(meta?.current_page || page || 1)
   featuredLastRef.value  = lastFromMeta(meta)
-  console.log('[FEATURED] page=', featuredPage.value, 'last=', featuredLastRef.value, 'meta=', meta)
 }
 const { el: featuredEl } = useLazySection(() => fetchFeatured(1))
 
@@ -163,54 +198,99 @@ const newLastRef  = ref(1)
 async function fetchNew(page = 1, rows = 1, perRow = 6) {
   const res = await $customApi(`${API_BASE_URL}/homepage-products/new-arrivals`, {
     method: 'GET',
-    params: { page, rows, per_row: perRow, currency: 'USD' }
+    params: {
+      page, rows, per_row: perRow,
+      include: 'table_price,categories',
+      currency: 'USD'
+    }
   })
   const { items, meta } = unwrapApi(res)
   newArrivals.value = items.map(mapApiProduct)
   newMeta.value     = meta
   newPage.value     = Number(meta?.current_page || page || 1)
   newLastRef.value  = lastFromMeta(meta)
-  console.log('[NEW] page=', newPage.value, 'last=', newLastRef.value, 'meta=', meta)
 }
 const { el: newEl } = useLazySection(() => fetchNew(1))
 
-/* -------- XHORSE REMOTES (category_id: 29) -------- */
-const XHORSE_LEFT_IMAGE = '/images/home/sections/xhorse-remotes-left.webp'
-
-const xhorse         = ref<any[]>([])
-const xhorseMeta     = ref<any | null>(null)
-const xhorsePage     = ref(1)
-const xhorseLastRef  = ref(1)
-
-/** Use perRow = 4 to match the lg layout (4 cards visible) */
-async function fetchXhorse(page = 1, rows = 1, perRow = 4) {
-  const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
-    method: 'GET',
-    params: {
-      page,
-      rows,
-      per_row: perRow,     // 👈 controls page size
-      category_id: 29,
-      only_featured: 0, // 👈 include all in cat 29 (not only featured)
-      currency: 'USD',
-    }
-  })
-  const { items, meta } = unwrapApi(res)
-  xhorse.value        = items.map(mapApiProduct)
-  xhorseMeta.value    = meta
-  xhorsePage.value    = Number(meta?.current_page || page || 1)
-  xhorseLastRef.value = lastFromMeta(meta)
-  console.log('[XHORSE] page=', xhorsePage.value, 'last=', xhorseLastRef.value, 'meta=', meta)
+/* ================= SEO ================= */
+const route = useRoute()
+const url = useRequestURL()
+const siteName = computed(() => t('site.name') || cfgSiteName || 'TL Keys')
+const siteUrl  = computed(() => cfgSiteUrl || `${url.origin}`)
+const pathOnly  = computed(() => route.fullPath.split('#')[0].split('?')[0] || '/')
+const canonical = computed(() => `${siteUrl.value}${pathOnly.value}`)
+const localizedHref = (lang: string) => {
+  const base = pathOnly.value.startsWith('/') ? pathOnly.value : `/${pathOnly.value}`
+  return `${siteUrl.value}${lang === defaultLocale ? base : `/${lang}${base}`}`
 }
-const { el: xhorseEl } = useLazySection(() => fetchXhorse(1, 1, 4))
-
-/* expose debug */
-if (process.client) (window as any).__home = {
-  slidersRaw, itemsForSlider, slidersError,
-  featuredMeta, newMeta, xhorseMeta,
-  featuredPage, newPage, xhorsePage,
-  featuredLastRef, newLastRef, xhorseLastRef
+const toAbs = (src?: string) => {
+  if (!src) return `${siteUrl.value}${defaultOgImage || '/images/og-default.jpg'}`
+  return src.startsWith('http') ? src : `${siteUrl.value}${src.startsWith('/') ? src : `/${src}`}`
 }
+const ogImage = computed(() => toAbs(itemsForSlider.value?.[0]?.image))
+const metaTitle   = computed(() => t('home.meta.title') || `${siteName.value} — ${t('home.meta.suffix') || 'Auto Keys & Remotes'}`)
+const metaDesc    = computed(() => t('home.meta.description') || 'Shop car remotes, key programmers, cutters, cables, and more. Fast shipping and expert support.')
+const metaKeywords= computed(() => t('home.meta.keywords') || 'car remotes, xhorse, keydiy, key programming, key cutting, locksmith tools')
+
+useSeoMeta({
+  title: metaTitle,
+  description: metaDesc,
+  ogTitle: metaTitle,
+  ogDescription: metaDesc,
+  ogType: 'website',
+  ogUrl: canonical,
+  ogImage: ogImage,
+  twitterCard: 'summary_large_image',
+  twitterTitle: metaTitle,
+  twitterDescription: metaDesc,
+  twitterImage: ogImage,
+  robots: 'index,follow',
+  themeColor: '#000000',
+  keywords: metaKeywords,
+})
+
+const websiteLd = computed(() => ({
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: siteName.value,
+  url: siteUrl.value,
+  inLanguage: locale.value,
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: `${siteUrl.value}/search?q={search_term_string}`,
+    'query-input': 'required name=search_term_string'
+  }
+}))
+const orgLd = computed(() => ({
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: siteName.value,
+  url: siteUrl.value,
+  logo: toAbs('/images/logo.png')
+}))
+const webPageLd = computed(() => ({
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: metaTitle.value,
+  url: canonical.value,
+  description: metaDesc.value,
+  inLanguage: locale.value,
+  isPartOf: { '@type': 'WebSite', url: siteUrl.value, name: siteName.value },
+  primaryImageOfPage: { '@type': 'ImageObject', url: ogImage.value }
+}))
+
+useHead({
+  link: [
+    { rel: 'canonical', href: canonical.value },
+    ...availableLocales.map((lang: string) => ({ rel: 'alternate', hreflang: lang, href: localizedHref(lang) })),
+    { rel: 'alternate', hreflang: 'x-default', href: localizedHref(defaultLocale) }
+  ],
+  script: [
+    { key: 'ld-website',  type: 'application/ld+json', innerHTML: JSON.stringify(websiteLd.value) },
+    { key: 'ld-org',      type: 'application/ld+json', innerHTML: JSON.stringify(orgLd.value) },
+    { key: 'ld-webpage',  type: 'application/ld+json', innerHTML: JSON.stringify(webPageLd.value) },
+  ]
+})
 </script>
 
 <template>
@@ -244,7 +324,7 @@ if (process.client) (window as any).__home = {
 
   <!-- Categories -->
   <CategoriesGrid
-    title="Browse Categories"
+    :title="t('home.browseCategories') || 'Browse Categories'"
     :items="categories"
     :rows="catRows"
     :perRow="5"
@@ -255,10 +335,10 @@ if (process.client) (window as any).__home = {
   <section ref="featuredEl">
     <ProductCarousel
       v-if="featured.length"
-      title="FEATURED PRODUCTS"
+      :title="t('home.featuredProducts') || 'FEATURED PRODUCTS'"
       :products="featured"
-      :rowsBase="1" :rowsSm="1" :rowsMd="1" :rowsLg="2" :rowsXl="2"
-      :perRowBase="2" :perRowSm="2" :perRowMd="3" :perRowLg="6" :perRowXl="6"
+      :rowsBase="1" :rowsSm="1" :rowsMd="2" :rowsLg="2" :rowsXl="2"
+      :perRowBase="2" :perRowSm="2" :perRowMd="6" :perRowLg="5" :perRowXl="6"
       :serverPaging="true"
       :currentPage="featuredPage"
       :lastPage="featuredLastRef"
@@ -267,7 +347,7 @@ if (process.client) (window as any).__home = {
       @request-page="fetchFeatured"
     />
     <div v-else class="mx-auto max-w-screen-2xl px-3 sm:px-4 py-6 text-sm text-gray-500">
-      Loading featured…
+      {{ t('home.loadingFeatured') || 'Loading featured…' }}
     </div>
   </section>
 
@@ -275,7 +355,7 @@ if (process.client) (window as any).__home = {
   <section ref="newEl">
     <ProductCarousel
       v-if="newArrivals.length"
-      title="NEW ARRIVALS"
+      :title="t('home.newArrivals') || 'NEW ARRIVALS'"
       :products="newArrivals"
       :rowsBase="1" :rowsSm="1" :rowsMd="1" :rowsLg="1" :rowsXl="1"
       :perRowBase="2" :perRowSm="2" :perRowMd="3" :perRowLg="4" :perRowXl="6"
@@ -289,52 +369,38 @@ if (process.client) (window as any).__home = {
       @request-page="fetchNew"
     />
     <div v-else class="mx-auto max-w-screen-2xl px-3 sm:px-4 py-6 text-sm text-gray-500">
-      Loading new arrivals…
+      {{ t('home.loadingNewArrivals') || 'Loading new arrivals…' }}
     </div>
   </section>
 
-  <!-- Xhorse Remotes (category_id: 29) -->
-  <section ref="xhorseEl" class="mt-6">
-    <div class="mx-auto max-w-screen-2xl px-3 sm:px-4">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-        <!-- Left image -->
-        <div class="hidden lg:block lg:col-span-3 m-auto">
-          <div class="hidden lg:flex lg:col-span-3 items-center justify-center">
-            <NuxtImg
-              v-if="XHORSE_LEFT_IMAGE"
-              src="/images/home/banners/xhorse-remote-banner.png"
-              alt="Xhorse Remotes"
-              class="max-h-[600px] w-auto object-contain rounded-3xl"
-              sizes="420px"
-              format="webp"
-              decoding="async"
-              loading="lazy"
-            />
-          </div>
-        </div>
-
-        <!-- Carousel -->
-        <div class="lg:col-span-9">
-          <ProductCarousel
-            v-if="xhorse.length"
-            title="Xhorse remotes"
-            :products="xhorse"
-            :rowsBase="1" :rowsSm="1" :rowsMd="1" :rowsLg="1" :rowsXl="1"
-            :perRowBase="2" :perRowSm="2" :perRowMd="4" :perRowLg="4" :perRowXl="6"
-            :serverPaging="true"
-            :currentPage="xhorsePage"
-            :lastPage="xhorseLastRef"
-            :show-arrows="true"
-            :show-dots="xhorseLastRef <= 12"
-            @request-page="(p) => fetchXhorse(p, 1, 4)"
-          />
-          <div v-else class="px-1 py-4 text-sm text-gray-500">
-            Loading Xhorse remotes…
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+  <!-- Brand sections -->
+  <BrandSection
+    :title="t('home.xhorseRemotes') || 'Xhorse remotes'"
+    :category-id="29"
+    left-image="/images/home/banners/xhorse-remotes.webp"
+    :left-image-alt="t('home.xhorseRemotesAlt') || 'Xhorse Remotes'"
+    left-image-to="/xhorse-remotes"
+    view-all-to="/xhorse-remotes"
+    :per-row="4"
+  />
+  <BrandSection
+    :title="t('home.lonsdorRemotes') || 'Lonsdor remotes'"
+    :category-id="30"
+    left-image="/images/home/banners/lonsdor-remotes.webp"
+    :left-image-alt="t('home.lonsdorRemotesAlt') || 'Lonsdor Remotes'"
+    left-image-to="/lonsdor-remotes"
+    view-all-to="/lonsdor-remotes"
+    :per-row="4"
+  />
+  <BrandSection
+    :title="t('home.keydiyRemotes') || 'Keydiy remotes'"
+    :category-id="33"
+    left-image="/images/home/banners/keydiy-remotes.webp"
+    :left-image-alt="t('home.keydiyRemotesAlt') || 'Keydiy Remotes'"
+    left-image-to="/keydiy-remotes"
+    view-all-to="/keydiy-remotes"
+    :per-row="4"
+  />
 </template>
 
 <style scoped>

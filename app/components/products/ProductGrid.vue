@@ -9,6 +9,7 @@ type P = {
   oldPrice?: number | null
   rewardPoints?: number | null
   badgeText?: string | null
+  freeShipping?: boolean
   slug?: string
   href?: string
   // optional but supported by ProductCard
@@ -22,7 +23,7 @@ const props = withDefaults(defineProps<{
   products: P[]
   rows?: number
   /** columns at lg+ (desktop breakpoint) */
-  productsPerRow?: 3 | 4 | 5 | 6
+  productsPerRow?: 2 | 3 | 4 | 5 | 6
   showRewards?: boolean
   showAdd?: boolean
   showQty?: boolean
@@ -45,9 +46,12 @@ const props = withDefaults(defineProps<{
  * - md: 3 cols
  * - lg+: fixed to productsPerRow (3/4/5/6)
  */
+// ProductGrid.vue (script setup) — only the switch needs changing
 const gridColsClass = computed(() => {
   const lg = props.productsPerRow ?? 6
   switch (lg) {
+    case 2:
+      return 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-2'
     case 3:
       return 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3'
     case 4:
@@ -58,6 +62,7 @@ const gridColsClass = computed(() => {
       return 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-6'
   }
 })
+
 
 /**
  * Slice to visible count = rows * productsPerRow (desktop target).

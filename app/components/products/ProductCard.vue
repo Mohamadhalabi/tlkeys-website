@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useCart } from '~/composables/useCart'
 import { useCurrency } from '~/composables/useCurrency'
+import { useRuntimeConfig, useI18n } from '#imports'
 import { computeUnitPrice, type PriceTableRow as TRow } from '~/utils/pricing'
 
 type Product = {
@@ -21,6 +22,9 @@ type Product = {
   badgeText?: string | null
   href?: string
   sku?: string | null
+  freeShipping?: boolean
+  hide_price?: boolean
+  requires_serial?: boolean
 }
 
 const props = withDefaults(defineProps<{
@@ -34,13 +38,33 @@ const props = withDefaults(defineProps<{
   showAdd: true
 })
 
+const { t: _t } = (useI18n?.() as any) || { t: (s:string)=>s }
 const cart = useCart()
 const { formatMoney } = useCurrency()
+const runtime = useRuntimeConfig()
+const WHATSAPP_NUMBER = (runtime.public.WHATSAPP_NUMBER as string) || '971504429045'
 
 const qty = ref(1)
 const cardEl = ref<HTMLElement | null>(null)
 
-/* ---------------- helpers ---------------- */
+/* --- flags --- */
+const hidePrice = computed(() => Boolean((props.product as any).hide_price))
+const requiresSerial = computed(() => Boolean((props.product as any).requires_serial))
+
+/* --- serial input --- */
+const serial = ref('')
+const canAdd = computed(() => !requiresSerial.value || serial.value.trim().length > 0)
+
+/* --- WhatsApp link --- */
+const waLink = computed(() => {
+  const title = props.product.name || ''
+  const sku = props.product.sku ? ` (SKU: ${props.product.sku})` : ''
+  const msg = _t('search.askAboutProduct', 'Can I get more information and price for "{title}{sku}"?')
+    .replace('{title}', title).replace('{sku}', sku)
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
+})
+
+/* helpers */
 const n = (x: unknown): number | null => {
   if (typeof x === 'number' && Number.isFinite(x)) return x
   if (typeof x === 'string') {
@@ -51,7 +75,8 @@ const n = (x: unknown): number | null => {
 }
 
 const asProductLike = computed(() => ({
-  price: n(props.product.sale_price) ?? n(props.product.price) ?? n(props.product.regular_price) ?? 0,
+  // ✅ base: price -> fallback to regular_price
+  price: n(props.product.price) ?? n(props.product.regular_price) ?? 0,
   regular_price: n(props.product.regular_price),
   sale_price: n(props.product.sale_price),
   table_price: Array.isArray(props.product.table_price) ? props.product.table_price : null,
@@ -60,7 +85,25 @@ const asProductLike = computed(() => ({
   discount_value: n(props.product.discount_value),
 }))
 
-/* ---------------- prices for display ---------------- */
+// const unitWithFallback = computed(() => {
+//   const base = computeUnitPrice(asProductLike.value, qty.value).unit
+//   const t0 = props.product.discount_start_date ? Date.parse(props.product.discount_start_date) : NaN
+//   const t1 = props.product.discount_end_date ? Date.parse(props.product.discount_end_date) : NaN
+//   const now = Date.now()
+//   const inWindow =
+//     (!Number.isFinite(t0) || now >= t0) &&
+//     (!Number.isFinite(t1) || now <= t1)
+
+//   const type = props.product.discount_type
+//   const val  = n(props.product.discount_value)
+
+//   if (!inWindow || !type || !val || val <= 0) return base
+//   if (type === 'fixed')   return Math.max(0, base - val)
+//   if (type === 'percent') return Math.max(0, base * (1 - val / 100))
+//   return base
+// })
+
+/* prices for display */
 const unit = computed(() => computeUnitPrice(asProductLike.value, qty.value).unit)
 
 const unitBefore = computed(() => {
@@ -85,7 +128,7 @@ const unitBefore = computed(() => {
 const hasDiscount = computed(() => unitBefore.value > unit.value)
 const discountAmount = computed(() => Math.max(0, unitBefore.value - unit.value))
 
-/* ---------- animated OFF amount ---------- */
+/* animated OFF amount */
 const offAnim = ref(0)
 let rafId: number | null = null
 function animateOff(to: number, duration = 900) {
@@ -104,7 +147,7 @@ function animateOff(to: number, duration = 900) {
 
 let visIO: IntersectionObserver | null = null
 
-/* ---------------- discount timer ---------------- */
+/* discount timer (for card badge) */
 const endTs = computed<number | null>(() => {
   const d = props.product.discount_end_date
   const t = d ? Date.parse(d) : NaN
@@ -124,11 +167,11 @@ function parts(ms: number) {
   const secs = s % 60
   return { days, hrs, mins, secs }
 }
-const countdownTop = computed(() => 'DISCOUNT ENDS IN')
+const countdownTop = computed(() => _t('product.discountEndsIn', 'DISCOUNT ENDS IN'))
 const countdownBottom = computed(() => {
   const { days, hrs, mins, secs } = parts(remainingMs.value)
   const hms = `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`
-  return days > 0 ? `${days} DAYS, ${hms}` : hms
+  return days > 0 ? `${days} ${_t('common.days', 'DAYS')}, ${hms}` : hms
 })
 
 onMounted(() => {
@@ -146,24 +189,34 @@ onUnmounted(() => {
 })
 watch(discountAmount, (v) => animateOff(v))
 
-/* ---------------- links ---------------- */
+/* links */
 const linkTo = computed(() => props.product.href ?? `/products/${props.product.slug ?? props.product.id}`)
 
-/* ---------------- actions ---------------- */
+/* actions */
 async function onAdd() {
+  if (requiresSerial.value && !serial.value.trim()) {
+    const el = document.getElementById(`sn-${props.product.id}`)
+    el?.classList.add('ring-rose-400')
+    setTimeout(() => el?.classList.remove('ring-rose-400'), 600)
+    return
+  }
+
   const p = props.product
   await cart.add(p.id, qty.value, {
     title: p.name,
     image: p.image,
     sku: p.sku || undefined,
     slug: p.slug,
-    price: n(p.price) ?? 0,
+    price: unit.value,
     regular_price: n(p.regular_price),
     sale_price: n(p.sale_price),
     table_price: Array.isArray(p.table_price) ? p.table_price : null,
     discount_type: (p.discount_type === 'fixed' || p.discount_type === 'percent') ? p.discount_type : null,
     discount_value: n(p.discount_value),
-    priceSnapshot: unit.value
+    discount_start_date: p.discount_start_date ?? null,
+    discount_end_date: p.discount_end_date ?? null,
+    priceSnapshot: unit.value,
+    ...(requiresSerial.value ? { serial_number: [serial.value.trim()] } : {})
   })
 }
 </script>
@@ -171,8 +224,7 @@ async function onAdd() {
 <template>
   <div
     ref="cardEl"
-    class="group h-full rounded-xl bg-white ring-1 ring-black/5 shadow-sm hover:shadow-md transition
-           overflow-hidden flex flex-col"
+    class="group h-full rounded-xl bg-white ring-1 ring-black/5 shadow-sm hover:shadow-md transition overflow-hidden flex flex-col"
   >
     <!-- IMAGE -->
     <NuxtLinkLocale :to="linkTo" class="relative block rounded-t-xl overflow-hidden bg-white">
@@ -181,9 +233,7 @@ async function onAdd() {
           :src="product.image"
           :alt="product.name"
           loading="lazy"
-          class="absolute inset-0 h-full w-full object-cover
-                 filter drop-shadow-md md:drop-shadow-lg
-                 transition-[filter] duration-300 group-hover:drop-shadow-xl"
+          class="absolute inset-0 h-full w-full object-cover filter drop-shadow-md md:drop-shadow-lg transition-[filter] duration-300 group-hover:drop-shadow-xl"
         />
         <div class="pointer-events-none absolute inset-0 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)]"></div>
       </div>
@@ -191,26 +241,23 @@ async function onAdd() {
       <!-- badges -->
       <div class="absolute left-3 top-3 flex flex-col gap-1">
         <span
-          v-if="hasDiscount"
-          class="inline-flex items-center rounded-full bg-red-600 text-white ring-1 ring-white/70
-                 px-2.5 py-1 text-[10px] font-extrabold tracking-wide shadow-sm"
+          v-if="hasDiscount && !hidePrice"
+          class="inline-flex items-center rounded-full bg-red-600 text-white ring-1 ring-white/70 px-2.5 py-1 text-[10px] font-extrabold tracking-wide shadow-sm"
         >
-          {{ formatMoney(Number(offAnim.toFixed(2))) }} OFF
+          {{ formatMoney(Number(offAnim.toFixed(2))) }} {{ _t('common.off', 'OFF') }}
         </span>
         <span
-          v-if="product.badgeText"
-          class="inline-flex items-center rounded-full bg-green-100 text-green-800
-                 ring-1 ring-green-200 px-2 py-1 text-[10px] font-bold uppercase tracking-wide"
+          v-if="product.freeShipping || product.badgeText"
+          class="inline-flex items-center rounded-full bg-gray-700 text-white px-2.5 py-2 text-[10px] font-bold uppercase leading-none"
         >
-          {{ product.badgeText }}
+          {{ product.badgeText || _t('badges.freeShipping','FREE SHIPPING') }}
         </span>
       </div>
 
       <!-- countdown -->
       <div
-        v-if="hasTimer"
-        class="absolute inset-x-0 bottom-0 px-3 py-2 sm:py-3 text-white text-center
-               bg-gradient-to-t from-slate-900/80 to-slate-900/10 backdrop-blur-[1px]"
+        v-if="hasTimer && !hidePrice"
+        class="absolute inset-x-0 bottom-0 px-3 py-2 sm:py-3 text-white text-center bg-gradient-to-t from-slate-900/80 to-slate-900/10 backdrop-blur-[1px]"
       >
         <div class="text-[11px] sm:text-xs font-semibold tracking-wide opacity-95">
           {{ countdownTop }}
@@ -223,7 +270,6 @@ async function onAdd() {
 
     <!-- BODY -->
     <div class="px-4 pb-4 flex flex-col grow">
-      <!-- top content (grows) -->
       <div class="mt-2 flex-1">
         <div class="flex justify-center gap-1 text-[11px] leading-tight whitespace-nowrap overflow-hidden">
           <span v-if="product.sku" class="font-bold text-sm text-green-800 shrink-0">
@@ -231,27 +277,23 @@ async function onAdd() {
           </span>
         </div>
 
-        <!-- title -->
         <NuxtLinkLocale
           :to="linkTo"
           :aria-label="product.name"
           class="block mt-1 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-300"
         >
           <h3
-            class="text-[13px] sm:text-[15px] font-semibold text-gray-900/90 group-hover:text-gray-900
-                   leading-5 sm:leading-6 tracking-tight hyphens-auto break-words
-                   line-clamp-4 min-h-[3.75rem]
-                   transition-colors group-hover:underline underline-offset-2 decoration-slate-300"
+            class="text-[13px] sm:text-[15px] font-semibold text-gray-900/90 group-hover:text-gray-900 leading-5 sm:leading-6 tracking-tight hyphens-auto break-words line-clamp-4 min-h-[3.75rem] transition-colors group-hover:underline underline-offset-2 decoration-slate-300"
           >
             {{ product.name }}
           </h3>
         </NuxtLinkLocale>
       </div>
 
-      <!-- bottom footer (pinned) -->
+      <!-- footer -->
       <div class="mt-auto pt-3 w-full flex flex-col items-stretch gap-2">
-        <!-- PRICE pinned at bottom, above qty -->
-        <div class="flex items-end gap-2">
+        <!-- PRICE or WhatsApp -->
+        <div v-if="!hidePrice" class="flex items-end gap-2">
           <div class="text-lg sm:text-xl font-extrabold text-red-600">
             {{ formatMoney(unit) }}
           </div>
@@ -260,40 +302,50 @@ async function onAdd() {
           </div>
         </div>
 
-        <!-- Qty -->
-        <div v-if="showAdd && showQty" class="w-full flex items-center justify-center gap-2">
-          <button
-            type="button"
-            class="w-10 h-10 rounded-md ring-1 ring-black/10 text-gray-700 hover:bg-gray-50 text-base"
-            @click="qty = Math.max(1, qty - 1)"
-            aria-label="Decrease quantity"
-          >–</button>
+        <!-- WhatsApp when price hidden -->
+        <a
+          v-else
+          :href="waLink"
+          target="_blank"
+          rel="noopener"
+          class="inline-flex items-center justify-center gap-2 bg-green-700 text-white ring-1 ring-green-600 hover:bg-green-800 hover:text-white font-semibold rounded-lg px-3 py-2"
+          :aria-label="_t('search.contactOnWhatsApp','Contact on WhatsApp')"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.52 3.48A11.94 11.94 0 0 0 12 0C5.39 0 0 5.39 0 12c0 2.11.55 4.1 1.61 5.89L0 24l6.26-1.64A11.96 11.96 0 0 0 12 24c6.61 0 12-5.39 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 22a9.93 9.93 0 0 1-5.07-1.39l-.36-.21-3.71.97.99-3.62-.23-.37A9.93 9.93 0 0 1 2 12C2 6.49 6.49 2 12 2s10 4.49 10 10-4.49 10-10 10zm5.55-7.46c-.3-.15-1.78-.88-2.05-.98-.27-.1-.47-.15-.68.15-.2.3-.78.98-.96 1.18-.18.2-.35.23-.65.08a8.2 8.2 0 0 1-2.41-1.49 9.05 9.05 0 0 1-1.68-2.08c-.17-.3 0-.46.13-.61.13-.13.3-.35.46-.53.15-.18.2-.3.3-.5.1-.2.05-.38-.03-.53-.08-.15-.68-1.62-.93-2.22-.25-.6-.5-.51-.68-.51h-.58c-.2 0-.53.08-.83.38-.3.3-1.08 1.05-1.08 2.56 0 1.51 1.1 2.97 1.25 3.18.15.2 2.17 3.31 5.26 4.63.74.32 1.32.51 1.77.65.74.24 1.41.2 1.94.12.59-.09 1.78-.73 2.03-1.45.25-.73.25-1.35.18-1.48-.07-.13-.27-.2-.57-.35z"/></svg>
+          {{ _t('search.contactOnWhatsApp','Contact on WhatsApp') }}
+        </a>
 
+        <!-- Serial Number (only when required) -->
+        <div v-if="requiresSerial && !hidePrice" class="mt-2">
+          <label class="sr-only" :for="`sn-${product.id}`">{{ _t('product.serialNumber','Serial number') }}</label>
           <input
-            v-model.number="qty"
-            type="number"
-            min="1"
-            class="w-16 h-10 rounded-md ring-1 ring-black/10 text-center text-sm"
+            :id="`sn-${product.id}`"
+            v-model.trim="serial"
+            type="text"
+            inputmode="text"
+            :placeholder="_t('product.serialPlaceholder','Serial number (required)')"
+            class="w-full rounded-md ring-1 ring-black/10 focus:ring-2 focus:ring-emerald-400 px-3 py-2 text-sm"
           />
-
-          <button
-            type="button"
-            class="w-10 h-10 rounded-md ring-1 ring-black/10 text-gray-700 hover:bg-gray-50 text-base"
-            @click="qty = qty + 1"
-            aria-label="Increase quantity"
-          >+</button>
         </div>
 
-        <!-- Add to cart -->
+        <!-- Qty -->
+        <div v-if="showAdd && showQty && !hidePrice && !requiresSerial" class="w-full flex items-center justify-center gap-2">
+          <button type="button" class="w-10 h-10 rounded-md ring-1 ring-black/10 text-gray-700 hover:bg-gray-50 text-base"
+                  @click="qty = Math.max(1, qty - 1)" :aria-label="_t('common.decrease','Decrease quantity')">–</button>
+          <input v-model.number="qty" type="number" min="1" class="w-16 h-10 rounded-md ring-1 ring-black/10 text-center text-sm" />
+          <button type="button" class="w-10 h-10 rounded-md ring-1 ring-black/10 text-gray-700 hover:bg-gray-50 text-base"
+                  @click="qty = qty + 1" :aria-label="_t('common.increase','Increase quantity')">+</button>
+        </div>
+
+        <!-- Add to cart (never show when price is hidden) -->
         <button
-          v-if="showAdd"
+          v-if="showAdd && !hidePrice"
           type="button"
-          class="inline-flex items-center justify-center
-                 w-full px-2 py-3 rounded-lg bg-red-600 text-white text-sm font-bold
-                 hover:bg-red-700 active:bg-red-800 transition shadow-md"
+          class="inline-flex items-center justify-center w-full px-2 py-3 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 active:bg-red-800 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+          :disabled="!canAdd"
           @click="onAdd"
         >
-          ADD TO CART
+          {{ _t('cart.addToCart','ADD TO CART') }}
         </button>
       </div>
     </div>

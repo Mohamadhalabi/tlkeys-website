@@ -113,12 +113,12 @@ export default defineNuxtConfig({
     quality: 70,
     domains: ['dev-srv.tlkeys.com', 'dev.tlkeys.com'], // no https://
     presets: {
-      productLCP:  { modifiers: { width: 420,  fit: 'inside',  quality: 70, format: 'webp' } },
-      productCard: { modifiers: { width: 378,  fit: 'cover',   quality: 70, format: 'webp' } },
-      thumb80:     { modifiers: { width: 80,   height: 80,     fit: 'cover', quality: 60, format: 'webp' } },
-      logo96:      { modifiers: { width: 96,   height: 32,     fit: 'inside', quality: 70, format: 'webp' } },
-      hero:   { modifiers: { width: 1280, quality: 70, format: 'webp' } },
-      banner: { modifiers: { width: 1536, format: 'webp', quality: 70 } }, //
+      productLCP:  { modifiers: { width: 420,  fit: 'inside',  quality: 100, format: 'webp' } },
+      productCard: { modifiers: { width: 378,  fit: 'cover',   quality: 100, format: 'webp' } },
+      thumb80:     { modifiers: { width: 80,   height: 80,     fit: 'cover', quality: 100, format: 'webp' } },
+      logo96:      { modifiers: { width: 96,   height: 32,     fit: 'inside', quality: 100, format: 'webp' } },
+      // hero:   { modifiers: { width: 1280, quality: 100, format: 'webp' } },
+      // banner: { modifiers: { width: 1536, format: 'webp', quality: 100 } }, //
     }
   },
 
@@ -163,7 +163,11 @@ export default defineNuxtConfig({
       PUBLIC_PATH: process.env.PUBLIC_PATH,
       PUBLIC_PATH_WITHOUT_SLASH: process.env.PUBLIC_PATH_WITHOUT_SLASH,
       version: process.env.version,
-      host: process.env.host
+      host: process.env.host,
+      siteName: "Techno Lock Keys",
+      siteUrl: "https://www.tlkeys.com",
+      defaultOgImage: '/images/og-default.jpg',
+
     }
   }
 })

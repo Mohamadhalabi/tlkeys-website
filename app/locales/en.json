@@ -1,14 +1,24 @@
 {
+  "site": { "name": "Techno Lock Keys Trading" },
   "header" : {
     "home" :"Home"
   },
-    "home": {
+  "home": {
+    "meta": {
+      "title": "Techno Lock Keys Trading",
+      "suffix": "Auto Keys & Remotes",
+      "description": "Shop car remotes, key programming, Cutters, Cables, Emulators, Key Cutting Machines and more. Fast shipping and expert support.",
+      "keywords": "car remotes, xhorse, keydiy, key programming, key cutting, locksmith tools"
+    },
+    "viewAll": "View All",
     "browseCategories": "Browse Categories",
     "featuredProducts": "FEATURED PRODUCTS",
     "newArrivals": "NEW ARRIVALS",
     "loadingFeatured": "Loading featured…",
     "loadingNewArrivals": "Loading new arrivals…",
-    "xhorseRemotes": "Xhorse remotes",
+    "xhorseRemotes": "Xhorse Remotes",
+    "keydiyRemotes": "Keydiy Remotes",
+    "lonsdorRemotes": "Lonsdor Remotes",
     "xhorseRemotesAlt": "Xhorse Remotes",
     "loadingXhorseRemotes": "Loading Xhorse remotes…",
     "categories": {
@@ -34,11 +44,50 @@
     "contactUs" :"Contact Us",
     "loading": "Loading…",
     "comingSoon" : "Coming soon...",
-    "tryAgain": "Try again."
+    "tryAgain": "Try again.",
+    "close": "Close", 
+    "apply": "Apply",
+    "email": "Email",
+    "emailAddress": "Email address",
+    "password": "Password",
+    "off": "OFF",
+    "days": "DAYS",
+    "decrease": "Decrease quantity",
+    "increase": "Increase quantity"
   },
   "auth": {
-    "login": "Log in",
-    "register": "Register"
+    "loginRegister": "Login / Register",
+    "login": {
+      "title": "Login",
+      "emailPlaceholder": "Your Email",
+      "passwordPlaceholder": "••••••••",
+      "remember": "Remember me",
+      "forgot": "Forgot password?",
+      "cta": "Login",
+      "loading": "Logging in…",
+      "successTitle": "Welcome back!",
+      "successMessage": "Logged in successfully.",
+      "errorTitle": "Login failed",
+      "errorFallback": "Please check your credentials."
+    },
+    "register": {
+      "title": "Sign up",
+      "fullName": "Full name",
+      "fullNamePlaceholder": "John Doe",
+      "phone": "Phone",
+      "phonePlaceholder": "+1 555 000 0000",
+      "emailPlaceholder": "Your Email",
+      "passwordPlaceholder": "Choose a strong password",
+      "cta": "Register",
+      "loading": "Registering…",
+      "successTitle": "Welcome!",
+      "successMessage": "Your account is ready and you’re logged in.",
+      "errorTitle": "Register failed",
+      "errorFallback": "Please review the form."
+    }
+  },
+  "badges":{
+    "freeShipping" :"Free Shipping"
   },
   "searchPlaceholder": "I'm searching for",
   "myAccount": "My Account",
@@ -54,7 +103,12 @@
   "carRemotes": "Car remotes...",
   "keyCuttingMachines": "Key cutting machines...",
   "logIn": "Log in",
-  "wishlist": "Wishlist",
+    "wishlist": {
+    "add": "Add to Wishlist",
+    "remove": "Remove from Wishlist",
+    "saving": "Saving…",
+    "wishlist": "Wishlist"
+  },
   "softwareTokens" : "Software & Tokens",
   "devicesMachines" : "Devices & Machines",
   "downloads" : "Downloads",
@@ -327,7 +381,11 @@
     "home": "Home"
   },
   "labels": {
-    "products": "Products"
+    "products": "Products",
+    "sku": "SKU",
+    "categories": "Categories",
+    "manufacturers": "Manufacturers",
+    "brands": "Brands"
   },
   "pincode": {
     "pincode": "PIN Code",
@@ -369,7 +427,12 @@
       "myAddresses": "My Addresses",
       "myReview": "My Review",
       "whatsNew": "What New",
-      "cart": "Cart"
+      "cart": "Cart",
+      "description": "Description",
+      "reviews": "Reviews",
+      "faq": "FAQ",
+      "videos": "Videos",
+      "contact": "Contact Us"
     },
     "password": {
       "title": "Change password",
@@ -403,6 +466,8 @@
     "loginNotice": "Log in or create an account to checkout.",
     "sku": "SKU:",
     "unit": "Unit:",
+    "addToCart": "Add to Cart",
+    "adding": "Adding…",
     "confirm": {
       "clearAll": "Clear all items from your cart?"
     },
@@ -413,6 +478,59 @@
       "clearedTitle": "Cart cleared",
       "clearFailedTitle": "Clear cart failed"
     }
-  }
+  },
+  "breadcrumbs": { "home": "Home", "shop": "Shop" },
+  "pagination": {
+    "firstAria": "First page",
+    "prevAria": "Previous page",
+    "nextAria": "Next page",
+    "lastAria": "Last page",
+    "jumpAria": "Jump pages",
+    "showing" : "Showing",
+    "of" : "of",
+    "goTo" : "Go To",
+    "go" : "Go"
+  },
+  "facets":{
+    "categories":"Categories",
+    "manufacturers":"Manufacturers",
+    "brands" : "Brands",
+    "models" : "Models"
+  },
+  "filters":{
+    "selectedSuffix" : "Selected",
+    "searchPlaceholder" :"Search",
+    "clearAll":"Clear All",
+    "active": "Active Filters",
+    "clear" : "Clear"
+  },
+  "sort" : {
+    "priceLowHigh" : "Price Low To High",
+    "priceHighLow" : "Price High To Low",
+    "newToOld": "New To Old",
+    "oldToNew" : "Old To New"
+  },
+  "search" : {
+    "contactOnWhatsApp" : "Contact Us",
+    "askAboutProduct": "Hello! Can I get more information about this product: {title} (SKU: {sku})?"
+  },
+    "product": {
+    "contactOnWhatsApp": "Contact Us",
+    "whatsappMessage": "Can I get more information and price for \"{title}\"{sku}?",
+    "serialLabel": "Serial number",
+    "serialPlaceholder": "Serial number (required)",
+    "discountEndsIn": "DISCOUNT ENDS IN",
+    "daysHms": "{days} DAYS, {hms}",
+    "off": "OFF",
+    "product": "Product",
+    "quantity": "Quantity",
+    "min": "Min",
+    "quantityPricing": "Quantity Pricing",
+    "serialNumber": "Serial Number",
+    "serialRequiredHint": "Required for this product.",
+    "serialRequiredTitle": "Serial number required",
+    "serialRequiredMsg": "Please enter a valid serial number before adding to cart."
+  },
+  "actions": { "addToCart": "ADD TO CART" },
+  "a11y": { "decreaseQty": "Decrease quantity", "increaseQty": "Increase quantity" }
 }
-

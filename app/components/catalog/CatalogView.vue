@@ -15,14 +15,15 @@ const props = defineProps<{
   }
 }>()
 
-const { public: { API_BASE_URL } } = useRuntimeConfig()
+const { public: { API_BASE_URL, SITE_URL } } = useRuntimeConfig()
 const { $customApi } = useNuxtApp()
 const route = useRoute()
 const router = useRouter()
 
-// i18n (safe if auto-import is disabled)
+// i18n (loaded from global translation files; no inline <i18n> here)
 const i18nApi = (useI18n?.() as any) || null
 const t = i18nApi?.t ?? ((s: string) => s)
+const currentLocale = i18nApi?.locale ?? ref('en')
 const localeProperties = i18nApi?.localeProperties ?? computed(() => ({ dir: 'ltr' }))
 
 /* ---------- helpers ---------- */
@@ -52,16 +53,15 @@ function prettify(slug: string) {
 }
 function parsePerPage(v: unknown): number | 'all' {
   const raw = (Array.isArray(v) ? v[0] : v) as string | undefined
-  if (!raw) return 32
+  if (!raw) return 35
   if (raw === 'all') return 'all'
   const n = Number(raw)
-  return Number.isFinite(n) && n > 0 ? n : 32
+  return Number.isFinite(n) && n > 0 ? n : 35
 }
 function scrollTop(smooth = true) {
   if (process.client) window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' })
 }
 
-/** merge URL query with initialFilters (for first load & SSR) */
 /** merge URL query with initialFilters (for first load & SSR) */
 const mergedFilters = computed(() => {
   const qy = route.query
@@ -98,7 +98,7 @@ const sel = reactive({
   q: '',
   sort: 'newest',
   page: 1,
-  perPage: 32 as number | 'all'
+  perPage: 35 as number | 'all'
 })
 
 /** collapsible + UI state per section */
@@ -138,7 +138,7 @@ function buildQueryFromSel() {
 
   if (sel.sort)                  q.sort           = sel.sort
   if (sel.page > 1)              q.page           = String(sel.page)
-  q.per_page = sel.perPage === 'all' ? 'all' : String(sel.perPage || 32)
+  q.per_page = sel.perPage === 'all' ? 'all' : String(sel.perPage || 35)
 
   // preserve unknown params
   const next: Record<string, any> = {}
@@ -230,41 +230,45 @@ function applyDiscount(base: number, disc: { discount_type: 'percent'|'fixed'|nu
 /** Map API → card item with sale/discount awareness */
 function mapApiProduct(p: any) {
   const discRaw = (p?.discount?.data ?? p?.discount) || null
-  const discType  = (discRaw?.type === 'fixed' || discRaw?.type === 'percent') ? discRaw.type : null
-  const discValue = typeof discRaw?.value === 'number' ? discRaw.value
-                   : (discRaw?.value != null ? Number(discRaw.value) : null)
-  const discStart = discRaw?.start_date ?? null
-  const discEnd   = discRaw?.end_date ?? null
-  const discActive = Boolean(discRaw?.active)
-  const hasSale = p?.sale_price != null && p?.sale_price !== 0
-  const categoryName = Array.isArray(p?.categories) && p.categories[0]?.name ? String(p.categories[0].name) : ''
-  const categorySlug = Array.isArray(p?.categories) && p.categories[0]?.slug ? String(p.categories[0].slug).toLowerCase() : ''
+  const disc    = normalizeDiscount(discRaw) // ← uses active window
+
+  // free shipping, chips, etc… (unchanged)
+
   return {
     id: p.id,
     name: p.title ?? p.short_title ?? '',
     image: p.image,
-    price: hasSale ? p.sale_price : p.price,
-    oldPrice: hasSale ? p.price : null,
+
+    // DO NOT force sale here; let the card compute final
+    price: p.price,                           // ← base from API
+    oldPrice: null,                           // optional; card computes strikethrough itself
+
     regular_price: p.regular_price ?? null,
-    sale_price: p.sale_price ?? null,
-    table_price: Array.isArray(p?.table_price) ? p.table_price : null,
-    discount_type: discType,
-    discount_value: discValue,
-    discount_start_date: discStart,
-    discount_end_date: discEnd,
-    discount_active: discActive,
+    sale_price:    p.sale_price ?? null,
+    table_price:   Array.isArray(p?.table_price) ? p.table_price : null,
+
+    // only pass discount when active
+    discount_type:  disc.discount_type,
+    discount_value: disc.discount_value,
+    discount_start_date: discRaw?.start_date ?? null,
+    discount_end_date:   discRaw?.end_date   ?? null,
+
     sku: p.sku ?? '',
-    category: categoryName,
-    categorySlug,
+    category: (Array.isArray(p?.categories) && p.categories[0]?.name) ? String(p.categories[0].name) : '',
+    categorySlug: (Array.isArray(p?.categories) && p.categories[0]?.slug) ? String(p.categories[0].slug).toLowerCase() : '',
     slug: p.slug,
     href: p.slug ? `/products/${p.slug}` : `/products/${p.id}`,
+    freeShipping: p?.is_free_shipping === 1 || p?.is_free_shipping === '1' || p?.is_free_shipping === true,
+
+    hide_price: Number(p?.hide_price ?? 0) === 1,
+    requires_serial: (Array.isArray(p?.categories) ? p.categories : []).some((c:any) => Number(c?.id) === 47 || Number(c?.id) === 48),
   }
 }
 function lastFromMeta(meta: any) {
   const lp = Number(meta?.last_page)
   if (Number.isFinite(lp) && lp > 1) return lp
   const total = Number(meta?.total || 0)
-  const size  = Math.max(1, Number(meta?.page_size || meta?.per_page || (sel.perPage === 'all' ? 32 : sel.perPage || 24)))
+  const size  = Math.max(1, Number(meta?.page_size || meta?.per_page || (sel.perPage === 'all' ? 35 : sel.perPage || 24)))
   const calc  = Math.ceil(total / size)
   return calc > 0 ? calc : 1
 }
@@ -280,7 +284,7 @@ const errorMsg = ref('')
 /* ---------- Infinite scroll ---------- */
 const infiniteSentinel = ref<HTMLElement | null>(null)
 const isInfinite = computed(() => sel.perPage === 'all')
-const CHUNK = 32
+const CHUNK = 35
 const canLoadMore = computed(() => {
   if (!meta.value) return false
   const current = Number(meta.value.current_page || sel.page || 1)
@@ -606,10 +610,165 @@ function clearMobileGroup() {
   else sel.models = []
   applyMobileFilters()
 }
+
+/* ---------- Breadcrumb helpers ---------- */
+function getFacetLabel(group: 'categories'|'manufacturers'|'brands'|'models', slug?: string | null) {
+  if (!slug) return ''
+  const { c, m, b, mdl } = facetMaps.value
+  if (group === 'categories')     return c.get(slug)   || prettify(slug)
+  if (group === 'manufacturers')  return m.get(slug)   || prettify(slug)
+  if (group === 'brands')         return b.get(slug)   || prettify(slug)
+  return (mdl.get(slug) || prettify(slug))
+}
+
+type Crumb = { label: string; to?: string }
+const breadcrumbs = computed<Crumb[]>(() => {
+  const items: Crumb[] = [
+    { label: t('breadcrumbs.home'), to: '/' },
+    { label: t('breadcrumbs.shop'), to: SHOP_PATH },
+  ]
+  const baseCat = props.initialFilters?.categories?.[0]
+  const baseMan = props.initialFilters?.manufacturers?.[0]
+  const baseBrand = props.initialFilters?.brands?.[0]
+
+  if (entryType.value === 'category' && baseCat) {
+    items.push({ label: getFacetLabel('categories', baseCat) })
+  } else if (entryType.value === 'manufacturer' && baseMan) {
+    items.push({ label: getFacetLabel('manufacturers', baseMan) })
+  } else if (entryType.value === 'brand' && baseBrand) {
+    items.push({ label: getFacetLabel('brands', baseBrand) })
+  }
+  return items
+})
+
+/* ---------- Goto page small helper (used in template) ---------- */
+const gotoModel = ref<string>('')
+function submitGoto() {
+  const n = Number(gotoModel.value)
+  if (Number.isFinite(n) && n >= 1 && n <= pageInfo.value.last) {
+    goPage(n)
+  }
+  gotoModel.value = ''
+}
+
+/* ---------- SEO: meta + canonical ---------- */
+const humanContext = computed(() => {
+  if (entryType.value === 'category') return getFacetLabel('categories', props.initialFilters?.categories?.[0]) || t('breadcrumbs.shop')
+  if (entryType.value === 'manufacturer') return getFacetLabel('manufacturers', props.initialFilters?.manufacturers?.[0]) || t('breadcrumbs.shop')
+  if (entryType.value === 'brand') return getFacetLabel('brands', props.initialFilters?.brands?.[0]) || t('breadcrumbs.shop')
+  return t('breadcrumbs.shop')
+})
+
+const siteName = computed(() => t('site.name') || 'Store')
+
+const titleBase = computed(() => {
+  const q = sel.q?.trim()
+  if (q) return `${humanContext.value}: ${q}`
+  return humanContext.value
+})
+const seoTitle = computed(() => `${titleBase.value} | ${siteName.value}`)
+
+const seoDescription = computed(() => {
+  const parts: string[] = []
+  if (sel.q?.trim()) parts.push(t('seo.searchingFor') ? t('seo.searchingFor', { q: sel.q }) : `Searching for “${sel.q}”`)
+  if (sel.brands.length) parts.push(`${t('facets.brands')}: ${sel.brands.map(prettify).join(', ')}`)
+  if (sel.categories.length) parts.push(`${t('facets.categories')}: ${sel.categories.map(prettify).join(', ')}`)
+  if (sel.manufacturers.length) parts.push(`${t('facets.manufacturers')}: ${sel.manufacturers.map(prettify).join(', ')}`)
+  if (sel.models.length) parts.push(`${t('facets.models')}: ${sel.models.map(prettify).join(', ')}`)
+  const count = meta.value?.total ?? items.value.length
+  const countText = count ? `${count} ${t('products').toLowerCase?.() || 'products'}` : t('seo.defaultDesc') || 'Browse products, filter and sort to find what you need.'
+  const preface = (entryType.value !== 'unknown') ? `${humanContext.value} – ` : ''
+  const body = parts.length ? parts.join(' • ') : countText
+  return `${preface}${body}`.slice(0, 300)
+})
+
+const canonicalUrl = computed<string | undefined>(() => {
+  const base = (SITE_URL || '').replace(/\/+$/,'')
+  const path = route.fullPath || route.path || '/'
+  return base ? `${base}${path}` : undefined
+})
+
+useSeoMeta({
+  title: seoTitle,
+  description: seoDescription,
+  ogTitle: seoTitle,
+  ogDescription: seoDescription,
+  ogType: 'website',
+  ogUrl: canonicalUrl,
+  twitterCard: 'summary_large_image',
+  robots: 'index,follow',
+  language: currentLocale,
+})
+
+/* ---------- JSON-LD ---------- */
+const ldCollectionPage = computed(() => ({
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": titleBase.value,
+  "description": seoDescription.value,
+  "url": canonicalUrl.value || '',
+  "inLanguage": String(currentLocale.value || 'en')
+}))
+
+const ldBreadcrumb = computed(() => ({
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": breadcrumbs.value.map((c, i) => ({
+    "@type": "ListItem",
+    "position": i + 1,
+    "name": c.label,
+    "item": c.to ? (canonicalUrl.value ? new URL(c.to, canonicalUrl.value).toString() : c.to) : undefined
+  }))
+}))
+
+const ldWebsite = computed(() => ({
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": siteName.value,
+  "url": (SITE_URL || '').replace(/\/+$/,''),
+  "inLanguage": String(currentLocale.value || 'en'),
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": `${(SITE_URL || '').replace(/\/+$/,'')}/shop?search={search_term_string}`,
+    "query-input": "required name=search_term_string"
+  }
+}))
+
+const ldOrg = computed(() => ({
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": siteName.value,
+  "url": (SITE_URL || '').replace(/\/+$/,'')
+}))
+
+useHead(() => ({
+  link: canonicalUrl.value ? [{ rel: 'canonical', href: canonicalUrl.value }] : [],
+  script: [
+    { type: 'application/ld+json', key: 'ld-collection', innerHTML: JSON.stringify(ldCollectionPage.value) },
+    { type: 'application/ld+json', key: 'ld-breadcrumb', innerHTML: JSON.stringify(ldBreadcrumb.value) },
+    { type: 'application/ld+json', key: 'ld-website', innerHTML: JSON.stringify(ldWebsite.value) },
+    { type: 'application/ld+json', key: 'ld-org', innerHTML: JSON.stringify(ldOrg.value) }
+  ]
+}))
 </script>
 
 <template>
   <div class="container mx-auto px-4 py-6 grid grid-cols-12 gap-6">
+    <!-- Breadcrumbs -->
+    <nav class="col-span-12 -mt-2" aria-label="Breadcrumb">
+      <ol class="flex flex-wrap items-center gap-1 text-sm text-gray-600">
+        <li v-for="(c, i) in breadcrumbs" :key="i" class="flex items-center">
+          <template v-if="c.to">
+            <NuxtLink :to="c.to" class="hover:text-gray-900">{{ c.label }}</NuxtLink>
+            <span v-if="i < breadcrumbs.length - 1" class="mx-2 text-gray-400">/</span>
+          </template>
+          <template v-else>
+            <span class="text-gray-900 font-medium">{{ c.label }}</span>
+          </template>
+        </li>
+      </ol>
+    </nav>
+
     <!-- Mobile chip bar -->
     <div class="min-[993px]:hidden col-span-12">
       <div class="flex items-center justify-between mb-2">
@@ -744,7 +903,7 @@ function clearMobileGroup() {
               @keyup.enter="applyAndResetPage"
               @change="applyAndResetPage"
               type="search"
-              :placeholder="t('searchPlaceholderProducts')"
+              :placeholder="t('filters.searchPlaceholder')"
               class="w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gray-200"
             />
           </div>
@@ -771,7 +930,7 @@ function clearMobileGroup() {
               class="w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gray-200"
             >
               <option value="16">16</option>
-              <option value="32">32</option>
+              <option value="35">35</option>
               <option value="all">{{ t('perPageAll') }}</option>
             </select>
           </div>
@@ -811,9 +970,9 @@ function clearMobileGroup() {
 
           <nav class="flex items-center gap-1 flex-wrap" aria-label="Pagination">
             <button class="px-3 py-1.5 border rounded-lg bg-white disabled:opacity-40"
-                    :disabled="pageInfo.current <= 1" @click="goFirst" aria-label="First page">«</button>
+                    :disabled="pageInfo.current <= 1" @click="goFirst" :aria-label="t('pagination.firstAria')">«</button>
             <button class="px-3 py-1.5 border rounded-lg bg-white disabled:opacity-40"
-                    :disabled="pageInfo.current <= 1" @click="goPage(pageInfo.current - 1)" aria-label="Previous page">‹</button>
+                    :disabled="pageInfo.current <= 1" @click="goPage(pageInfo.current - 1)" :aria-label="t('pagination.prevAria')">‹</button>
 
             <template v-for="(it, idx) in paginationItems" :key="idx">
               <button v-if="it.type==='page'"
@@ -825,13 +984,13 @@ function clearMobileGroup() {
               </button>
               <button v-else
                       class="px-2 py-1.5 text-gray-500 hover:text-gray-900"
-                      @click="jumpGap(it.dir)" aria-label="Jump pages">…</button>
+                      @click="jumpGap(it.dir)" :aria-label="t('pagination.jumpAria')">…</button>
             </template>
 
             <button class="px-3 py-1.5 border rounded-lg bg-white disabled:opacity-40"
-                    :disabled="pageInfo.current >= pageInfo.last" @click="goPage(pageInfo.current + 1)" aria-label="Next page">›</button>
+                    :disabled="pageInfo.current >= pageInfo.last" @click="goPage(pageInfo.current + 1)" :aria-label="t('pagination.nextAria')">›</button>
             <button class="px-3 py-1.5 border rounded-lg bg-white disabled:opacity-40"
-                    :disabled="pageInfo.current >= pageInfo.last" @click="goLast" aria-label="Last page">»</button>
+                    :disabled="pageInfo.current >= pageInfo.last" @click="goLast" :aria-label="t('pagination.lastAria')">»</button>
           </nav>
 
           <form class="flex items-center gap-2 text-sm" @submit.prevent="submitGoto">
@@ -862,7 +1021,7 @@ function clearMobileGroup() {
             <h3 class="text-base font-semibold text-gray-900">
               {{ modalSection?.label }}
             </h3>
-            <button class="p-2 rounded hover:bg-gray-100" @click="closeMobileModal" aria-label="Close">
+            <button class="p-2 rounded hover:bg-gray-100" @click="closeMobileModal" :aria-label="t('common.close')">
               <svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 8.586l4.95-4.95 1.414 1.414L11.414 10l4.95 4.95-1.414 1.414L10 11.414l-4.95 4.95-1.414-1.414L8.586 10l-4.95-4.95L5.05 3.636 10 8.586z" clip-rule="evenodd"/></svg>
             </button>
           </div>
@@ -897,9 +1056,11 @@ function clearMobileGroup() {
             </button>
 
             <div class="ml-auto flex gap-3">
-              <button class="px-4 py-2 rounded-lg border text-gray-700 hover:bg-gray-50" @click="closeMobileModal">Close</button>
+              <button class="px-4 py-2 rounded-lg border text-gray-700 hover:bg-gray-50" @click="closeMobileModal">
+                {{ t('common.close') }}
+              </button>
               <button class="px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600" @click="applyMobileFilters">
-                Apply
+                {{ t('common.apply') }}
               </button>
             </div>
           </div>
@@ -913,82 +1074,3 @@ function clearMobileGroup() {
 .fade-enter-active, .fade-leave-active { transition: opacity .15s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
-
-<i18n>
-{
-  "en": {
-    "products": "Products",
-    "search": "Search",
-    "searchPlaceholderProducts": "Search products…",
-    "sortBy": "Sort by",
-    "sort": {
-      "priceLowHigh": "Price: Low → High",
-      "priceHighLow": "Price: High → Low",
-      "newest": "Newest → Oldest",
-      "oldest": "Oldest → Newest"
-    },
-    "perPage": "Per page",
-    "perPageAll": "All",
-    "pagination": {
-      "prev": "Prev",
-      "next": "Next",
-      "showing": "Showing",
-      "of": "of",
-      "goTo": "Go to page",
-      "go": "Go"
-    },
-    "filters": {
-      "active": "Active filters",
-      "clearAll": "Clear all",
-      "clear": "Clear",
-      "selectedSuffix": "selected",
-      "remove": "Remove {label}",
-      "searchPlaceholder": "Search {label}…"
-    },
-    "facets": {
-      "brands": "Brands",
-      "models": "Models",
-      "categories": "Categories",
-      "manufacturers": "Manufacturers"
-    },
-    "infinite": { "loading": "Loading…", "loadMore": "Load more", "noMore": "No more items" }
-  },
-  "tr": {
-    "products": "Ürünler",
-    "search": "Ara",
-    "searchPlaceholderProducts": "Ürünlerde ara…",
-    "sortBy": "Sırala",
-    "sort": {
-      "priceLowHigh": "Fiyat: Düşük → Yüksek",
-      "priceHighLow": "Fiyat: Yüksek → Düşük",
-      "newest": "Yeni → Eski",
-      "oldest": "Eski → Yeni"
-    },
-    "perPage": "Sayfa başına",
-    "perPageAll": "Tümü",
-    "pagination": {
-      "prev": "Önceki",
-      "next": "Sonraki",
-      "showing": "Gösterilen",
-      "of": "toplam",
-      "goTo": "Sayfaya git",
-      "go": "Git"
-    },
-    "filters": {
-      "active": "Aktif filtreler",
-      "clearAll": "Tümünü temizle",
-      "clear": "Temizle",
-      "selectedSuffix": "seçili",
-      "remove": "{label} filtresini kaldır",
-      "searchPlaceholder": "{label} ara…"
-    },
-    "facets": {
-      "brands": "Markalar",
-      "models": "Modeller",
-      "categories": "Kategoriler",
-      "manufacturers": "Üreticiler"
-    },
-    "infinite": { "loading": "Yükleniyor…", "loadMore": "Daha fazla yükle", "noMore": "Hepsi bu kadar" }
-  }
-}
-</i18n>

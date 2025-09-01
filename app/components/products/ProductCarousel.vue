@@ -26,8 +26,13 @@ const props = withDefaults(defineProps<{
   currentPage?: number
   lastPage?: number
 
-  /* direction */
+  /* direction (if null, auto-detect from <html dir>) */
   rtl?: boolean | null
+
+  /* auto slide */
+  autoSlide?: boolean
+  autoSlideMs?: number
+  pauseOnHover?: boolean
 }>(), {
   title: 'Products',
   rowsBase: 1, rowsSm: 1, rowsMd: 1, rowsLg: 1, rowsXl: 1,
@@ -40,7 +45,10 @@ const props = withDefaults(defineProps<{
   serverPaging: false,
   currentPage: 1,
   lastPage: 1,
-  rtl: null
+  rtl: null,
+  autoSlide: true,          // turn on by default since you asked for it
+  autoSlideMs: 5000,        // 5 seconds
+  pauseOnHover: true
 })
 
 const emit = defineEmits<{
@@ -53,7 +61,7 @@ const isRTL = ref(false)
 function detectDir() {
   if (props.rtl != null) { isRTL.value = !!props.rtl; return }
   if (typeof document !== 'undefined') {
-    const dir = document.documentElement.getAttribute('dir') || document.dir || 'ltr'
+    const dir = document.documentElement.getAttribute('dir') || (document as any).dir || 'ltr'
     isRTL.value = String(dir).toLowerCase() === 'rtl'
   }
 }
@@ -97,8 +105,14 @@ onMounted(() => {
     ro = new ResizeObserver(() => computeLayout())
     ro.observe(rootEl.value)
   }
+  setupVisibilityPause(true)
+  startAuto()
 })
-onBeforeUnmount(() => ro?.disconnect())
+onBeforeUnmount(() => {
+  ro?.disconnect()
+  stopAuto()
+  setupVisibilityPause(false)
+})
 
 watchEffect(() => {
   void props.perRowBase; void props.perRowSm; void props.perRowMd; void props.perRowLg; void props.perRowXl
@@ -122,6 +136,7 @@ const visibleProducts = computed(() => props.serverPaging ? visibleServerSlice.v
 
 watch([perPage, () => props.products?.length], () => {
   if (pageClient.value > totalPagesClient.value - 1) pageClient.value = 0
+  restartAuto() // layout/data change → keep autoslide in sync
 })
 
 const pageAnim = ref<'next' | 'prev' | null>(null)
@@ -142,12 +157,26 @@ function prev() {
   }
 }
 
+/* advance specifically for auto mode (wrap around on server paging) */
+function advanceAuto() {
+  if (props.serverPaging) {
+    const cur = Number(props.currentPage || 1)
+    const last = Number(props.lastPage || 1)
+    pageAnim.value = 'next'
+    emit('request-page', cur < last ? cur + 1 : 1)
+  } else {
+    pageAnim.value = 'next'
+    pageClient.value = (pageClient.value + 1) % totalPagesClient.value
+  }
+}
+
 const lastServerPage = ref(props.currentPage || 1)
 watch(() => props.currentPage, (p) => {
   if (!props.serverPaging) return
   const cur = Number(p || 1)
   pageAnim.value = cur > lastServerPage.value ? 'next' : 'prev'
   lastServerPage.value = cur
+  restartAuto() // server page changed → keep autoslide cadence
 })
 
 /* ---- background ---- */
@@ -166,15 +195,58 @@ function onTouchStart(e: TouchEvent) {
   tActive.value = true
   tX.value = e.touches[0].clientX
   tY.value = e.touches[0].clientY
+  // pause while user interacts
+  stopAuto()
 }
 function onTouchEnd(e: TouchEvent) {
   if (!tActive.value) return
-  tActive.value = false
   const t = e.changedTouches?.[0]; if (!t) return
+  tActive.value = false
   const dx = t.clientX - tX.value
   const dy = t.clientY - tY.value
-  if (Math.abs(dx) < 32 || Math.abs(dx) < Math.abs(dy)) return
-  if (isRTL.value) { dx > 0 ? next() : prev() } else { dx < 0 ? next() : prev() }
+  if (Math.abs(dx) >= 32 && Math.abs(dx) >= Math.abs(dy)) {
+    if (isRTL.value) { dx > 0 ? next() : prev() } else { dx < 0 ? next() : prev() }
+  }
+  // give a small grace then resume
+  resumeAutoSoon()
+}
+
+/* ---- autoslide timer ---- */
+let timer: number | null = null
+const isHovering = ref(false)
+function startAuto() {
+  if (!props.autoSlide || timer != null) return
+  if (typeof window === 'undefined') return
+  timer = window.setInterval(() => {
+    if (document?.hidden) return
+    if (props.pauseOnHover && isHovering.value) return
+    advanceAuto()
+  }, Math.max(1000, props.autoSlideMs || 5000))
+}
+function stopAuto() {
+  if (timer != null) {
+    clearInterval(timer)
+    timer = null
+  }
+}
+function restartAuto() {
+  stopAuto()
+  startAuto()
+}
+function resumeAutoSoon(delay = 1200) {
+  stopAuto()
+  setTimeout(() => startAuto(), delay)
+}
+
+/* pause when tab hidden / resume when visible */
+function onVisibilityChange() {
+  if (document.hidden) stopAuto()
+  else resumeAutoSoon(300)
+}
+function setupVisibilityPause(enable: boolean) {
+  if (typeof document === 'undefined') return
+  if (enable) document.addEventListener('visibilitychange', onVisibilityChange)
+  else document.removeEventListener('visibilitychange', onVisibilityChange)
 }
 </script>
 
@@ -185,13 +257,30 @@ function onTouchEnd(e: TouchEvent) {
     :style="sectionStyle"
     @touchstart.passive="onTouchStart"
     @touchend.passive="onTouchEnd"
+    @mouseenter="() => { if (pauseOnHover) { isHovering = true; stopAuto() } }"
+    @mouseleave="() => { if (pauseOnHover) { isHovering = false; resumeAutoSoon() } }"
   >
     <div v-if="hasBackground" class="absolute inset-0 pointer-events-none" :class="overlayClass"></div>
 
     <div class="relative mx-auto max-w-screen-2xl px-3 sm:px-4 py-6 sm:py-8">
-      <h2 class="text-center font-extrabold tracking-wide uppercase text-base sm:text-lg mb-4" :class="titleClasses">
-        {{ title }}
-      </h2>
+      <!-- HEADER: title centered, optional action on same row (LTR right / RTL left) -->
+      <div v-if="title">
+        <div class="justify-self-start">
+          <template v-if="isRTL">
+            <slot name="title-action" />
+          </template>
+        </div>
+
+        <h2 class="text-center font-extrabold tracking-wide uppercase text-base sm:text-lg" :class="titleClasses">
+          {{ title }}
+        </h2>
+
+        <div class="justify-self-end">
+          <template v-if="!isRTL">
+            <slot name="title-action" />
+          </template>
+        </div>
+      </div>
 
       <!-- Stage with reserved arrow gutters so cards never sit under buttons -->
       <div class="relative pc-stage">
@@ -227,7 +316,7 @@ function onTouchEnd(e: TouchEvent) {
         >›</button>
       </div>
 
-      <!-- Dots (black) -->
+      <!-- Dots -->
       <div v-if="showDots" class="mt-4 flex items-center justify-center gap-2">
         <template v-if="serverPaging">
           <button
@@ -278,7 +367,6 @@ function onTouchEnd(e: TouchEvent) {
   .pc-stage { --pc-arrow-size: 48px; --pc-arrow-gap: 18px; }
 }
 
-/* arrow positions inside the gutter */
 .pc-arrow {
   position: absolute;
   top: 50%;
@@ -290,8 +378,7 @@ function onTouchEnd(e: TouchEvent) {
 .pc-arrow--next { right: var(--pc-arrow-gap); }
 
 @media screen and (max-width:640px){
-.pc-arrow--prev { width: 8vw; height: 8vw; left: -10px; }
-.pc-arrow--next { width: 8vw; height: 8vw; right: -10px; }
+  .pc-arrow--prev, .pc-arrow--next { display: none; }
 }
 
 /* smooth page transition */

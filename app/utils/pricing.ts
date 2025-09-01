@@ -17,47 +17,64 @@ export type ProductLike = {
 }
 
 /**
- * Compute a unit price for a given qty.
- * Tier/table price overrides base/discount by default (no stacking).
- * If you want discount to stack on tiers, pass stackDiscountOnTiers = true.
+ * Pricing rules
+ * - If a DISCOUNT exists (percent|fixed with value>0):
+ *     • DO NOT use sale_price at all.
+ *     • Use the base price (tier.price or product.price/regular_price) and apply discount.
+ * - If NO discount:
+ *     • Use the cheapest positive among sale_price, price, regular_price (or the tier’s sale/price when qty hits a tier).
  */
 export function computeUnitPrice(
   product: ProductLike,
   qty: number,
-  stackDiscountOnTiers = false
-): { unit: number; total: number; source: 'tier' | 'base' | 'base+discount' } {
+  stackDiscountOnTiers = false // kept for API compatibility; with "discount overrides sale", stacking has no effect
+): { unit: number; total: number; source: 'tier' | 'sale' | 'base' | 'base+discount' } {
   const q = Math.max(1, Number(qty || 1))
+  const { type: discType, value: discValue } = discountInfo(product)
+  const hasDiscount = !!discType && discValue > 0
 
-  // base price selection:
-  // 1) Prefer the first numeric value > 0 among sale, price, regular.
-  // 2) If all are <= 0 or nullish, fall back to the first numeric (including 0).
-  const base =
-    firstNumGtZero(product.sale_price, product.price, product.regular_price) ??
-    firstNum(product.sale_price, product.price, product.regular_price) ??
-    0
-
-  let discounted = base
-  const t = product.discount_type
-  const v = num(product.discount_value)
-
-  if (t && isFiniteNum(v)) {
-    if (t === 'percent') discounted = clampMoney(base * (1 - v / 100))
-    if (t === 'fixed')   discounted = clampMoney(Math.max(base - v, 0)) // cap at 0
-  }
-  discounted = Math.max(0, discounted)
-
+  // ---- Tier selection ----
   const tier = pickTier(product.table_price || [], q)
   if (tier) {
-    let tierUnit = num(tier.sale_price) ?? num(tier.price) ?? discounted
-    if (stackDiscountOnTiers && t && isFiniteNum(v)) {
-      if (t === 'percent') tierUnit = clampMoney(tierUnit * (1 - v / 100))
-      if (t === 'fixed')   tierUnit = clampMoney(Math.max(tierUnit - v, 0))
-      return { unit: tierUnit, total: clampMoney(tierUnit * q), source: 'base+discount' }
+    let base: number
+
+    if (hasDiscount) {
+      // discount overrides any sale: use the tier BASE price
+      base = firstPos(num(tier.price)) ?? 0
+      let unit = base
+      if (discType === 'percent') unit = clampMoney(base * (1 - discValue / 100))
+      if (discType === 'fixed')   unit = clampMoney(Math.max(base - discValue, 0))
+      return { unit, total: clampMoney(unit * q), source: 'base+discount' }
     }
-    return { unit: tierUnit, total: clampMoney(tierUnit * q), source: 'tier' }
+
+    // No discount: pick the cheapest positive among tier.sale, tier.price, product.sale
+    const candidates = positives(num(tier.sale_price), num(tier.price), num(product.sale_price))
+    const unit = candidates.length ? Math.min(...candidates) : 0
+
+    // best-effort source
+    const src: 'tier' | 'sale' =
+      num(tier.sale_price) && unit === num(tier.sale_price)
+        ? 'tier'
+        : (num(product.sale_price) && unit === num(product.sale_price) ? 'sale' : 'tier')
+
+    return { unit, total: clampMoney(unit * q), source: src }
   }
 
-  return { unit: discounted, total: clampMoney(discounted * q), source: t ? 'base+discount' : 'base' }
+  // ---- No tier ----
+  let base: number
+  if (hasDiscount) {
+    // discount overrides any sale: apply to product base price
+    base = firstPos(num(product.price), num(product.regular_price)) ?? 0
+    let unit = base
+    if (discType === 'percent') unit = clampMoney(base * (1 - discValue / 100))
+    if (discType === 'fixed')   unit = clampMoney(Math.max(base - discValue, 0))
+    return { unit, total: clampMoney(unit * q), source: 'base+discount' }
+  }
+
+  // No discount: use the cheapest positive among sale, price, regular
+  const candidates = positives(num(product.sale_price), num(product.price), num(product.regular_price))
+  const unit = candidates.length ? Math.min(...candidates) : 0
+  return { unit, total: clampMoney(unit * q), source: num(product.sale_price) && num(product.sale_price)! > 0 ? 'sale' : 'base' }
 }
 
 /* ---------------- helpers ---------------- */
@@ -69,11 +86,17 @@ function num(x: unknown): number | null {
   }
   return null
 }
-function isFiniteNum(x: unknown): x is number {
-  return typeof x === 'number' && Number.isFinite(x)
-}
 function clampMoney(n: number): number {
   return Math.round(Math.max(0, n) * 100) / 100
+}
+function positives(...vals: Array<number | null>): number[] {
+  return vals.filter((n): n is number => n !== null && n > 0)
+}
+function firstPos(...vals: Array<number | null>): number | null {
+  for (const v of vals) {
+    if (v !== null && v > 0) return v
+  }
+  return null
 }
 function pickTier(rows: PriceTableRow[], qty: number): PriceTableRow | null {
   if (!Array.isArray(rows) || !rows.length) return null
@@ -88,20 +111,8 @@ function pickTier(rows: PriceTableRow[], qty: number): PriceTableRow | null {
   for (const r of ordered) if ((Number(r.min_qty) || 1) <= q) candidate = r
   return candidate
 }
-
-// prefer the first numeric > 0
-function firstNumGtZero(...vals: any[]): number | null {
-  for (const v of vals) {
-    const n = num(v)
-    if (n != null && n > 0) return n
-  }
-  return null
-}
-// otherwise, first numeric (including 0)
-function firstNum(...vals: any[]): number | null {
-  for (const v of vals) {
-    const n = num(v)
-    if (n != null) return n
-  }
-  return null
+function discountInfo(p: ProductLike): { type: 'percent' | 'fixed' | null; value: number } {
+  const t = p.discount_type
+  const v = num(p.discount_value) ?? 0
+  return { type: t === 'percent' || t === 'fixed' ? t : null, value: v }
 }

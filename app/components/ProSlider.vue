@@ -69,12 +69,9 @@
             v-if="useNuxtImg"
             :src="s.image"
             :alt="s.alt || s.title || ''"
-            :sizes="imgSizes"
             :preload="i === active"
             :class="imgClass + ' h-full w-full'"
             :loading="i === active ? 'eager' : 'lazy'"
-            decoding="async"
-            preset="banner"
             :fetchpriority="i === active ? 'high' : undefined"
             placeholder
             :draggable="false"
@@ -163,7 +160,6 @@ const props = withDefaults(defineProps<{
   showProgress: true,
   ariaLabel: 'Image carousel',
   useNuxtImg: true,
-  imgSizes: '(min-width: 768px) 100vw, 100vw',
   imgClass: 'w-full h-full object-cover',
   dragActivation: 'immediate',
   longPressDelay: 0

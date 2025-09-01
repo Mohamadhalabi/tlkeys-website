@@ -20,7 +20,6 @@ import ProductPriceTable from '~/components/product/ProductPriceTable.vue'
 import ProductAttributesTable from '~/components/product/ProductAttributesTable.vue'
 import ProductRelatedGrid from '~/components/product/ProductRelatedGrid.vue'
 import ProductCompatibilityTable from '~/components/product/ProductCompatibilityTable.vue'
-import FlipCountdown from '~/components/ui/FlipCountdown.vue'
 import ProductCarousel from '~/components/products/ProductCarousel.vue'
 
 /* ---------------- Types ---------------- */
@@ -55,6 +54,7 @@ type Product = {
   image?: string | null
   description?: string | null
   price: number | string
+  hide_price?: boolean | number | null
   regular_price?: number | string | null
   sale_price?: number | string | null
   images: ProductImage[]
@@ -77,11 +77,16 @@ type Product = {
   compatibility?: CompatibilityRow[]
   faq?: FaqItem[] | null
   videos?: VideoItem[] | null
+  requires_serial?: boolean | null
 }
 
 /* ---------------- Base setup ---------------- */
 const route = useRoute()
 const { t: _t, localeProperties } = useI18n()
+const t = (key: string, fallback?: string) => {
+  const out = _t(key) as string
+  return out === key ? (fallback ?? key) : out
+}
 const dir = computed(() => localeProperties.value.dir || 'ltr')
 
 const runtime = useRuntimeConfig()
@@ -90,17 +95,48 @@ const SITE_URL = (runtime.public.SITE_URL as string) || ''
 const { $customApi } = useNuxtApp()
 const requestURL = useRequestURL()
 
-const t = (key: string, fallback?: string) => {
-  const out = _t(key) as string
-  return out === key ? (fallback ?? key) : out
-}
-
 const { currency, formatMoney } = useCurrency()
 const cart = useCart()
 const wishlist = useWishlist()
 const alerts = useAlertStore()
 const slug = computed(() => route.params.slug as string)
 
+// WhatsApp link helper (re-usable + i18n aware)
+const WHATSAPP_NUMBER: string =
+  (runtime.public.WHATSAPP_NUMBER as string) || '971504429045'
+
+function waLinkForProduct(p?: Product | null) {
+  const title = (p?.title || '').trim()
+  const sku = (p?.sku || '').toString().trim()
+
+  // i18n template with sensible fallback
+  const tpl = _t(
+    'search.askAboutProduct',
+    'Can I get more information and price for "{title}{sku}"?'
+  ) as string
+
+  const titleWithSku = sku ? `${title} (SKU: ${sku})` : title
+
+  let msg: string
+  if (tpl.includes('{title}') || tpl.includes('{sku}')) {
+    if (tpl.includes('{title}') && !tpl.includes('{sku}')) {
+      // only {title} → inject title + SKU into {title}
+      msg = tpl.replace('{title}', titleWithSku)
+    } else {
+      // has {sku} (and maybe {title})
+      msg = tpl
+        .replace('{title}', title)
+        .replace('{sku}', sku ? ` (SKU: ${sku})` : '')
+    }
+  } else {
+    // no placeholders → append the label
+    msg = titleWithSku ? `${tpl} ${titleWithSku}` : tpl
+  }
+
+  return `https://api.whatsapp.com/send?phone=${encodeURIComponent(
+    WHATSAPP_NUMBER
+  )}&text=${encodeURIComponent(msg)}`
+}
 /* ---------------- helpers ---------------- */
 const normAlt = (alt: any, title: string) => {
   if (!alt) return title || ''
@@ -131,11 +167,12 @@ const nameToPath = (s?: string | null) => {
   return `/${encodeURIComponent(cleaned)}`
 }
 
+/* urgency + discount helpers */
+const now = ref(Date.now())
 const isUrgent = computed(() => {
   if (!discountEndsIn.value) return false
   return !String(discountEndsIn.value).includes('d')
 })
-
 const discountRange = computed(() => {
   const start = product.value?.discount_active && product.value?.discount_start
     ? Date.parse(product.value.discount_start) : NaN
@@ -143,7 +180,6 @@ const discountRange = computed(() => {
     ? Date.parse(product.value.discount_end)   : NaN
   return { start, end }
 })
-
 const discountProgress = computed(() => {
   const { start, end } = discountRange.value
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null
@@ -152,7 +188,6 @@ const discountProgress = computed(() => {
   const pct = Math.round((elapsed / total) * 100)
   return { pct, total, elapsed, end }
 })
-
 const discountTooltip = computed(() => {
   const endISO = product.value?.discount_end
   if (!endISO) return ''
@@ -194,11 +229,8 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
     const endOk     = endISO   ? nowMs <= Date.parse(endISO)   : true
     const active    = Boolean(rawDisc?.active) && discType && discValue !== null && startOk && endOk
 
-    const basePrice =
-      toNum(data.sale_price) ??
-      toNum(data.price) ??
-      toNum(data.regular_price) ??
-      0
+    const basePrice = toNum(data.price) ?? toNum(data.regular_price) ?? 0
+
 
     const faqRaw    = (data?.faq?.data ?? data?.faq) || []
     const videosRaw = (data?.videos?.data ?? data?.videos) || []
@@ -214,6 +246,8 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
       meta_title: data.meta_title ?? '',
       meta_description: data.meta_description ?? '',
       price: basePrice,
+      hide_price: Number(data.hide_price ?? 0) === 1,
+      requires_serial: Boolean(data.requires_serial ?? false),
       regular_price: toNum(data.regular_price),
       sale_price: toNum(data.sale_price),
       images: gallery.length ? gallery : [{ src: '/images/placeholder.webp', alt: data.title || 'image' }],
@@ -253,13 +287,36 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
 
 const product = computed<Product | null>(() => ssr.value)
 
-/* ---------------- Computed links & breadcrumb ---------------- */
+/* hide/show logic */
+const hidePrice = computed(() => Boolean(product.value?.hide_price))
+// Is this product in the "pin code offline" category?
+const isPinCodeOffline = computed(() =>
+  (product.value?.categories || []).some(c =>
+    String(c?.name || (c as any)?.title || '')
+      .trim()
+      .toLowerCase() === 'pin code offline'
+  )
+)
+
+// What to show:
+const showPriceBlock   = computed(() => isPinCodeOffline.value || !hidePrice.value)     // show price for pin-code-offline even if hide_price
+const showQtyUI        = computed(() => !hidePrice.value && !isPinCodeOffline.value)    // never show qty for pin-code-offline
+const showAddToCartUI  = computed(() => !hidePrice.value && !isPinCodeOffline.value)    // never show Add-to-Cart for pin-code-offline
+/** When true we should NOT render Add to Cart */
+const hideCart = computed(() => hidePrice.value || isPinCodeOffline.value)
+
+/* serial number */
+const requiresSerial = computed(() => Boolean(product.value?.requires_serial))
+const serial = ref('')
+const canAddToCart = computed(() => !requiresSerial.value || serial.value.trim().length > 0)
+
+/* breadcrumb + chips */
 const primaryCategory = computed(() => (product.value?.categories || [])[0])
 const breadcrumb = computed(() => {
-  const items: { label: string; to?: string }[] = [{ label: 'Home', to: '/' }]
+  const items: { label: string; to?: string }[] = [{ label: t('breadcrumbs.home','Home'), to: '/' }]
   const catLabel = primaryCategory.value?.name || primaryCategory.value?.title
   if (catLabel) items.push({ label: catLabel, to: nameToPath(catLabel || '') })
-  items.push({ label: product.value?.short_title || product.value?.title || 'Product' })
+  items.push({ label: product.value?.short_title || product.value?.title || t('product.product','Product') })
   return items
 })
 function makeLinks<T>(src: T[] | undefined | null, labelOf: (x: T) => string | undefined | null) {
@@ -279,7 +336,7 @@ const categoryLinks = computed(() => makeLinks(product.value?.categories, c => c
 const manufacturerLinks = computed(() => makeLinks(product.value?.manufacturers, m => m?.title || m?.name))
 const brandLinks = computed(() => makeLinks(product.value?.brands, b => b?.name || (b as any)?.title))
 
-/* ---------------- Qty UI ---------------- */
+/* qty */
 const qty = ref(1)
 const minQty = computed(() => Math.max(1, Number(product.value?.min_purchase_qty ?? 1)))
 const canDecrement = computed(() => qty.value > minQty.value)
@@ -296,15 +353,25 @@ watch([() => product.value, () => minQty.value], ([p, min]) => {
   }
 }, { immediate: true })
 
-/* ---------------- Live price ---------------- */
+/* live price */
 const rawFallback = computed(() => {
   const p = product.value as any
   return p ? (toNum(p.sale_price) ?? toNum(p.price) ?? toNum(p.regular_price) ?? 0) : 0
 })
 const unitPrice = computed(() => {
   if (!product.value) return 0
-  const res = computeUnitPrice(product.value as any, qty.value)
-  return res.unit > 0 ? res.unit : (rawFallback.value || 0)
+  const base = computeUnitPrice(product.value as any, qty.value).unit
+  let unit = base > 0 ? base : (rawFallback.value || 0)
+  const noPromo = unitWithoutDiscount.value
+  const dtype = product.value.discount_type
+  const dval  = toNum(product.value.discount_value)
+  const hasActive = !!product.value.discount_active && (dtype === 'fixed' || dtype === 'percent') && (dval ?? 0) > 0
+  const helperMissedIt = unit >= noPromo - 1e-9
+  if (hasActive && helperMissedIt) {
+    if (dtype === 'fixed')   unit = Math.max(0, unit - (dval as number))
+    if (dtype === 'percent') unit = Math.max(0, unit * (1 - (dval as number) / 100))
+  }
+  return unit
 })
 const unitWithoutDiscount = computed(() => {
   if (!product.value) return 0
@@ -331,13 +398,14 @@ const displayPrice = computed(() => {
   const old = current < unitWithoutDiscount.value ? unitWithoutDiscount.value : null
   return { current, old }
 })
-
-/* 🔸 Discount helpers for overlay */
 const hasDiscountNow = computed(() => !!displayPrice.value.old && displayPrice.value.old > displayPrice.value.current)
 const discountAmountNow = computed(() => hasDiscountNow.value ? (displayPrice.value.old! - displayPrice.value.current) : 0)
 
-/* ---------------- Discount countdown ---------------- */
-const now = ref(Date.now())
+const hasTablePrice = computed(
+  () => Array.isArray(product.value?.table_price) && product.value!.table_price!.length > 0
+)
+
+/* countdown */
 let timer: any = null
 onMounted(() => { timer = setInterval(() => (now.value = Date.now()), 1000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
@@ -358,28 +426,41 @@ const discountEndsIn = computed(() => {
                   : `${pad(hours)}:${pad(mins)}:${pad(secs)}`
 })
 
-/* ---------------- Actions ---------------- */
+/* actions */
 const adding = ref(false)
 const wishing = ref(false)
 const inWish = computed(() => product.value ? wishlist.isInWishlist(String(product.value.id)) : false)
 
 async function onAddToCart() {
   if (!product.value) return
+  if (hideCart.value) return  // never add to cart when price hidden or pin-code-offline
+
+  if (requiresSerial.value && serial.value.trim() === '') {
+    alerts.showAlert({
+      type: 'error',
+      title: t('product.serialRequiredTitle','Serial number required'),
+      message: t('product.serialRequiredMsg','Please enter a valid serial number before adding to cart.')
+    })
+    return
+  }
+
   const p = product.value
-  const { unit } = computeUnitPrice(p as any, qty.value)
+  const unit = unitPrice.value
+
   await cart.add(p.id, qty.value, {
     title: p.title,
     image: p.image || p.images?.[0]?.src,
     sku: p.sku || undefined,
     slug: p.slug,
-    price: toNum(p.price) ?? 0,
+    price: unit,
     regular_price: toNum(p.regular_price),
     sale_price: toNum(p.sale_price),
     table_price: Array.isArray(p.table_price) ? p.table_price : null,
     discount_type: p.discount_type ?? null,
     discount_value: toNum(p.discount_value),
-    priceSnapshot: unit > 0 ? unit : (rawFallback.value || 0),
+    priceSnapshot: unit,
     stock: typeof p.quantity === 'number' ? p.quantity : null,
+    serial_number: requiresSerial.value ? [serial.value.trim()] : null,
   })
 }
 
@@ -410,19 +491,19 @@ async function onToggleWishlist() {
   }
 }
 
-/* ---------------- Tabs ---------------- */
+/* tabs (translated) */
 const tabs = [
-  { key: 'desc',    label: 'Description' },
-  { key: 'reviews', label: 'Reviews' },
-  { key: 'faq',     label: 'FAQ' },
-  { key: 'videos',  label: 'Videos' },
-  { key: 'contact', label: 'Contact Us' }
+  { key: 'desc',    label: t('tabs.description','Description') },
+  { key: 'reviews', label: t('tabs.reviews','Reviews') },
+  { key: 'faq',     label: t('tabs.faq','FAQ') },
+  { key: 'videos',  label: t('tabs.videos','Videos') },
+  { key: 'contact', label: t('tabs.contact','Contact Us') }
 ] as const
 type TabKey = typeof tabs[number]['key']
 const activeTab = ref<TabKey>('desc')
 function setTab(k: TabKey) { activeTab.value = k }
 
-/* ---------------- Head ---------------- */
+/* head/meta */
 const absUrl = computed(() => {
   const origin = (requestURL && requestURL.origin) ? requestURL.origin : SITE_URL
   const pathname = requestURL?.pathname || ''
@@ -652,9 +733,6 @@ async function fetchRelatedOnce() {
     const res = await $customApi(`${API_BASE_URL}/products/related`, { method: 'POST', body })
     const rows: any[] = (res?.data ?? res ?? []) as any[]
     relatedProducts.value = rows.map(normRelatedItem).filter(Boolean) as GridProduct[]
-
-    console.log("TESzT");
-    console.log(relatedProducts);
   } catch (e: any) {
     relatedError.value = e?.message || 'Failed to load related products'
   } finally {
@@ -719,7 +797,7 @@ watch(() => product.value?.id, () => {
     <div v-else-if="product" class="space-y-8">
       <!-- Two column layout -->
       <section class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
-        <!-- Gallery with overlay + animated OFF pill -->
+        <!-- Gallery with overlay -->
         <div class="lg:order-1">
           <ProductGallery
             :images="product.images"
@@ -744,14 +822,14 @@ watch(() => product.value?.id, () => {
               <hr />
               <div class="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-600">
                 <span v-if="product.sku" class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700 border border-emerald-200">
-                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> SKU: {{ product.sku }}
+                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> {{ t('labels.sku','SKU') }}: {{ product.sku }}
                 </span>
               </div>
 
               <!-- chips -->
               <div class="mt-5 space-y-3 text-sm">
                 <div v-if="categoryLinks.length">
-                  <div class="mb-1 text-gray-500">Categories</div>
+                  <div class="mb-1 text-gray-500">{{ t('labels.categories','Categories') }}</div>
                   <div class="flex flex-wrap gap-2">
                     <NuxtLinkLocale v-for="c in categoryLinks" :key="c.to" :to="c.to"
                       class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 hover:bg-white hover:shadow-sm transition">
@@ -760,7 +838,7 @@ watch(() => product.value?.id, () => {
                   </div>
                 </div>
                 <div v-if="manufacturerLinks.length">
-                  <div class="mb-1 text-gray-500">Manufacturers</div>
+                  <div class="mb-1 text-gray-500">{{ t('labels.manufacturers','Manufacturers') }}</div>
                   <div class="flex flex-wrap gap-2">
                     <NuxtLinkLocale v-for="m in manufacturerLinks" :key="m.to" :to="m.to"
                       class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 hover:bg-white hover:shadow-sm transition">
@@ -769,7 +847,7 @@ watch(() => product.value?.id, () => {
                   </div>
                 </div>
                 <div v-if="brandLinks.length">
-                  <div class="mb-1 text-gray-500">Brands</div>
+                  <div class="mb-1 text-gray-500">{{ t('labels.brands','Brands') }}</div>
                   <div class="flex flex-wrap gap-2">
                     <NuxtLinkLocale v-for="b in brandLinks" :key="b.to" :to="b.to"
                       class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 hover:bg-white hover:shadow-sm transition">
@@ -780,76 +858,115 @@ watch(() => product.value?.id, () => {
               </div>
             </div>
 
-            <!-- Price card -->
+            <!-- Price / CTA card -->
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-              <div class="flex items-end gap-3">
-                <span class="text-[28px] md:text-4xl text-red-600 font-bold tracking-tight text-gray-900">
-                  {{ formatMoney(displayPrice.current) }}
-                </span>
-                <span v-if="displayPrice.old" class="text-lg text-gray-500 line-through">
-                  {{ formatMoney(displayPrice.old) }}
-                </span>
-              </div>
-              <!-- Quantity input -->
-              <div class="mt-5 flex flex-wrap items-center gap-3" data-nosnippet>
-                <div class="inline-flex items-stretch rounded-xl border border-gray-300 bg-white overflow-hidden">
-                  <button type="button" class="px-3 py-2 hover:bg-gray-50 focus:outline-none focus-visible:ring focus-visible:ring-orange-200 disabled:opacity-40" :disabled="!canDecrement" @click="dec" aria-label="Decrease quantity">−</button>
-                  <input class="w-16 text-center py-2 outline-none focus-visible:ring-0" type="number" :min="minQty" v-model.number="qty" inputmode="numeric" aria-label="Quantity" />
-                  <button type="button" class="px-3 py-2 hover:bg-gray-50 focus:outline-none focus-visible:ring focus-visible:ring-orange-200" @click="inc" aria-label="Increase quantity">+</button>
+              <!-- two-column when table exists; single-column when not -->
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- LEFT: price + qty + actions -->
+                <div :class="hasTablePrice ? '' : 'lg:col-span-2'">
+                  <!-- Price (show for pin code offline OR when not hide_price) -->
+                  <div v-if="showPriceBlock" class="flex items-end gap-3">
+                    <span class="text-[28px] md:text-4xl text-red-600 font-bold tracking-tight">
+                      {{ formatMoney(displayPrice.current) }}
+                    </span>
+                    <span v-if="displayPrice.old" class="text-lg text-gray-500 line-through">
+                      {{ formatMoney(displayPrice.old) }}
+                    </span>
+                  </div>
+
+                  <!-- WhatsApp CTA for hide_price OR pin code offline -->
+                  <a
+                    v-if="hidePrice || isPinCodeOffline"
+                    :href="waLinkForProduct(product)"
+                    target="_blank"
+                    rel="noopener"
+                    class="mt-3 inline-flex items-center gap-2 rounded-lg border border-green-600 bg-green-700 text-white hover:bg-green-800 px-3 py-3 font-semibold"
+                    :aria-label="_t('search.contactOnWhatsApp','Contact on WhatsApp')"
+                  >
+                    <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M20.52 3.48A11.94 11.94 0 0 0 12 0C5.39 0 0 5.39 0 12c0 2.11.55 4.1 1.61 5.89L0 24l6.26-1.64A11.96 11.96 0 0 0 12 24c6.61 0 12-5.39 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 22a9.93 9.93 0 0 1-5.07-1.39l-.36-.21-3.71.97.99-3.62-.23-.37A9.93 9.93 0 0 1 2 12C2 6.49 6.49 2 12 2s10 4.49 10 10-4.49 10-10 10zm5.55-7.46c-.3-.15-1.78-.88-2.05-.98-.27-.1-.47-.15-.68.15-.2.3-.78.98-.96 1.18-.18.2-.35.23-.65.08a8.2 8.2 0 0 1-2.41-1.49 9.05 9.05 0 0 1-1.68-2.08c-.17-.3 0-.46.13-.61.13-.13.3-.35.46-.53.15-.18.2-.3.3-.5.1-.2.05-.38-.03-.53-.08-.15-.68-1.62-.93-2.22-.25-.6-.5-.51-.68-.51h-.58c-.2 0-.53.08-.83.38-.3.3-1.08 1.05-1.08 2.56 0 1.51 1.1 2.97 1.25 3.18.15.2 2.17 3.31 5.26 4.63.74.32 1.32.51 1.77.65.74.24 1.41.2 1.94.12.59-.09 1.78-.73 2.03-1.45.25-.73.25-1.35.18-1.48-.07-.13-.27-.2-.57-.35z"/>
+                    </svg>
+                    {{ _t('search.contactOnWhatsApp','Contact on WhatsApp') }}
+                  </a>
+
+                  <!-- Qty (hidden for pin code offline and when hide_price) -->
+                  <div v-if="showQtyUI" class="mt-5 flex flex-wrap items-center gap-3" data-nosnippet>
+                    <div class="inline-flex items-stretch rounded-xl border border-gray-300 bg-white overflow-hidden">
+                      <button type="button" class="px-3 py-2 hover:bg-gray-50 disabled:opacity-40"
+                              :disabled="!canDecrement" @click="dec" aria-label="Decrease quantity">−</button>
+                      <input class="w-16 text-center py-2 outline-none" type="number" :min="minQty" v-model.number="qty" inputmode="numeric" aria-label="Quantity" />
+                      <button type="button" class="px-3 py-2 hover:bg-gray-50"
+                              @click="inc" aria-label="Increase quantity">+</button>
+                    </div>
+                    <span class="text-sm text-gray-500">{{ _t('product.min','Min:') }} {{ minQty }}</span>
+                  </div>
+
+                  <!-- Serial number (only when we show qty UI) -->
+                  <div v-if="requiresSerial && showQtyUI" class="mt-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ _t('product.serial','Serial Number') }}</label>
+                    <input
+                      v-model.trim="serial"
+                      type="text"
+                      class="w-full max-w-md rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-4 focus:ring-orange-200"
+                      :placeholder="_t('product.serialPlaceholder','Enter your serial number')"
+                    />
+                    <p v-if="!serial" class="mt-1 text-xs text-gray-500">{{ _t('product.serialRequired','Required for this product.') }}</p>
+                  </div>
+
+                  <!-- Actions -->
+                  <div class="mt-5 flex flex-wrap items-center gap-3" data-nosnippet>
+                    <button
+                      v-if="showAddToCartUI"
+                      type="button"
+                      class="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-6 py-3 font-medium text-white shadow-sm hover:bg-orange-600 focus-visible:ring-4 focus-visible:ring-orange-200 disabled:opacity-60"
+                      :disabled="adding || !canAddToCart"
+                      @click="onAddToCart"
+                    >
+                      <span v-if="!adding">{{ _t('product.addToCart','Add to Cart') }}</span>
+                      <span v-else>{{ _t('product.adding','Adding…') }}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-6 py-3 font-medium text-gray-800 shadow-sm hover:bg-gray-50 focus-visible:ring-4 focus-visible:ring-gray-200 disabled:opacity-60"
+                      :disabled="wishing"
+                      @click="onToggleWishlist"
+                    >
+                      <span v-if="!wishing">
+                        {{ inWish ? _t('product.removeFromWishlist','Remove from Wishlist') : _t('product.addToWishlist','Add to Wishlist') }}
+                      </span>
+                      <span v-else>{{ _t('product.saving','Saving…') }}</span>
+                    </button>
+                  </div>
                 </div>
-                <span class="text-sm text-gray-500">Min: {{ minQty }}</span>
-              </div>
 
-              <!-- Quantity pricing -->
-              <div class="mt-5">
-                <ProductPriceTable
-                  v-if="product.table_price && product.table_price.length"
-                  :rows="product.table_price"
-                  :currency="currency.value"
-                  :title="t('Quantity Pricing', 'Quantity Pricing')"
-                />
-              </div>
-
-              <!-- Actions -->
-              <div class="mt-5 flex flex-wrap items-center gap-3" data-nosnippet>
-                <button
-                  type="button"
-                  class="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-6 py-3 font-medium text-white shadow-sm ring-1 ring-orange-500/10 hover:bg-orange-600 focus:outline-none focus-visible:ring-4 focus-visible:ring-orange-200 disabled:opacity-60"
-                  :disabled="adding"
-                  @click="onAddToCart"
-                >
-                  <span v-if="!adding">Add to Cart</span>
-                  <span v-else>Adding…</span>
-                </button>
-
-                <button
-                  type="button"
-                  class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-6 py-3 font-medium text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-4 focus-visible:ring-gray-200 disabled:opacity-60"
-                  :disabled="wishing"
-                  @click="onToggleWishlist"
-                >
-                  <span v-if="!wishing">
-                    {{ inWish ? 'Remove from Wishlist' : 'Add to Wishlist' }}
-                  </span>
-                  <span v-else>Saving…</span>
-                </button>
+                <!-- RIGHT: tier table (only when exists) -->
+                <div v-if="hasTablePrice" class="lg:pl-6 lg:border-l border-gray-100">
+                  <ProductPriceTable
+                    :rows="product!.table_price!"
+                    :currency="currency.value"
+                    :compact="true"
+                    :title="_t('product.quantityPricing','Quantity Pricing')"
+                  />
+                </div>
               </div>
             </div>
+
           </div>
         </div>
       </section>
 
       <!-- Accessories -->
-      <ProductRelatedGrid v-if="product?.accessories?.length" title="Accessories" :items="product!.accessories!" />
+      <ProductRelatedGrid v-if="product?.accessories?.length" :title="t('product.accessories','Accessories')" :items="product!.accessories!" />
 
       <!-- Bundle products -->
-      <ProductRelatedGrid v-if="product?.bundles?.length" class="mt-4" title="Bundle Products" :items="product!.bundles!" />
+      <ProductRelatedGrid v-if="product?.bundles?.length" class="mt-4" :title="t('product.bundleProducts','Bundle Products')" :items="product!.bundles!" />
 
       <!-- Specifications -->
       <ProductAttributesTable v-if="product?.attributes?.length" :groups="product!.attributes!" />
 
       <!-- Compatibility -->
-      <ProductCompatibilityTable v-if="product?.compatibility?.length" :rows="product!.compatibility!" title="Compatibility" />
+      <ProductCompatibilityTable v-if="product?.compatibility?.length" :rows="product!.compatibility!" :title="t('product.compatibility','Compatibility')" />
 
       <!-- Tabs -->
       <section class="mt-6">
@@ -899,7 +1016,7 @@ watch(() => product.value?.id, () => {
 
         <ProductCarousel
           v-else-if="relatedProducts.length"
-          title="Related Products"
+          :title="t('product.relatedProducts','Related Products')"
           :products="relatedProducts"
           :rowsBase="1" :rowsSm="1" :rowsMd="1" :rowsLg="1" :rowsXl="1"
           :perRowBase="2" :perRowSm="2" :perRowMd="3" :perRowLg="4" :perRowXl="6"

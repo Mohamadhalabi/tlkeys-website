@@ -253,7 +253,7 @@
                     v-for="item in filteredSoftwares"
                     :key="'soft-'+item.slug"
                     class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-50 text-center"
-                    @click="goToBrand(item.slug)"
+                    @click="goToBrand(item.slug, 'software')"
                   >
                     <img :src="item.image" :alt="item.name" class="h-16 w-16 object-contain rounded" loading="lazy" />
                     <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">
@@ -276,7 +276,7 @@
                     v-for="item in filteredTokens"
                     :key="'tok-'+item.slug"
                     class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-50 text-center"
-                    @click="goToBrand(item.slug)"
+                    @click="goToBrand(item.slug, 'token')"
                   >
                     <img :src="item.image" :alt="item.name" class="h-16 w-16 object-contain rounded" loading="lazy" />
                     <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">
@@ -511,9 +511,16 @@ async function fetchSoftwareTokens() {
 }
 
 /* ---------- nav & UX ---------- */
-function goToBrand(slug) {
+function goToBrand(slug, category) {
   closeAll()
-  router.push({ path: `/${slug}` })
+  if (!slug) return
+
+  const path = slug.startsWith('/') ? slug : `/${slug}`
+  const to = category
+    ? { path, query: { categories: category } }
+    : { path }
+
+  router.push(to)
 }
 function onDocClick(e) {
   if (!containerRef.value) return

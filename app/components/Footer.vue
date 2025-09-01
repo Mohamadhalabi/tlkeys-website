@@ -45,9 +45,6 @@
 
         <!-- Contact -->
         <section class="md:col-span-3">
-          <h2 class="text-sm font-semibold tracking-wide text-white">
-            {{ t('footer.contact') }}
-          </h2>
           <address class="mt-4 not-italic text-sm space-y-3">
             <p class="text-neutral-300">
               <span v-for="(line, i) in addressLines" :key="i">

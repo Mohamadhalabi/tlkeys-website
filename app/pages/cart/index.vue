@@ -10,11 +10,21 @@ import { computeUnitPrice as priceCalc } from '~/utils/pricing'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
+const { $customApi } = useNuxtApp()
+const config = useRuntimeConfig()
+
+const cart = useCart()
+const alerts = useAlertStore()
+const auth = useAuth()
+const isAuthed = computed(() => Boolean(auth.token.value))
+const { formatMoney } = useCurrency()
 
 type Id = number | string
 type BasePrices = { price?: number | null; regular_price?: number | null; sale_price?: number | null }
 
 type CartRow = {
+  /** Final unit price already decided (PDP snapshot or server lock). */
+  locked?: boolean
   product_id: Id
   quantity: number
   title?: string
@@ -25,19 +35,11 @@ type CartRow = {
   table_price?: TRow[] | null
   discount_type?: 'percent' | 'fixed' | null
   discount_value?: number | null
+  discount_start_date?: string | null
+  discount_end_date?: string | null
   price: number
   price_before?: number | null
 }
-
-const { $customApi } = useNuxtApp()
-const config = useRuntimeConfig()
-const API_BASE_URL = config.public.API_BASE_URL as string // (kept in case you use it later)
-
-const cart = useCart()
-const alerts = useAlertStore()
-const auth = useAuth()
-const isAuthed = computed(() => Boolean(auth.token.value))
-const { formatMoney } = useCurrency()
 
 const loading = ref(true)
 const rows = ref<CartRow[]>([])
@@ -52,41 +54,91 @@ function n(x: unknown): number | null {
   }
   return null
 }
+
+/** Build a ProductLike for the pricing helper. If the row is "locked",
+ *  we must NOT pass any sale/discount/tier information — otherwise
+ *  it would get discounted again. */
 function asProductLike(row: CartRow): ProductLike {
+  const snapshot = n(row.base.price) ?? 0
+
+  if (row.locked) {
+    return {
+      price: snapshot,
+      regular_price: null,
+      sale_price: null,
+      table_price: null,
+      discount_type: null,
+      discount_value: null
+    }
+  }
+
   return {
     price: n(row.base.price) ?? 0,
     regular_price: n(row.base.regular_price),
     sale_price: n(row.base.sale_price),
     table_price: Array.isArray(row.table_price) ? row.table_price : null,
     discount_type: (row.discount_type === 'percent' || row.discount_type === 'fixed') ? row.discount_type : null,
-    discount_value: n(row.discount_value) ?? null,
+    discount_value: n(row.discount_value) ?? null
   }
 }
-function recalcRow(row: CartRow) {
-  const withPromo = priceCalc(asProductLike(row), row.quantity)
-  row.price = withPromo.unit
 
+function recalcRow(row: CartRow) {
+  // Short-circuit for locked rows: use the snapshot and only show strike-through from regular_price.
+  if (row.locked) {
+    const unit = n(row.base.price) ?? 0
+    const before = n(row.base.regular_price)
+    row.price = unit
+    row.price_before = before != null && before > unit ? before : null
+    return
+  }
+
+  const prodLike: ProductLike = asProductLike(row)
+
+  // A) Normal calculation (tiers/sales/discounts)
+  const withPromo = priceCalc(prodLike, row.quantity)
+  let unit = withPromo.unit
+
+  // B) Baseline without any promo (for strike-through and fallback)
   const forcedBase =
     (typeof row.base.regular_price === 'number' && row.base.regular_price > 0)
       ? row.base.regular_price
       : (typeof row.base.price === 'number' ? row.base.price : 0)
 
-  const pNoPromo: any = { ...asProductLike(row), discount_type: null, discount_value: null, sale_price: null, price: forcedBase }
+  const pNoPromo: ProductLike = {
+    ...prodLike,
+    discount_type: null,
+    discount_value: null,
+    sale_price: null,
+    price: forcedBase,
+    table_price: Array.isArray(row.table_price)
+      ? row.table_price.map(r => ({ ...r, sale_price: null as any }))
+      : null,
+  }
   const { unit: unitNoPromo } = priceCalc(pNoPromo, row.quantity)
+
+  // C) If helper didn't apply discount (can happen with tiers), apply manually.
+  const dtype = row.discount_type
+  const dval  = Number(row.discount_value ?? 0)
+  const hasActiveDiscount = (dtype === 'fixed' || dtype === 'percent') && dval > 0
+  const helperDidNotApply = unit >= unitNoPromo - 1e-9
+
+  if (hasActiveDiscount && helperDidNotApply) {
+    if (dtype === 'fixed')   unit = Math.max(0, unit - dval)
+    if (dtype === 'percent') unit = Math.max(0, unit * (1 - dval / 100))
+  }
+
+  row.price = unit
   row.price_before = unitNoPromo
 }
 
-/* loaders */
+/* loaders (server + guest) */
 async function loadServerCart(): Promise<CartRow[]> {
   const r = await $customApi('/v2/cart', { method: 'GET' })
   const arr = (r?.data ?? r?.items ?? r) as any[]
   if (!Array.isArray(arr)) return []
 
   return arr.map(i => {
-    const base: BasePrices = { price: n(i?.price), regular_price: n(i?.regular_price), sale_price: n(i?.sale_price) }
-    const dtype = i?.discount?.type ?? i?.discount_type ?? null
-    const dval  = i?.discount?.value ?? i?.discount_value ?? null
-
+    const lockedUnit = n(i?.locked_unit) // if backend sent a locked final unit
     const row: CartRow = {
       product_id: i.product_id ?? i.id,
       quantity: Number(i.quantity ?? 1),
@@ -95,19 +147,31 @@ async function loadServerCart(): Promise<CartRow[]> {
       sku: i.sku,
       slug: i.slug,
       table_price: Array.isArray(i?.table_price) ? i.table_price : null,
-      base,
-      discount_type: (dtype === 'fixed' || dtype === 'percent') ? dtype : null,
-      discount_value: n(dval),
+      base: {
+        // prefer locked unit; otherwise server-calculated price
+        price: lockedUnit ?? n(i?.price),
+        // keep regular_price so we can show the original MSRP as strike-through
+        regular_price: n(i?.regular_price),
+        sale_price: n(i?.sale_price)
+      },
+      locked: lockedUnit != null,
+      discount_type: (i?.discount?.type === 'fixed' || i?.discount?.type === 'percent')
+        ? i.discount.type
+        : (i?.discount_type === 'fixed' || i?.discount_type === 'percent') ? i.discount_type : null,
+      discount_value: n(i?.discount?.value ?? i?.discount_value),
+      discount_start_date: i?.discount?.start_date ?? i?.discount_start_date ?? null,
+      discount_end_date:   i?.discount?.end_date   ?? i?.discount_end_date   ?? null,
       price: 0
     }
     recalcRow(row)
     return row
   })
 }
+
 async function loadGuestCart(): Promise<CartRow[]> {
   const snaps = (cart.guestItems?.value || []) as any[]
   return snaps.map(s => {
-    const base: BasePrices = { price: n(s?.price), regular_price: n(s?.regular_price), sale_price: n(s?.sale_price) }
+    const snapshot = n(s?.priceSnapshot) ?? n(s?.price) // final unit calculated on PDP
     const row: CartRow = {
       product_id: s.product_id,
       quantity: Number(s.quantity ?? 1),
@@ -116,15 +180,25 @@ async function loadGuestCart(): Promise<CartRow[]> {
       sku: s.sku,
       slug: s.slug,
       table_price: Array.isArray(s?.table_price) ? s.table_price : null,
-      base,
+      base: {
+        price: snapshot,
+        // keep original regular (e.g., 210) so we can strike-through it
+        regular_price: n(s?.regular_price),
+        // ignore sale when using snapshot to avoid re-discount
+        sale_price: null
+      },
+      locked: snapshot != null,
       discount_type: (s?.discount_type === 'fixed' || s?.discount_type === 'percent') ? s.discount_type : null,
       discount_value: n(s?.discount_value),
+      discount_start_date: s?.discount_start_date ?? null,
+      discount_end_date: s?.discount_end_date ?? null,
       price: 0
     }
     recalcRow(row)
     return row
   })
 }
+
 async function load() {
   loading.value = true
   try {
@@ -139,9 +213,13 @@ watch(() => cart.guestItems?.value, () => { if (!isAuthed.value) load() }, { dee
 onMounted(load)
 
 /* actions */
-const subtotal = computed(() => rows.value.reduce((sum, r) => sum + (r.price || 0) * Number(r.quantity || 0), 0))
+const subtotal = computed(() =>
+  rows.value.reduce((sum, r) => sum + (r.price || 0) * Number(r.quantity || 0), 0)
+)
+
 async function inc(row: CartRow) { await setQty(row, Number(row.quantity) + 1) }
 async function dec(row: CartRow) { await setQty(row, Math.max(1, Number(row.quantity) - 1)) }
+
 async function setQty(row: CartRow, qty: number) {
   row.quantity = qty
   recalcRow(row)
@@ -152,6 +230,7 @@ async function setQty(row: CartRow, qty: number) {
     await load()
   }
 }
+
 async function removeRow(row: CartRow) {
   const id = row.product_id
   rows.value = rows.value.filter(r => r.product_id !== id)
@@ -164,6 +243,7 @@ async function removeRow(row: CartRow) {
     await load()
   }
 }
+
 async function clearAll() {
   if (clearing.value) return
   if (!window.confirm(t('cart.confirm.clearAll'))) return
@@ -217,20 +297,21 @@ async function clearAll() {
           :key="String(row.product_id)"
           class="flex items-center gap-4 p-4 rounded-2xl border border-gray-200 bg-white shadow-sm"
         >
-          <img :src="row.image || '/images/placeholder.webp'" alt="" class="h-20 w-20 rounded-xl object-cover" />
-          <div class="min-w-0 flex-1">
+          <NuxtImg :src="row.image || '/images/placeholder.webp'" alt="" class="h-20 w-20 rounded-xl object-cover" />
+          <div class="min-w-0 flex-1 pl-5">
             <div class="flex items-start gap-2">
               <NuxtLinkLocale
                 v-if="row.slug"
                 :to="`/products/${row.slug}`"
                 class="font-medium hover:underline truncate"
-                >{{ row.title }}</NuxtLinkLocale>
+                >{{ row.title }}
+              </NuxtLinkLocale>
               <div v-else class="font-medium truncate">{{ row.title }}</div>
               <button class="ms-auto text-gray-400 hover:text-gray-600" @click="removeRow(row)">✕</button>
             </div>
 
             <!-- SKU -->
-            <p v-if="row.sku" class="text-xs font-medium text-green-600">
+            <p v-if="row.sku" class="text-md font-medium text-green-700">
               {{ t('cart.sku') }} {{ row.sku }}
             </p>
 
@@ -299,11 +380,11 @@ async function clearAll() {
               <NuxtLinkLocale
                 to="/login"
                 class="px-5 py-3 rounded-xl border border-gray-300 text-gray-700 text-center hover:bg-gray-50"
-              >{{ t('auth.login') }}</NuxtLinkLocale>
+              >{{ t('auth.login.title') }}</NuxtLinkLocale>
               <NuxtLinkLocale
                 to="/register"
                 class="px-5 py-3 rounded-xl bg-red-600 text-white text-center font-medium hover:bg-red-700"
-              >{{ t('auth.register') }}</NuxtLinkLocale>
+              >{{ t('auth.register.title') }}</NuxtLinkLocale>
             </div>
             <p class="text-xs text-gray-500 mt-1 text-center">
               {{ t('cart.loginNotice') }}

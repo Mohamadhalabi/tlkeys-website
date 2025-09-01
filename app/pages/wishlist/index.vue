@@ -236,19 +236,6 @@ async function clearAll() {
                   SKU: {{ row.sku }}
                 </p>
               </div>
-
-              <!-- Price (right, large red) -->
-              <div class="ms-auto text-right">
-                <div class="text-2xl font-bold text-red-600">
-                  {{ formatMoney(priceView(row).current) }}
-                </div>
-                <div
-                  v-if="priceView(row).old"
-                  class="text-sm text-gray-500 line-through"
-                >
-                  {{ formatMoney(priceView(row).old) }}
-                </div>
-              </div>
             </div>
           </div>
 

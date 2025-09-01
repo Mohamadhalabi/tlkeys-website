@@ -30,7 +30,7 @@ const initialFilters = computed(() => {
 })
 
 useHead(() => ({
-  title: `${resolved.value?.name ?? route.params.slug} | Shop`
+  title: `${resolved.value?.name ?? route.params.slug} | Techno Lock Keys`
 }))
 </script>
 

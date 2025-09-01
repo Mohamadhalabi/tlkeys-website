@@ -1,5 +1,5 @@
 // composables/useCart.ts
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useNuxtApp } from '#imports'
 import { useAuth } from './useAuth'
 import { useAlertStore } from '~/stores/alert'
@@ -9,7 +9,8 @@ const SYNC_LOCK_KEY = 'cart-sync-lock'
 
 type Id = number | string
 type PriceTableRow = { min_qty: number; max_qty?: number | null; price: number; sale_price?: number | null }
-type CartItem = {
+
+export type CartItem = {
   product_id: Id
   quantity: number
   title?: string
@@ -21,10 +22,13 @@ type CartItem = {
   sale_price?: number | null
   discount_type?: 'percent' | 'fixed' | null
   discount_value?: number | null
+  discount_start_date?: string | null
+  discount_end_date?: string | null
   table_price?: PriceTableRow[] | null
   priceSnapshot?: number | null
-  /** NEW: available stock passed from caller (e.g., product.quantity) */
   stock?: number | null
+  /** Stored as {"serial_number":[...]} in carts.note on the server */
+  serial_number?: string[] | null
 }
 
 function toNum(x: unknown): number | undefined {
@@ -68,20 +72,26 @@ export function useCart() {
     const id = String(product_id)
     const idx = guestItems.value.findIndex(i => String(i.product_id) === id)
 
+    const serials = Array.isArray(meta?.serial_number)
+      ? meta!.serial_number!.map(s => String(s || '').trim()).filter(Boolean)
+      : []
+
     const normalized: Partial<CartItem> = {
       title: meta?.title,
       image: meta?.image,
       sku:   meta?.sku,
       slug:  meta?.slug,
-      price: toNum(meta?.price) ?? (typeof meta?.price === 'number' ? meta?.price : null),
-      regular_price: typeof meta?.regular_price === 'number' ? meta?.regular_price : (toNum(meta?.regular_price) ?? null),
-      sale_price:    typeof meta?.sale_price    === 'number' ? meta?.sale_price    : (toNum(meta?.sale_price) ?? null),
+      price: toNum(meta?.price) ?? null,
+      regular_price: toNum(meta?.regular_price) ?? null,
+      sale_price: toNum(meta?.sale_price) ?? null,
       discount_type: (meta?.discount_type === 'percent' || meta?.discount_type === 'fixed') ? meta?.discount_type : null,
-      discount_value: typeof meta?.discount_value === 'number' ? meta?.discount_value : (toNum(meta?.discount_value) ?? null),
-      table_price: Array.isArray(meta?.table_price) ? meta?.table_price as PriceTableRow[] : (meta?.table_price ?? null),
-      priceSnapshot: typeof meta?.priceSnapshot === 'number' ? meta?.priceSnapshot : (toNum(meta?.priceSnapshot) ?? null),
-      // NEW: persist stock (if provided)
-      stock: typeof meta?.stock === 'number' ? meta.stock : (toNum(meta?.stock) ?? null),
+      discount_value: toNum(meta?.discount_value) ?? null,
+      discount_start_date: meta?.discount_start_date ?? null,
+      discount_end_date: meta?.discount_end_date ?? null,
+      table_price: Array.isArray(meta?.table_price) ? meta?.table_price as PriceTableRow[] : null,
+      priceSnapshot: toNum(meta?.priceSnapshot) ?? null,
+      stock: toNum(meta?.stock) ?? null,
+      serial_number: serials.length ? serials : null,
     }
 
     if (idx >= 0) {
@@ -117,8 +127,14 @@ export function useCart() {
   function clearGuest() { guestItems.value = []; saveGuest() }
 
   // --- Server calls ---
-  async function addToServer(product_id: Id, quantity: number) {
-    return $customApi('/v2/cart/add', { method: 'POST', body: { product_id, quantity } })
+  async function addToServer(product_id: Id, quantity: number, meta?: Partial<CartItem>) {
+    const serials = Array.isArray(meta?.serial_number)
+      ? meta!.serial_number!.map(s => String(s || '').trim()).filter(Boolean)
+      : []
+    return $customApi('/v2/cart/add', {
+      method: 'POST',
+      body: { product_id, quantity, ...(serials.length ? { serial_number: serials } : {}) }
+    })
   }
   async function changeQtyServer(product_id: Id, quantity: number) {
     return $customApi(`/v2/cart/set-quantity/${product_id}`, { method: 'POST', body: { quantity } })
@@ -130,29 +146,44 @@ export function useCart() {
     return $customApi('/v2/cart/clear', { method: 'POST' })
   }
 
+  /** Sync guest cart → server right after login (keeps serial numbers). */
+  async function syncGuestToServer() {
+    if (!process.client) return
+    if (!guestItems.value.length) return
+    if (syncing.value) return
+    // prevent rapid double-calls (optional lock)
+    if (sessionStorage.getItem(SYNC_LOCK_KEY) === '1') return
+
+    syncing.value = true
+    sessionStorage.setItem(SYNC_LOCK_KEY, '1')
+    try {
+      const items = guestItems.value.map(i => ({
+        product_id: i.product_id,
+        quantity: i.quantity,
+        ...(Array.isArray(i.serial_number) && i.serial_number.length
+          ? { serial_number: i.serial_number }
+          : {})
+      }))
+      await $customApi('/v2/cart/sync', { method: 'POST', body: { items } })
+      clearGuest()
+    } finally {
+      syncing.value = false
+      sessionStorage.removeItem(SYNC_LOCK_KEY)
+    }
+  }
+
   // --- Public API ---
   async function add(product_id: Id, quantity: number, meta?: Partial<CartItem>) {
     if (isAuthed.value) {
-      await addToServer(product_id, quantity)
+      await addToServer(product_id, quantity, meta)
     } else {
       addToGuest(product_id, quantity, meta)
     }
 
-    // Derive stock from meta to decide whether to append the red line
-    const stock =
-      typeof meta?.stock === 'number' ? meta.stock
-      : (toNum((meta as any)?.available_quantity) ?? toNum((meta as any)?.quantity))
-
-    const shortage =
-      typeof stock === 'number' && stock >= 0 && quantity > stock
-        ? `<br><span class="text-red-600">*The ordered quantity is currently not available, but we will try to get it to you.</span>`
-        : ''
-
-    // Single success alert (message may contain red shortage note)
     alerts.showAlert({
       type: 'success',
       title: meta?.title || 'Added to Cart',
-      message: `The item has been added to your cart.${shortage}`,
+      message: `The item has been added to your cart.`,
       image: meta?.image,
       sku: meta?.sku,
       actions: [{ label: 'View Cart', route: '/cart' }]
@@ -172,7 +203,6 @@ export function useCart() {
     }
   }
 
-  /** clear() for both guest & authed usage */
   async function clear() {
     if (isAuthed.value) {
       await clearServer()
@@ -181,45 +211,31 @@ export function useCart() {
     }
   }
 
-  /** Sync guest → server exactly once after login. */
-  async function syncGuestToServer() {
-    if (!auth.token.value) return
-    if (!guestItems.value.length) return
-
-    if (sessionStorage.getItem(SYNC_LOCK_KEY) === '1') return
-    if (syncing.value) return
-    syncing.value = true
-    sessionStorage.setItem(SYNC_LOCK_KEY, '1')
-
-    const backup = [...guestItems.value]
-    const items = backup.map(i => ({
-      product_id: i.product_id,
-      quantity: Number(i.quantity || 1),
-    }))
-
-    guestItems.value = []
-    saveGuest()
-
-    try {
-      console.debug('[cart] syncing', items)
-      await $customApi('/v2/cart/sync', { method: 'POST', body: { items } })
-      console.debug('[cart] sync ok')
-    } catch (err) {
-      console.error('[cart] sync failed', (err as any)?.data || err)
-      guestItems.value = backup
-      saveGuest()
-    } finally {
-      syncing.value = false
-      setTimeout(() => sessionStorage.removeItem(SYNC_LOCK_KEY), 3000)
-    }
-  }
-
+  // Init + auto-sync when user logs in
   onMounted(() => {
     loadGuest()
+
+    // If already logged in, sync immediately
     if (auth.token.value) {
       syncGuestToServer()
-    } else if (!cartAuthListenerAdded) {
-      window.addEventListener('auth:changed', () => syncGuestToServer(), { once: true })
+    }
+
+    // Also watch for future logins and sync once
+    watch(
+      () => auth.token.value,
+      (tok, oldTok) => {
+        if (tok && !oldTok) {
+          syncGuestToServer()
+        }
+      },
+      { immediate: false }
+    )
+
+    // Optional: support a global event if your auth emits it
+    if (!cartAuthListenerAdded) {
+      window.addEventListener('auth:changed', () => {
+        if (auth.token.value) syncGuestToServer()
+      }, { once: true })
       cartAuthListenerAdded = true
     }
   })
@@ -228,17 +244,21 @@ export function useCart() {
   const items = computed(() => guestItems.value)
 
   return {
+    // state
     guestItems: items,
     count,
     syncing,
+    // actions
     add,
     setQuantity,
     remove,
     clear,
     clearServer,
     clearGuest,
+    addToGuest,
+    setQtyGuest,
+    removeGuest,
+    // expose sync so callers can trigger manually if they want
     syncGuestToServer,
-    // guest helpers
-    addToGuest, setQtyGuest, removeGuest
   }
 }
