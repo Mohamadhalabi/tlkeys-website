@@ -5,8 +5,8 @@
       <HeaderTopBar />
       <HeaderMiddle />
     </header>
-    <HeaderMainNav />
-    <SecondaryStickyBar />
+    <!-- <HeaderMainNav /> -->
+    <!-- <SecondaryStickyBar /> -->
   </template>
 
   <!-- Mobile (< 993px) -->
