@@ -424,11 +424,11 @@ async function clearAll() {
           <template v-else>
             <div class="mt-2 grid grid-cols-2 gap-2">
               <NuxtLinkLocale
-                to="/login"
+                to="/auth/login-register"
                 class="px-5 py-3 rounded-xl border border-gray-300 text-gray-700 text-center hover:bg-gray-50"
               >{{ t('auth.login.title') }}</NuxtLinkLocale>
               <NuxtLinkLocale
-                to="/register"
+                to="/auth/login-register"
                 class="px-5 py-3 rounded-xl bg-red-600 text-white text-center font-medium hover:bg-red-700"
               >{{ t('auth.register.title') }}</NuxtLinkLocale>
             </div>
