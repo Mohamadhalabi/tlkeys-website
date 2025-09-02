@@ -5,7 +5,8 @@ import {
 } from 'vue'
 import ProductGrid from '~/components/products/ProductGrid.vue'
 import { buildCatalogParams } from '~/composables/useCatalog'
-
+import { useTopLoader } from '~/composables/useTopLoader'
+const { start: startTopLoad, finish: finishTopLoad } = useTopLoader()
 const props = defineProps<{
   initialFilters?: {
     brands?: string[]
@@ -267,17 +268,20 @@ function normalizeDiscount(raw: any) {
   const active  = !!d?.active && type && value != null && okStart && okEnd
   return { discount_type: active ? (type as 'percent'|'fixed') : null, discount_value: active ? (value as number) : null }
 }
-function applyDiscount(base: number, disc: { discount_type: 'percent'|'fixed'|null, discount_value: number|null }) {
-  if (!disc.discount_type || disc.discount_value == null) return base
-  if (disc.discount_type === 'percent') return Math.max(0, Math.round((base * (1 - disc.discount_value / 100)) * 100) / 100)
-  if (disc.discount_type === 'fixed')   return Math.max(0, Math.round((base - disc.discount_value) * 100) / 100)
-  return base
-}
 
 /** Map API → card item with sale/discount awareness */
 function mapApiProduct(p: any) {
   const discRaw = (p?.discount?.data ?? p?.discount) || null
   const disc    = normalizeDiscount(discRaw)
+
+  // normalize stock (supports several backends)
+  const stockRaw =
+    p?.quantity ??
+    p?.stock ??
+    p?.available_quantity ??
+    p?.inventory?.quantity ??
+    null
+  const stock = stockRaw == null ? null : (Number.isFinite(Number(stockRaw)) ? Number(stockRaw) : null)
 
   return {
     id: p.id,
@@ -295,7 +299,7 @@ function mapApiProduct(p: any) {
     discount_value: disc.discount_value,
     discount_start_date: discRaw?.start_date ?? null,
     discount_end_date:   discRaw?.end_date   ?? null,
-
+    stock,
     sku: p.sku ?? '',
     category: (Array.isArray(p?.categories) && p.categories[0]?.name) ? String(p.categories[0].name) : '',
     categorySlug: (Array.isArray(p?.categories) && p.categories[0]?.slug) ? String(p.categories[0].slug).toLowerCase() : '',
@@ -357,6 +361,7 @@ const keyForSSR = computed(() => `catalog:${JSON.stringify({
 async function fetchOnce() {
   pending.value = true
   errorMsg.value = ''
+  startTopLoad()
   try {
     const effectivePerPage = sel.perPage === 'all' ? CHUNK : sel.perPage
 
@@ -444,6 +449,7 @@ async function fetchOnce() {
     errorMsg.value = e?.data?.message || e?.message || 'Failed to load catalog'
   } finally {
     pending.value = false
+    finishTopLoad()
   }
 }
 
@@ -1152,6 +1158,7 @@ useHead(() => ({
       </template>
 
       <template v-else>
+
         <ProductGrid
           :key="gridKey"
           :title="t('products')"

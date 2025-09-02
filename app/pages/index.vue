@@ -142,7 +142,9 @@ function mapApiProduct(p: any) {
     id: p.id,
     name: p.title ?? p.short_title ?? '',
     image: p.image,
-
+    stock: Number.isFinite(Number(p?.quantity ?? p?.stock ?? p?.available_quantity))
+      ? Number(p?.quantity ?? p?.stock ?? p?.available_quantity)
+      : null,
     price: hasSale ? p.sale_price : p.price,
     oldPrice: hasSale ? p.price : null,
 

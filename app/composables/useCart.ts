@@ -1,10 +1,9 @@
 // composables/useCart.ts
 import { ref, computed, onMounted, watch } from 'vue'
-import { useNuxtApp } from '#imports'
+import { useNuxtApp, useState } from '#imports'
 import { useAuth } from './useAuth'
 import { useAlertStore } from '~/stores/alert'
 
-let cartAuthListenerAdded = false
 const SYNC_LOCK_KEY = 'cart-sync-lock'
 
 type Id = number | string
@@ -27,10 +26,13 @@ export type CartItem = {
   table_price?: PriceTableRow[] | null
   priceSnapshot?: number | null
   stock?: number | null
-  /** Stored as {"serial_number":[...]} in carts.note on the server */
   serial_number?: string[] | null
 }
 
+// ---------- helpers ----------
+function notifyCartChanged() {
+  if (process.client) window.dispatchEvent(new CustomEvent('cart:changed'))
+}
 function toNum(x: unknown): number | undefined {
   if (x == null) return undefined
   if (typeof x === 'number') return Number.isFinite(x) ? x : undefined
@@ -41,19 +43,23 @@ function toNum(x: unknown): number | undefined {
   return undefined
 }
 
+// ---------- main composable ----------
 export function useCart() {
   const STORAGE_KEY = 'guest_cart'
-  const syncing = ref(false)
+
+  // shared global state
+  const syncing     = useState<boolean>('cart_syncing', () => false)
+  const guestItems  = useState<CartItem[]>('cart_guest_items', () => [])
+  const serverCount = useState<number>('cart_server_count', () => 0)
+  const initialized = useState<boolean>('cart_initialized', () => false)
+  const listenersOnce = useState<boolean>('cart_listeners_added', () => false)
 
   const { $customApi } = useNuxtApp()
   const auth = useAuth()
   const alerts = useAlertStore()
-
   const isAuthed = computed<boolean>(() => Boolean(auth.token.value))
 
-  // --- Guest cart (localStorage) ---
-  const guestItems = ref<CartItem[]>([])
-
+  // --- guest cart localStorage ---
   function loadGuest() {
     if (!process.client) return
     try {
@@ -64,8 +70,9 @@ export function useCart() {
     }
   }
   function saveGuest() {
-    if (!process.client) return
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(guestItems.value))
+    if (process.client) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(guestItems.value))
+    }
   }
 
   function addToGuest(product_id: Id, quantity: number, meta?: Partial<CartItem>) {
@@ -109,6 +116,7 @@ export function useCart() {
       })
     }
     saveGuest()
+    notifyCartChanged()
   }
 
   function setQtyGuest(product_id: Id, quantity: number) {
@@ -117,41 +125,95 @@ export function useCart() {
     if (idx >= 0) {
       guestItems.value[idx] = { ...guestItems.value[idx], quantity: Math.max(1, Number(quantity || 1)) }
       saveGuest()
+      notifyCartChanged()
     }
   }
   function removeGuest(product_id: Id) {
-    const id = String(product_id)
-    guestItems.value = guestItems.value.filter(i => String(i.product_id) !== id)
+    guestItems.value = guestItems.value.filter(i => String(i.product_id) !== String(product_id))
     saveGuest()
+    notifyCartChanged()
   }
-  function clearGuest() { guestItems.value = []; saveGuest() }
+  function clearGuest() {
+    guestItems.value = []
+    saveGuest()
+    notifyCartChanged()
+  }
 
-  // --- Server calls ---
+  // --- server count fetch (with lock) ---
+  let inflightCount: Promise<void> | null = null
+  async function fetchServerCount() {
+    if (!isAuthed.value) { serverCount.value = 0; return }
+    if (inflightCount) return inflightCount
+
+    inflightCount = (async () => {
+      try {
+        const r: any = await $customApi('/v2/cart', { method: 'GET' })
+        const root = r?.data ?? r
+        const items = Array.isArray(root?.items) ? root.items
+          : Array.isArray(root?.data) ? root.data
+          : Array.isArray(root) ? root
+          : []
+        serverCount.value = items.reduce((sum: number, it: any) => {
+          const q = Number(it?.quantity ?? it?.qty ?? 0)
+          return sum + (Number.isFinite(q) ? q : 0)
+        }, 0)
+      } catch {/* ignore */}
+      finally { inflightCount = null }
+    })()
+
+    return inflightCount
+  }
+
+  // --- server actions ---
   async function addToServer(product_id: Id, quantity: number, meta?: Partial<CartItem>) {
+
+    console.log("TESTTT~!@#");
+    console.log(meta);
+
+    serverCount.value = Math.max(0, Number(serverCount.value || 0) + Math.max(1, Number(quantity || 1)))
+    notifyCartChanged()
+
     const serials = Array.isArray(meta?.serial_number)
       ? meta!.serial_number!.map(s => String(s || '').trim()).filter(Boolean)
       : []
-    return $customApi('/v2/cart/add', {
+    const res = await $customApi('/v2/cart/add', {
       method: 'POST',
       body: { product_id, quantity, ...(serials.length ? { serial_number: serials } : {}) }
     })
+    await fetchServerCount()
+    notifyCartChanged()
+    return res
   }
   async function changeQtyServer(product_id: Id, quantity: number) {
-    return $customApi(`/v2/cart/set-quantity/${product_id}`, { method: 'POST', body: { quantity } })
+    const res = await $customApi(`/v2/cart/set-quantity/${product_id}`, { method: 'POST', body: { quantity } })
+    await fetchServerCount()
+    notifyCartChanged()
+    return res
   }
-  async function removeServer(product_id: Id) {
-    return $customApi(`/v2/cart/remove/${product_id}`, { method: 'POST' })
+  async function removeServer(product_id: Id, removedQty?: number) {
+    if (removedQty != null) {
+      serverCount.value = Math.max(0, Number(serverCount.value || 0) - Math.max(1, Number(removedQty || 1)))
+      notifyCartChanged()
+    }
+    const res = await $customApi(`/v2/cart/remove/${product_id}`, { method: 'POST' })
+    await fetchServerCount()
+    notifyCartChanged()
+    return res
   }
   async function clearServer() {
-    return $customApi('/v2/cart/clear', { method: 'POST' })
+    serverCount.value = 0
+    notifyCartChanged()
+    const res = await $customApi('/v2/cart/clear', { method: 'POST' })
+    await fetchServerCount()
+    notifyCartChanged()
+    return res
   }
 
-  /** Sync guest cart → server right after login (keeps serial numbers). */
+  // --- guest → server sync on login ---
   async function syncGuestToServer() {
     if (!process.client) return
-    if (!guestItems.value.length) return
+    if (!guestItems.value.length) { await fetchServerCount(); return }
     if (syncing.value) return
-    // prevent rapid double-calls (optional lock)
     if (sessionStorage.getItem(SYNC_LOCK_KEY) === '1') return
 
     syncing.value = true
@@ -169,21 +231,44 @@ export function useCart() {
     } finally {
       syncing.value = false
       sessionStorage.removeItem(SYNC_LOCK_KEY)
+      await fetchServerCount()
     }
   }
 
-  // --- Public API ---
+  // --- helpers for alert logic ---
+  function guestQtyFor(product_id: Id) {
+    const id = String(product_id)
+    const row = guestItems.value.find(i => String(i.product_id) === id)
+    return Number(row?.quantity || 0)
+  }
+
+  // --- public actions ---
   async function add(product_id: Id, quantity: number, meta?: Partial<CartItem>) {
-    if (isAuthed.value) {
-      await addToServer(product_id, quantity, meta)
-    } else {
-      addToGuest(product_id, quantity, meta)
+    // perform the add
+    if (isAuthed.value) await addToServer(product_id, quantity, meta)
+    else addToGuest(product_id, quantity, meta)
+
+    // availability note if we know stock
+    const stock = toNum(meta?.stock)
+    let shortage = false
+    if (stock != null) {
+      const prev = isAuthed.value ? 0 : guestQtyFor(product_id) - Math.max(1, Number(quantity || 1)) // prev before this add
+      const desiredTotal = (prev < 0 ? 0 : prev) + Math.max(1, Number(quantity || 1))
+      shortage = desiredTotal > stock
+    }
+
+    let message = 'The item has been added to your cart.'
+    if (shortage) {
+      message +=
+        ' <div class="mt-1 text-red-600 font-semibold">' +
+        'This quantity is currently not available, but we will try to get it for you.' +
+        '</div>'
     }
 
     alerts.showAlert({
       type: 'success',
       title: meta?.title || 'Added to Cart',
-      message: `The item has been added to your cart.`,
+      message,
       image: meta?.image,
       sku: meta?.sku,
       actions: [{ label: 'View Cart', route: '/cart' }]
@@ -194,61 +279,72 @@ export function useCart() {
     if (isAuthed.value) await changeQtyServer(product_id, quantity)
     else setQtyGuest(product_id, quantity)
   }
-
-  async function remove(product_id: Id) {
+  async function remove(product_id: Id, qtyHint?: number) {
     if (isAuthed.value) {
-      try { await removeServer(product_id) } catch {}
+      try { await removeServer(product_id, qtyHint) } catch {}
     } else {
       removeGuest(product_id)
     }
   }
-
   async function clear() {
-    if (isAuthed.value) {
-      await clearServer()
-    } else {
-      clearGuest()
-    }
+    if (isAuthed.value) await clearServer()
+    else clearGuest()
   }
 
-  // Init + auto-sync when user logs in
-  onMounted(() => {
+  // --- init once ---
+  onMounted(async () => {
     loadGuest()
 
-    // If already logged in, sync immediately
-    if (auth.token.value) {
-      syncGuestToServer()
+    if (!initialized.value) {
+      initialized.value = true
+      if (isAuthed.value) {
+        await syncGuestToServer()  // ends with fetchServerCount
+      } else {
+        serverCount.value = 0
+      }
     }
 
-    // Also watch for future logins and sync once
-    watch(
-      () => auth.token.value,
-      (tok, oldTok) => {
-        if (tok && !oldTok) {
-          syncGuestToServer()
-        }
-      },
-      { immediate: false }
-    )
+    if (!listenersOnce.value && process.client) {
+      listenersOnce.value = true
 
-    // Optional: support a global event if your auth emits it
-    if (!cartAuthListenerAdded) {
-      window.addEventListener('auth:changed', () => {
-        if (auth.token.value) syncGuestToServer()
-      }, { once: true })
-      cartAuthListenerAdded = true
+      // watch login/logout once
+      watch(
+        () => auth.token.value,
+        async (tok, oldTok) => {
+          if (tok && !oldTok) await syncGuestToServer()
+          else if (!tok) serverCount.value = 0
+        },
+        { immediate: false }
+      )
+
+      // global event listeners (debounced)
+      let t: number | undefined
+      const handleCartChanged = () => {
+        if (t) window.clearTimeout(t)
+        t = window.setTimeout(async () => {
+          if (isAuthed.value) await fetchServerCount()
+          else loadGuest()
+        }, 120)
+      }
+      window.addEventListener('cart:changed', handleCartChanged)
+
+      window.addEventListener('storage', (e: StorageEvent) => {
+        if (e.key === STORAGE_KEY) loadGuest()
+      })
     }
   })
 
-  const count = computed(() => guestItems.value.reduce((a, b) => a + Number(b.quantity || 0), 0))
-  const items = computed(() => guestItems.value)
+  // --- exposed API ---
+  const count = computed(() =>
+    isAuthed.value
+      ? Number(serverCount.value || 0)
+      : guestItems.value.reduce((a, b) => a + Number(b.quantity || 0), 0)
+  )
 
   return {
-    // state
-    guestItems: items,
+    guestItems,
     count,
     syncing,
-    // actions
     add,
     setQuantity,
     remove,
@@ -258,7 +354,7 @@ export function useCart() {
     addToGuest,
     setQtyGuest,
     removeGuest,
-    // expose sync so callers can trigger manually if they want
     syncGuestToServer,
+    fetchServerCount,
   }
 }

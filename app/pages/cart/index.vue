@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useNuxtApp, useRuntimeConfig } from '#imports'
+import { useNuxtApp, useHead } from '#imports'  // ⬅️ add useHead
 import { useCart } from '~/composables/useCart'
 import { useAuth } from '~/composables/useAuth'
 import { useAlertStore } from '~/stores/alert'
@@ -11,7 +11,6 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const { $customApi } = useNuxtApp()
-const config = useRuntimeConfig()
 
 const cart = useCart()
 const alerts = useAlertStore()
@@ -19,6 +18,23 @@ const auth = useAuth()
 const isAuthed = computed(() => Boolean(auth.token.value))
 const { formatMoney } = useCurrency()
 
+useHead({
+  title: t('cart.title') + ' | Techno Lock Keys', // dynamic i18n title
+  meta: [
+    {
+      name: 'description',
+      content: 'View and manage the items in your shopping cart. Update quantities, review prices, and proceed to checkout securely with Techno Lock Keys.'
+    },
+    {
+      property: 'og:title',
+      content: t('cart.title')
+    },
+    {
+      property: 'og:description',
+      content: 'Easily review your selected products, manage quantities, and proceed to a secure checkout.'
+    }
+  ]
+})
 type Id = number | string
 type BasePrices = { price?: number | null; regular_price?: number | null; sale_price?: number | null }
 
@@ -39,6 +55,7 @@ type CartRow = {
   discount_end_date?: string | null
   price: number
   price_before?: number | null
+  stock?: number | null
 }
 
 const loading = ref(true)
@@ -131,6 +148,18 @@ function recalcRow(row: CartRow) {
   row.price_before = unitNoPromo
 }
 
+/* NEW: shortage helpers */
+const isShort = (row: CartRow) =>
+  row.stock != null && Number(row.quantity || 0) > Number(row.stock || 0)
+
+const hasAnyShortage = computed(() => rows.value.some(isShort))
+const shortageSkus = computed(() =>
+  rows.value
+    .filter(isShort)
+    .map(r => r.sku)
+    .filter(Boolean) as string[]
+)
+
 /* loaders (server + guest) */
 async function loadServerCart(): Promise<CartRow[]> {
   const r = await $customApi('/v2/cart', { method: 'GET' })
@@ -161,7 +190,10 @@ async function loadServerCart(): Promise<CartRow[]> {
       discount_value: n(i?.discount?.value ?? i?.discount_value),
       discount_start_date: i?.discount?.start_date ?? i?.discount_start_date ?? null,
       discount_end_date:   i?.discount?.end_date   ?? i?.discount_end_date   ?? null,
-      price: 0
+      price: 0,
+
+      // ⬇️ NEW — try common server keys
+      stock: n(i?.stock ?? i?.available_quantity ?? i?.quantity_available ?? i?.inventory?.quantity)
     }
     recalcRow(row)
     return row
@@ -192,7 +224,8 @@ async function loadGuestCart(): Promise<CartRow[]> {
       discount_value: n(s?.discount_value),
       discount_start_date: s?.discount_start_date ?? null,
       discount_end_date: s?.discount_end_date ?? null,
-      price: 0
+      price: 0,
+      stock: n(s?.stock)
     }
     recalcRow(row)
     return row
@@ -233,9 +266,10 @@ async function setQty(row: CartRow, qty: number) {
 
 async function removeRow(row: CartRow) {
   const id = row.product_id
+  const qty = Number(row.quantity || 1)            // <— grab current qty
   rows.value = rows.value.filter(r => r.product_id !== id)
   try {
-    await cart.remove(id)
+    await cart.remove(id, qty)                     // <— pass qtyHint
     alerts.showAlert({ type: 'info', title: t('cart.alert.removedTitle'), image: row.image, sku: row.sku })
     if (rows.value.length === 0) await load()
   } catch (e: any) {
@@ -295,7 +329,8 @@ async function clearAll() {
         <div
           v-for="row in rows"
           :key="String(row.product_id)"
-          class="flex items-center gap-4 p-4 rounded-2xl border border-gray-200 bg-white shadow-sm"
+          class="flex items-center gap-4 p-4 rounded-2xl border bg-white shadow-sm"
+          :class="isShort(row) ? 'border-red-400 ring-1 ring-red-200/60' : 'border-gray-200'"
         >
           <NuxtImg :src="row.image || '/images/placeholder.webp'" alt="" class="h-20 w-20 rounded-xl object-cover" />
           <div class="min-w-0 flex-1 pl-5">
@@ -359,6 +394,17 @@ async function clearAll() {
       <aside class="lg:col-span-1">
         <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-3">
           <h2 class="font-semibold text-gray-900">{{ t('cart.summary') }}</h2>
+
+          <div
+            v-if="hasAnyShortage"
+            class="p-3 rounded-xl border border-red-200 bg-red-50 text-sm text-red-700"
+          >
+            <strong class="block mb-1">{{ t('cart.limitedAvailability') }}</strong>
+            <span>
+              {{ t('cart.shortNote', { sku: shortageSkus.join(', ') }) }}
+            </span>
+          </div>
+
           <div class="flex items-center justify-between text-lg">
             <span>{{ t('cart.subtotal') }}</span>
             <span class="text-red-600">{{ formatMoney(subtotal) }}</span>

@@ -16,6 +16,7 @@ type P = {
   sku?: string | null
   category?: string | null
   categorySlug?: string | null
+  stock?: number | null
 }
 
 const props = withDefaults(defineProps<{

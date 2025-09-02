@@ -454,10 +454,11 @@
   },
   "cart": {
     "cart": "Cart",
-    "title": "Your Cart",
+    "title": "Cart",
     "clear": "Clear Cart",
     "clearing": "Clearing…",
     "empty": "Your cart is empty.",
+    "limitedAvailability": "Some items have limited availability",
     "continueShopping": "Continue Shopping",
     "summary": "Order Summary",
     "subtotal": "Subtotal",
@@ -477,7 +478,8 @@
       "removeFailedTitle": "Remove failed",
       "clearedTitle": "Cart cleared",
       "clearFailedTitle": "Clear cart failed"
-    }
+    },
+    "shortNote": "The selected quantity for product \"{sku}\" is currently not available, but we will try to get it for you."
   },
   "breadcrumbs": { "home": "Home", "shop": "Shop" },
   "pagination": {

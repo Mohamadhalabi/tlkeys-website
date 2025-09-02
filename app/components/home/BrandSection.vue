@@ -41,10 +41,21 @@ function unwrapApi(res: any) {
 function mapApiProduct(p: any) {
   const hasSale = p?.sale_price != null && p?.sale_price !== 0
 
+  // ✅ robust stock normalization (supports several backend field names)
+  const stockRaw =
+    p?.quantity ??
+    null
+
+  const stock =
+    stockRaw === null || stockRaw === undefined
+      ? null
+      : (Number.isFinite(Number(stockRaw)) ? Number(stockRaw) : null)
+
   // discount from API
   const d = p?.discount || {}
   const typeRaw = d?.type
-  const valueNum = typeof d?.value === 'number' ? d.value : (d?.value != null ? Number(d.value) : null)
+  const valueNum =
+    typeof d?.value === 'number' ? d.value : (d?.value != null ? Number(d.value) : null)
   const active = !!d?.active && (typeRaw === 'fixed' || typeRaw === 'percent') && valueNum != null
 
   // tiers
@@ -71,6 +82,9 @@ function mapApiProduct(p: any) {
     name: p.title ?? p.short_title ?? '',
     image: p.image,
 
+    // ✅ expose normalized stock to ProductCard / cart meta
+    stock,
+
     // display price (sale wins)
     price: hasSale ? p.sale_price : p.price,
     oldPrice: hasSale ? p.price : null,
@@ -93,11 +107,12 @@ function mapApiProduct(p: any) {
     freeShipping: isFree,
     badgeText: isFree ? 'FREE SHIPPING' : null,
 
-    // NEW flags used by cards
+    // flags used by cards
     hide_price: hidePrice,
     requires_serial: requiresSerial,
   }
 }
+
 
 function lastFromMeta(m: ApiMeta | null) {
   const lp = Number(m?.last_page)

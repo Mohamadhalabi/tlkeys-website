@@ -29,7 +29,6 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      titleTemplate: '%s | Techno Lock Keys',
       htmlAttrs: { lang: 'en' },
 
       link: [

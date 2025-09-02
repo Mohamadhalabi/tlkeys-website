@@ -159,6 +159,9 @@ function mapApiProduct(p: any) {
     image: p.image,
     price: hasSale ? p.sale_price : p.price,
     oldPrice: hasSale ? p.price : null,
+    stock: Number.isFinite(Number(p?.quantity ?? p?.stock ?? p?.available_quantity))
+      ? Number(p?.quantity ?? p?.stock ?? p?.available_quantity)
+      : null,
     sku: p.sku ?? '',
     category: categoryName,
     categorySlug,

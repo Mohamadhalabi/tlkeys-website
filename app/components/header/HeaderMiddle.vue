@@ -119,23 +119,37 @@
       <!-- Wishlist / Account / Cart -->
       <div class="flex items-center gap-6 text-sm text-gray-700">
         <NuxtLinkLocale v-if="!isAuthed" to="/auth/login-register" class="flex items-center gap-1">
-          <UserPlusIcon class="w-5 h-5" />
+          <UserPlusIcon class="w-7 h-7" />
           <span>{{ t('menu.logIn') }}</span>
         </NuxtLinkLocale>
 
         <NuxtLinkLocale v-else to="/account" class="flex items-center gap-1">
-          <UserPlusIcon class="w-5 h-5" />
+          <UserPlusIcon class="w-7 h-7" />
           <span>{{ t('menu.account') }}</span>
         </NuxtLinkLocale>
 
-        <NuxtLinkLocale to="/wishlist" class="flex items-center gap-1">
-          <HeartIcon class="w-5 h-5" />
-          <span>{{ t('menu.wishlist') }}</span>
+        <!-- Wishlist -->
+        <NuxtLinkLocale to="/wishlist" class="relative flex items-center gap-2">
+          <span class="relative">
+            <HeartIcon class="w-7 h-7" />
+            <span
+              class="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-bold"
+              aria-label="Wishlist items count"
+            >{{ wishlistCount }}</span>
+          </span>
+          <span class="hidden sm:inline">{{ t('menu.wishlist') }}</span>
         </NuxtLinkLocale>
 
-        <NuxtLinkLocale to="/cart" class="flex items-center gap-1 relative">
-          <ShoppingCartIcon class="w-5 h-5" />
-          <span>{{ t('menu.cart') }}</span>
+        <!-- Cart -->
+        <NuxtLinkLocale to="/cart" class="relative flex items-center gap-2">
+          <span class="relative">
+            <ShoppingCartIcon class="w-7 h-7" />
+            <span
+              class="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-bold"
+              aria-label="Cart items count"
+            >{{ cartCount }}</span>
+          </span>
+          <span class="hidden sm:inline">{{ t('menu.cart') }}</span>
         </NuxtLinkLocale>
       </div>
     </div>
@@ -148,6 +162,8 @@ import { useI18n } from 'vue-i18n'
 import { useAuth } from '~/composables/useAuth'
 import { useCurrency } from '~/composables/useCurrency'
 import { useNuxtApp, useRouter } from '#imports'
+import { useWishlist } from '~/composables/useWishlist'
+import { useCart } from '~/composables/useCart'
 import {
   HeartIcon,
   UserPlusIcon,
@@ -160,6 +176,13 @@ const auth = useAuth()
 const { $customApi } = useNuxtApp()
 const router = useRouter()
 const { formatMoney } = useCurrency()
+
+const wishlist = useWishlist()
+const cart = useCart()
+
+// always show a number (fallback to 0)
+const wishlistCount = computed(() => Number(wishlist.count?.value ?? 0))
+const cartCount = computed(() => Number(cart.count?.value ?? 0))
 
 onMounted(() => auth.hydrate?.())
 const isAuthed = computed(() => auth.isAuthenticated?.value ?? false)

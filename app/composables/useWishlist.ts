@@ -1,7 +1,7 @@
 // composables/useWishlist.ts
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { computed, onMounted, nextTick } from 'vue'
 import { useAuth } from './useAuth'
-import { useNuxtApp } from '#imports'
+import { useNuxtApp, useState } from '#imports'
 import { useAlertStore } from '~/stores/alert'
 
 type Id = number | string
@@ -35,9 +35,20 @@ function toNum(x: unknown): number | undefined {
   return undefined
 }
 
+function notifyWishlistChanged() {
+  if (process.client) window.dispatchEvent(new CustomEvent('wishlist:changed'))
+}
+
 export function useWishlist() {
   const STORAGE_KEY = 'guest_wishlist'
-  const syncing = ref(false)
+
+  // ---------- GLOBAL (shared) state ----------
+  // useState ensures every call to useWishlist() shares the same refs
+  const syncing      = useState<boolean>('wl_syncing', () => false)
+  const guest        = useState<WishItem[]>('wl_guest_items', () => [])
+  // Use array for SSR-serializable state and mirror a Set view for speed
+  const serverIdsArr = useState<string[]>('wl_server_ids', () => [])
+  const serverIdsSet = computed(() => new Set(serverIdsArr.value))
 
   const { $customApi } = useNuxtApp()
   const auth = useAuth()
@@ -48,8 +59,6 @@ export function useWishlist() {
   )
 
   // ---------- Guest wishlist ----------
-  const guest = ref<WishItem[]>([])
-
   function loadGuest() {
     if (!process.client) return
     try { guest.value = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') || [] }
@@ -59,7 +68,7 @@ export function useWishlist() {
     if (!process.client) return
     localStorage.setItem(STORAGE_KEY, JSON.stringify(guest.value))
   }
-  function clearGuest() { guest.value = []; saveGuest() }
+  function clearGuest() { guest.value = []; saveGuest(); notifyWishlistChanged() }
 
   function addGuest(product_id: Id, meta?: AddMeta) {
     const found = guest.value.find(i => String(i.product_id) === String(product_id))
@@ -82,6 +91,7 @@ export function useWishlist() {
         const dv = toNum(meta.discount_value); if (dv != null && found.discount_value == null) found.discount_value = dv
       }
       saveGuest()
+      notifyWishlistChanged()
       return false // already existed
     }
 
@@ -100,6 +110,7 @@ export function useWishlist() {
       discount_value: toNum(meta?.discount_value) ?? null,
     })
     saveGuest()
+    notifyWishlistChanged()
     return true
   }
 
@@ -107,6 +118,7 @@ export function useWishlist() {
     const before = guest.value.length
     guest.value = guest.value.filter(i => String(i.product_id) !== String(product_id))
     saveGuest()
+    notifyWishlistChanged()
     return guest.value.length !== before
   }
 
@@ -122,9 +134,6 @@ export function useWishlist() {
   }
 
   // ---------- Server wishlist ----------
-  const serverIds = ref<Set<string>>(new Set())
-  const loadingServer = ref(false)
-
   function extractIds(payload: any): string[] {
     // Accept: [1,2,3] OR [{product_id},{id},product] OR {data:[...]} OR {items:[...]}
     const root = Array.isArray(payload) ? payload
@@ -144,54 +153,98 @@ export function useWishlist() {
   }
 
   async function loadServerIds() {
-    if (!isAuthed.value) return
-    loadingServer.value = true
+    if (!isAuthed.value) { serverIdsArr.value = []; return }
     try {
       const r = await $customApi('/v2/wishlist', { method: 'GET' })
       const ids = extractIds(r?.data ?? r)
-      serverIds.value = new Set(ids)
-    } finally {
-      loadingServer.value = false
+      serverIdsArr.value = ids
+      notifyWishlistChanged()
+    } catch {
+      // keep previous
     }
   }
 
+  // OPTIMISTIC: update serverIdsArr immediately, then verify
   async function addServer(product_id: Id) {
-    await $customApi('/v2/wishlist', { method: 'POST', body: { product_id } })
-    serverIds.value.add(String(product_id))
-  }
-  async function removeServer(product_id: Id) {
+    const id = String(product_id)
+    if (!serverIdsSet.value.has(id)) {
+      serverIdsArr.value = [...serverIdsArr.value, id]
+      notifyWishlistChanged()
+    }
     try {
-      // Preferred per your routes: DELETE /v2/wishlist/{productId}
+      await $customApi('/v2/wishlist', { method: 'POST', body: { product_id } })
+      // verify by refetching (optional but keeps in sync if API overwrote)
+      await loadServerIds()
+    } catch (e) {
+      // rollback on error
+      serverIdsArr.value = serverIdsArr.value.filter(x => x !== id)
+      notifyWishlistChanged()
+      throw e
+    }
+  }
+
+  async function removeServer(product_id: Id) {
+    const id = String(product_id)
+    // optimistic remove
+    if (serverIdsSet.value.has(id)) {
+      serverIdsArr.value = serverIdsArr.value.filter(x => x !== id)
+      notifyWishlistChanged()
+    }
+    try {
+      // Preferred per your routes
       await $customApi(`/v2/wishlist/${product_id}`, { method: 'DELETE' })
     } catch {
-      // Fallback alias if you keep POST delete endpoint
       await $customApi(`/v2/wishlist/delete/${product_id}`, { method: 'POST' })
+    } finally {
+      // verify (keeps parity with server)
+      await loadServerIds()
     }
-    serverIds.value.delete(String(product_id))
   }
 
   async function toggleServer(product_id: Id): Promise<'added' | 'removed'> {
+    const id = String(product_id)
+    // optimistic flip
+    const wasIn = serverIdsSet.value.has(id)
+    serverIdsArr.value = wasIn
+      ? serverIdsArr.value.filter(x => x !== id)
+      : [...serverIdsArr.value, id]
+    notifyWishlistChanged()
+
     try {
       const r = await $customApi('/v2/wishlist/toggle', { method: 'POST', body: { product_id } })
       const data = r?.data ?? r
       const status: 'added' | 'removed' = data?.status ?? (data?.added ? 'added' : 'removed')
-      if (status === 'added') serverIds.value.add(String(product_id))
-      else serverIds.value.delete(String(product_id))
+      // hard-verify with a light refresh
+      await loadServerIds()
       return status
     } catch {
       // Fallback if /toggle not available
-      if (serverIds.value.has(String(product_id))) {
-        await removeServer(product_id); return 'removed'
+      if (wasIn) {
+        await removeServer(product_id)
+        return 'removed'
       } else {
-        await addServer(product_id); return 'added'
+        await addServer(product_id)
+        return 'added'
       }
     }
   }
 
   async function bulkAddServer(ids: Id[]) {
     if (!ids.length) return
-    await $customApi('/v2/wishlist/bulk', { method: 'POST', body: { products: ids.join(',') } })
-    for (const id of ids) serverIds.value.add(String(id))
+    // optimistic union
+    const toAdd = ids.map(String).filter(id => !serverIdsSet.value.has(id))
+    if (toAdd.length) {
+      serverIdsArr.value = [...serverIdsArr.value, ...toAdd]
+      notifyWishlistChanged()
+    }
+    try {
+      await $customApi('/v2/wishlist/bulk', { method: 'POST', body: { products: ids.join(',') } })
+      await loadServerIds()
+    } catch (e) {
+      // rollback: best-effort (clear and refetch)
+      await loadServerIds()
+      throw e
+    }
   }
 
   async function listServerIds(): Promise<string[]> {
@@ -202,20 +255,27 @@ export function useWishlist() {
   }
 
   async function clearServer() {
-    // If you later add POST /v2/wishlist/clear this will use it automatically
-    try { await $customApi('/v2/wishlist/clear', { method: 'POST' }); serverIds.value.clear(); return } catch {}
-    // Fallback: fetch IDs and delete all
-    const ids = await listServerIds()
-    if (ids.length) await Promise.all(ids.map(id => removeServer(id).catch(() => {})))
-    serverIds.value.clear()
+    // optimistic clear
+    serverIdsArr.value = []
+    notifyWishlistChanged()
+    try {
+      // If you later add POST /v2/wishlist/clear this will use it automatically
+      try { await $customApi('/v2/wishlist/clear', { method: 'POST' }) }
+      catch {
+        // Fallback: fetch IDs and delete all
+        const ids = await listServerIds()
+        if (ids.length) await Promise.all(ids.map(id => removeServer(id).catch(() => {})))
+      }
+    } finally {
+      await loadServerIds()
+    }
   }
 
   // ---- Public API (with alerts) ----
   async function add(product_id: Id, meta?: AddMeta) {
     try {
       if (isAuthed.value) {
-        // If already in server list, just show info toast
-        if (serverIds.value.has(String(product_id))) {
+        if (serverIdsSet.value.has(String(product_id))) {
           if (process.client) alerts.showAlert({
             type: 'info',
             title: meta?.title || 'Already in Wishlist',
@@ -324,6 +384,12 @@ export function useWishlist() {
     syncing.value = true
     try {
       const ids = guest.value.map(w => w.product_id)
+      // optimistic: merge into server ids right away
+      const newOnes = ids.map(String).filter(id => !serverIdsSet.value.has(id))
+      if (newOnes.length) {
+        serverIdsArr.value = [...serverIdsArr.value, ...newOnes]
+        notifyWishlistChanged()
+      }
       await bulkAddServer(ids)
       guest.value = []
       saveGuest()
@@ -333,7 +399,7 @@ export function useWishlist() {
   function isInWishlist(product_id: Id) {
     const id = String(product_id)
     return isAuthed.value
-      ? serverIds.value.has(id)
+      ? serverIdsSet.value.has(id)
       : guest.value.some(i => String(i.product_id) === id)
   }
 
@@ -348,13 +414,14 @@ export function useWishlist() {
   })
 
   const count = computed(() =>
-    isAuthed.value ? serverIds.value.size : guest.value.length
+    isAuthed.value ? serverIdsArr.value.length : guest.value.length
   )
 
   return {
     // state
     guest, count, syncing,
-    serverIds, loadingServer,
+    // expose server ids if you need them
+    serverIds: serverIdsSet, loadingServer: computed(() => false),
     // actions
     add, remove, toggle, clear, syncGuestToServer,
     // helpers

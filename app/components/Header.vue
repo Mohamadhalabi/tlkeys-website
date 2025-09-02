@@ -11,7 +11,7 @@
 
   <!-- Mobile (< 993px) -->
   <template v-else>
-    <HeaderTopBarMobile />
+      <!-- <HeaderTopBar  /> -->
     <HeaderMiddleMobile />
   </template>
 </template>
@@ -24,7 +24,6 @@ import HeaderTopBar from '~/components/header/HeaderTopBar.vue'
 import HeaderMiddle from '~/components/header/HeaderMiddle.vue'
 import HeaderMainNav from '~/components/header/HeaderMainNav.vue'
 import SecondaryStickyBar from '~/components/header/SecondaryStickyBar.vue'
-import HeaderTopBarMobile from '~/components/header/mobile/HeaderTopBarMobile.vue'
 import HeaderMiddleMobile from '~/components/header/mobile/HeaderMiddleMobile.vue'
 
 /** Use the same cutoff you use in CSS: < 993px is mobile */

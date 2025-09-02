@@ -19,6 +19,7 @@ type Product = {
   discount_start_date?: string | null
   discount_end_date?: string | null
   oldPrice?: number | null
+  stock?: number | null
   badgeText?: string | null
   href?: string
   sku?: string | null
@@ -208,6 +209,7 @@ async function onAdd() {
     sku: p.sku || undefined,
     slug: p.slug,
     price: unit.value,
+    stock: p.stock,
     regular_price: n(p.regular_price),
     sale_price: n(p.sale_price),
     table_price: Array.isArray(p.table_price) ? p.table_price : null,
