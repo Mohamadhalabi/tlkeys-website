@@ -1,7 +1,9 @@
 <template>
   <div class="flex flex-col min-h-screen">
     <!-- Header -->
-    <Header />
+     <ClientOnly>
+          <Header />
+     </ClientOnly>
 
     <!-- Main -->
     <main class="flex-1 ">
