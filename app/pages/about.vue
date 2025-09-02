@@ -141,8 +141,8 @@ const { t, locale } = useI18n()
 const siteName = 'Techno Lock Keys'
 const canonical = 'https://www.tlkeys.com/about'
 const baseUrl = 'https://www.tlkeys.com'
-const ogImage = 'https://dev-srv.tlkeys.com/storage/images/seo/og-image.jpg'
-const logoUrl = 'https://www.tlkeys.com/tlk-logo.png'
+const ogImage = 'httphttps://www.tlkeys.com/images/og-image.jpg'
+const logoUrl = 'https://www.tlkeys.com/images/logo/techno-lock-desktop-logo.webp'
 
 useSeoMeta({
   title: t('about.seoTitle'),

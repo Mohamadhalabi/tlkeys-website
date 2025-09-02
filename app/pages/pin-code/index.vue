@@ -234,8 +234,8 @@ const { el: pinGridEl } = useLazySection(() => fetchPinCode(1, rowsForGrid, PROD
 const siteName = 'Techno Lock Keys'
 const baseUrl  = 'https://www.tlkeys.com'
 const canonical = `${baseUrl}/pin-code`
-const ogImage = 'https://dev-srv.tlkeys.com/storage/images/seo/og-image.jpg'
-const logoUrl = 'https://www.tlkeys.com/tlk-logo.png'
+const ogImage = 'httphttps://www.tlkeys.com/images/og-image.jpg'
+const logoUrl = 'https://www.tlkeys.com/images/logo/techno-lock-desktop-logo.webp'
 
 useSeoMeta({
   title: t('pincode.seoTitle'),

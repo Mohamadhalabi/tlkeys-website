@@ -103,8 +103,8 @@ const { t, locale } = useI18n()
 const baseUrl = 'https://www.tlkeys.com'
 const canonical = `${baseUrl}/privacy-policy`
 const siteName = 'Techno Lock Keys'
-const ogImage = 'https://dev-srv.tlkeys.com/storage/images/seo/og-image.jpg'
-const logoUrl = 'https://www.tlkeys.com/tlk-logo.png'
+const ogImage = 'httphttps://www.tlkeys.com/images/og-image.jpg'
+const logoUrl = 'https://www.tlkeys.com/images/logo/techno-lock-desktop-logo.webp'
 const email = 'info@tlkeys.com'
 const phone = '+971504429045'
 
