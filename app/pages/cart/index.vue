@@ -17,6 +17,7 @@ const alerts = useAlertStore()
 const auth = useAuth()
 const isAuthed = computed(() => Boolean(auth.token.value))
 const { formatMoney } = useCurrency()
+const downloading = ref(false)
 
 useHead({
   title: t('cart.title') + ' | Techno Lock Keys', // dynamic i18n title
@@ -56,6 +57,7 @@ type CartRow = {
   price: number
   price_before?: number | null
   stock?: number | null
+  serial_number?: string[] | null
 }
 
 const loading = ref(true)
@@ -79,13 +81,14 @@ function asProductLike(row: CartRow): ProductLike {
   const snapshot = n(row.base.price) ?? 0
 
   if (row.locked) {
+    // Lock SALES/DISCOUNTS only; allow tiers to recalc by qty
     return {
       price: snapshot,
       regular_price: null,
       sale_price: null,
-      table_price: null,
+      table_price: Array.isArray(row.table_price) ? row.table_price : null,
       discount_type: null,
-      discount_value: null
+      discount_value: null,
     }
   }
 
@@ -94,28 +97,22 @@ function asProductLike(row: CartRow): ProductLike {
     regular_price: n(row.base.regular_price),
     sale_price: n(row.base.sale_price),
     table_price: Array.isArray(row.table_price) ? row.table_price : null,
-    discount_type: (row.discount_type === 'percent' || row.discount_type === 'fixed') ? row.discount_type : null,
-    discount_value: n(row.discount_value) ?? null
+    discount_type:
+      row.discount_type === 'percent' || row.discount_type === 'fixed'
+        ? row.discount_type
+        : null,
+    discount_value: n(row.discount_value) ?? null,
   }
 }
 
 function recalcRow(row: CartRow) {
-  // Short-circuit for locked rows: use the snapshot and only show strike-through from regular_price.
-  if (row.locked) {
-    const unit = n(row.base.price) ?? 0
-    const before = n(row.base.regular_price)
-    row.price = unit
-    row.price_before = before != null && before > unit ? before : null
-    return
-  }
-
   const prodLike: ProductLike = asProductLike(row)
 
-  // A) Normal calculation (tiers/sales/discounts)
+  // A) Normal calculation (tiers/sales/discounts as provided by asProductLike)
   const withPromo = priceCalc(prodLike, row.quantity)
   let unit = withPromo.unit
 
-  // B) Baseline without any promo (for strike-through and fallback)
+  // B) Baseline without promos (for strike-through & comparison)
   const forcedBase =
     (typeof row.base.regular_price === 'number' && row.base.regular_price > 0)
       ? row.base.regular_price
@@ -133,12 +130,11 @@ function recalcRow(row: CartRow) {
   }
   const { unit: unitNoPromo } = priceCalc(pNoPromo, row.quantity)
 
-  // C) If helper didn't apply discount (can happen with tiers), apply manually.
+  // C) Manual discount if helper didn’t apply (not expected when locked, but safe)
   const dtype = row.discount_type
   const dval  = Number(row.discount_value ?? 0)
   const hasActiveDiscount = (dtype === 'fixed' || dtype === 'percent') && dval > 0
   const helperDidNotApply = unit >= unitNoPromo - 1e-9
-
   if (hasActiveDiscount && helperDidNotApply) {
     if (dtype === 'fixed')   unit = Math.max(0, unit - dval)
     if (dtype === 'percent') unit = Math.max(0, unit * (1 - dval / 100))
@@ -191,8 +187,7 @@ async function loadServerCart(): Promise<CartRow[]> {
       discount_start_date: i?.discount?.start_date ?? i?.discount_start_date ?? null,
       discount_end_date:   i?.discount?.end_date   ?? i?.discount_end_date   ?? null,
       price: 0,
-
-      // ⬇️ NEW — try common server keys
+      serial_number: Array.isArray(i?.serial_number) ? i.serial_number : null,
       stock: n(i?.stock ?? i?.available_quantity ?? i?.quantity_available ?? i?.inventory?.quantity)
     }
     recalcRow(row)
@@ -225,11 +220,63 @@ async function loadGuestCart(): Promise<CartRow[]> {
       discount_start_date: s?.discount_start_date ?? null,
       discount_end_date: s?.discount_end_date ?? null,
       price: 0,
-      stock: n(s?.stock)
+      stock: n(s?.stock),
+      serial_number: Array.isArray(s?.serial_number) ? s.serial_number : null,
     }
     recalcRow(row)
     return row
   })
+}
+
+async function downloadPdf() {
+  if (!rows.value.length || downloading.value) return
+  downloading.value = true
+  try {
+    const token = auth.token.value
+    const fileName = `Cart-Quote_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.pdf`
+
+    let resp: any
+    if (token) {
+      // Logged-in: GET /api/v2/cart/pdf
+      resp = await $customApi('/v2/cart/cart/pdf', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/pdf' },
+        responseType: 'blob',      // or: raw:true if your wrapper returns Response
+      })
+    } else {
+      // Guest: POST snapshot to /api/v2/cart/pdf/guest
+      const body = {
+        items: rows.value.map(r => ({
+          product_id: r.product_id,
+          quantity: r.quantity,
+          serial_number: r.serial_number ?? []
+        }))
+      }
+      resp = await $customApi('/v2/cart/cart/pdf/guest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/pdf' },
+        body: JSON.stringify(body),
+        responseType: 'blob',      // or: raw:true
+      })
+    }
+
+    // Normalize to Blob whether resp is Blob or Response
+    const blob: Blob = resp instanceof Blob ? resp : await resp.blob?.()
+    if (!(blob instanceof Blob)) throw new Error('Unexpected response')
+
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  } catch (e:any) {
+    alerts.showAlert({ type:'error', title:'PDF error', message: e?.message ?? 'Failed to generate PDF' })
+  } finally {
+    downloading.value = false
+  }
 }
 
 async function load() {
@@ -308,6 +355,15 @@ async function clearAll() {
       >
         {{ clearing ? t('cart.clearing') : t('cart.clear') }}
       </button>
+      <button
+        v-if="rows.length"
+        type="button"
+        class="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700"
+        :disabled="downloading"
+        @click="downloadPdf"
+      >
+        {{ downloading ? 'Preparing…' : 'Download PDF' }}
+      </button>
     </div>
 
     <div v-if="loading" class="space-y-3">
@@ -349,7 +405,9 @@ async function clearAll() {
             <p v-if="row.sku" class="text-md font-medium text-green-700">
               {{ t('cart.sku') }} {{ row.sku }}
             </p>
-
+            <p v-if="row.serial_number?.length" class="text-md text-red-700 text-gray-600">
+              {{ t('cart.serial_number') }}: <span class="font-medium">{{ row.serial_number.join(', ') }}</span>
+            </p>
             <div class="mt-2 flex flex-wrap items-center gap-4">
               <div class="inline-flex items-center rounded-xl border border-gray-300 overflow-hidden">
                 <button type="button" class="px-3 py-2 hover:bg-gray-50" @click="dec(row)">−</button>
@@ -362,7 +420,6 @@ async function clearAll() {
                 />
                 <button type="button" class="px-3 py-2 hover:bg-gray-50" @click="inc(row)">+</button>
               </div>
-
               <!-- Pricing -->
               <div class="ms-auto text-right">
                 <div class="text-2xl font-extrabold text-red-600">

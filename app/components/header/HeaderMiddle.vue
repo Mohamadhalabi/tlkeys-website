@@ -25,10 +25,10 @@
           </button>
         </div>
 
-        <!-- Suggestions (inline absolute; no Teleport) -->
+        <!-- Suggestions -->
         <transition name="fade">
           <div
-            v-if="open && (loading || error || suggestions.length || hasMore)"
+            v-if="open && (loading || error || suggestions.length || showMore)"
             class="absolute left-0 right-0 z-[99999] mt-2 rounded-xl border bg-white text-gray-900 shadow-2xl overflow-hidden"
             @mousedown.prevent
           >
@@ -49,26 +49,19 @@
                   class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50"
                   :class="idx === active ? 'bg-gray-100' : ''"
                 >
-                  <!-- image shown only if it's a URL -->
                   <NuxtImg v-if="p.image" :src="p.image" width="80" height="80" class="rounded border object-cover shrink-0" />
                   <div class="min-w-0 flex-1">
-                    <!-- highlighted title/SKU -->
                     <div class="text-md font-medium line-clamp-4" v-html="highlight(p.title)"></div>
                     <div class="text-sm font-bold text-green-700 line-clamp-1" v-if="p.sku" v-html="highlight('SKU: ' + p.sku)"></div>
                   </div>
 
-                  <!-- price block -->
                   <div v-if="!p.hide_price" class="text-right whitespace-nowrap">
-                    <div class="text-base font-semibold text-red-700">
-                      {{ formatMoney(p.price) }}
-                    </div>
-                    <!-- strike-through for discount OR sale-only -->
+                    <div class="text-base font-semibold text-red-700">{{ formatMoney(p.price) }}</div>
                     <div v-if="oldFor(p) !== null" class="text-xs text-gray-500 line-through">
                       {{ formatMoney(oldFor(p)!) }}
                     </div>
                   </div>
 
-                  <!-- WhatsApp CTA when price is hidden -->
                   <a
                     v-else
                     :href="waLink(p)"
@@ -78,39 +71,49 @@
                     @click.stop
                     :aria-label="t('search.contactOnWhatsApp')"
                   >
-                    <!-- compact, valid WhatsApp SVG -->
-                    <svg
-                      id="WhatsApp_24"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M20.52 3.48A11 11 0 0 0 4.6 19.4L3 22.5l3.2-1.55A11 11 0 1 0 20.52 3.48Zm-8.6 4.2c.22 0 .48.01.73.06.24.05.5.27.57.52l.36 1.28c.07.25-.01.56-.19.74l-.6.6a5.9 5.9 0 0 0 2.92 2.92l.6-.6c.18-.18.49-.26.74-.19l1.28.36c.25.07.47.33.52.57.1.5.15.97.06 1.45-.07.35-.4.66-.75.83-1.04.5-2.23.53-3.39.13-1.18-.41-2.45-1.25-3.6-2.4-1.15-1.15-1.99-2.42-2.4-3.6-.4-1.16-.37-2.35.13-3.39.17-.35.48-.68.83-.75.2-.04.41-.06.58-.06Z"
-                        fill="currentColor"
-                      />
-                    </svg>
+                      <svg id='WhatsApp_24' width='24' height='24' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'><rect width='24' height='24' stroke='none' fill='#000000' opacity='0'/>
+
+
+                      <g transform="matrix(0.42 0 0 0.42 12 12)" >
+                      <g style="" >
+                      <g transform="matrix(1 0 0 1 -0.07 0.15)" >
+                      <path style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;" transform=" translate(-23.93, -24.15)" d="M 4.868 43.303 L 7.562 33.467999999999996 C 5.9 30.59 5.026 27.324 5.027 23.979 C 5.032 13.514 13.548 5 24.014 5 C 29.093 5.002 33.859 6.979 37.444 10.565999999999999 C 41.028000000000006 14.154 43.002 18.921999999999997 43 23.994 C 42.996 34.459 34.478 42.974000000000004 24.014 42.974000000000004 C 24.012999999999998 42.974000000000004 24.014 42.974000000000004 24.014 42.974000000000004 L 24.006 42.974000000000004 C 20.829 42.973000000000006 17.706 42.176 14.933 40.663000000000004 L 4.868 43.303 z" stroke-linecap="round" />
+                      </g>
+                      <g transform="matrix(1 0 0 1 -0.07 0.15)" >
+                      <path style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;" transform=" translate(-23.93, -24.15)" d="M 4.868 43.803 C 4.736000000000001 43.803 4.6080000000000005 43.751 4.513 43.654999999999994 C 4.388 43.52799999999999 4.3389999999999995 43.342999999999996 4.386 43.172 L 7.025 33.536 C 5.389 30.630000000000003 4.526 27.330000000000002 4.5280000000000005 23.980000000000004 C 4.532 13.238 13.273 4.5 24.014 4.5 C 29.224 4.502 34.119 6.531000000000001 37.798 10.213000000000001 C 41.477000000000004 13.896 43.502 18.79 43.5 23.994 C 43.496 34.735 34.754 43.474000000000004 24.014 43.474000000000004 C 20.825 43.473000000000006 17.669999999999998 42.68600000000001 14.87 41.197 L 4.994999999999999 43.786 C 4.953 43.798 4.911 43.803 4.868 43.803 z" stroke-linecap="round" />
+                      </g>
+                      <g transform="matrix(1 0 0 1 -0.07 0.15)" >
+                      <path style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(207,216,220); fill-rule: nonzero; opacity: 1;" transform=" translate(-23.93, -24.15)" d="M 24.014 5 C 29.093 5.002 33.859 6.979 37.444 10.565999999999999 C 41.028000000000006 14.154 43.002 18.921999999999997 43 23.994 C 42.996 34.459 34.478 42.974000000000004 24.014 42.974000000000004 L 24.006 42.974000000000004 C 20.829 42.973000000000006 17.706 42.176 14.933 40.663000000000004 L 4.868 43.303 L 7.562 33.467999999999996 C 5.9 30.59 5.026 27.324 5.027 23.979 C 5.032 13.514 13.548 5 24.014 5 M 24.014 42.974 C 24.014 42.974 24.014 42.974 24.014 42.974 C 24.014 42.974 24.014 42.974 24.014 42.974 M 24.014 42.974 C 24.014 42.974 24.014 42.974 24.014 42.974 C 24.014 42.974 24.014 42.974 24.014 42.974 M 24.014 4 C 24.014 4 24.014 4 24.014 4 C 12.998 4 4.032 12.962 4.027 23.979 C 4.026 27.346 4.876 30.663999999999998 6.4879999999999995 33.601 L 3.9029999999999996 43.04 C 3.8089999999999997 43.385 3.9049999999999994 43.753 4.157 44.007 C 4.347 44.199 4.604 44.303999999999995 4.868 44.303999999999995 C 4.953 44.303999999999995 5.038 44.29299999999999 5.122 44.270999999999994 L 14.809 41.730999999999995 C 17.637 43.199 20.807 43.974 24.006 43.974999999999994 C 35.03 43.974999999999994 43.995999999999995 35.01199999999999 44.001000000000005 23.994999999999994 C 44.00300000000001 18.65599999999999 41.926 13.635999999999994 38.153000000000006 9.859999999999994 C 34.378 6.083 29.357 4.002 24.014 4 L 24.014 4 z" stroke-linecap="round" />
+                      </g>
+                      <g transform="matrix(1 0 0 1 0.01 -0.01)" >
+                      <path style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(64,195,81); fill-rule: nonzero; opacity: 1;" transform=" translate(-24.01, -23.99)" d="M 35.176 12.832 C 32.196000000000005 9.850000000000001 28.235000000000003 8.207 24.019000000000002 8.206 C 15.315000000000001 8.206 8.236000000000002 15.282 8.232000000000001 23.979999999999997 C 8.231000000000002 26.961 9.065000000000001 29.862999999999996 10.645000000000001 32.376 L 11.021 32.973 L 9.426 38.794 L 15.399000000000001 37.227999999999994 L 15.976 37.56999999999999 C 18.398 39.007999999999996 21.176000000000002 39.767999999999994 24.008000000000003 39.76899999999999 L 24.014000000000003 39.76899999999999 C 32.712 39.76899999999999 39.791000000000004 32.69199999999999 39.794000000000004 23.99299999999999 C 39.795 19.778 38.156 15.814 35.176 12.832 z" stroke-linecap="round" />
+                      </g>
+                      <g transform="matrix(1 0 0 1 0.01 0.16)" >
+                      <path style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: evenodd; opacity: 1;" transform=" translate(-24.01, -24.16)" d="M 19.268 16.045 C 18.913 15.255000000000003 18.539 15.239 18.2 15.225000000000001 C 17.923 15.213000000000001 17.607 15.214000000000002 17.291 15.214000000000002 C 16.975 15.214000000000002 16.461000000000002 15.333000000000002 16.026 15.808000000000002 C 15.591 16.283 14.365 17.430000000000003 14.365 19.764000000000003 C 14.365 22.098000000000003 16.065 24.354000000000003 16.302 24.67 C 16.538999999999998 24.986 19.584 29.929000000000002 24.406 31.831000000000003 C 28.412999999999997 33.411 29.229 33.097 30.098999999999997 33.018 C 30.968999999999998 32.939 32.906 31.871000000000002 33.300999999999995 30.763 C 33.696 29.655 33.696 28.706000000000003 33.577999999999996 28.508000000000003 C 33.458999999999996 28.310000000000002 33.142999999999994 28.192000000000004 32.669 27.954000000000004 C 32.195 27.716000000000005 29.862 26.569000000000003 29.426999999999996 26.411000000000005 C 28.991999999999997 26.253000000000004 28.675999999999995 26.174000000000007 28.358999999999995 26.649000000000004 C 28.042999999999996 27.123000000000005 27.133999999999993 28.192000000000004 26.856999999999996 28.508000000000003 C 26.579999999999995 28.825000000000003 26.302999999999997 28.865000000000002 25.828999999999997 28.627000000000002 C 25.354999999999997 28.389000000000003 23.826999999999998 27.889000000000003 22.013999999999996 26.273000000000003 C 20.603999999999996 25.016000000000002 19.651999999999994 23.463000000000005 19.374999999999996 22.988000000000003 C 19.097999999999995 22.514000000000003 19.344999999999995 22.257 19.582999999999995 22.020000000000003 C 19.795999999999996 21.807000000000002 20.056999999999995 21.466000000000005 20.294999999999995 21.189000000000004 C 20.531999999999993 20.912000000000003 20.610999999999994 20.714000000000002 20.768999999999995 20.398000000000003 C 20.926999999999996 20.081000000000003 20.847999999999995 19.804000000000002 20.728999999999996 19.567000000000004 C 20.612 19.329 19.69 16.983 19.268 16.045 z" stroke-linecap="round" />
+                      </g>
+                      </g>
+                      </g>
+                      </svg>
                     {{ t('search.contactOnWhatsApp') }}
                   </a>
                 </li>
-
-                <!-- Show more button with count -->
-                <li v-if="hasMore || totalResults > suggestions.length" class="border-t">
-                  <NuxtLinkLocale
-                    :to="`/shop?search=${encodeURIComponent(term.trim())}`"
-                    class="block px-3 py-2 text-emerald-700 hover:bg-emerald-50 text-sm text-center font-medium"
-                    @click="open=false"
-                  >
-                    Show more results<span v-if="totalResults"> ({{ totalResults }})</span>
-                  </NuxtLinkLocale>
-                </li>
               </ul>
 
-              <div v-else class="px-4 py-3 text-sm text-gray-500">
-                No results
+              <!-- Footer: show-more (outside the scroll area) -->
+              <div v-if="showMore" class="border-t">
+                <NuxtLinkLocale
+                  :to="`/shop?search=${encodeURIComponent(term.trim())}`"
+                  class="block px-3 py-2 text-white bg-gray-600 hover:bg-gray-700  hover:text-white text-lg text-center font-medium"
+                  @click="open=false"
+                >
+                  Show more results
+                  <span v-if="Number(totalResults) > (suggestions.length || 0)">
+                    ({{ totalResults }})
+                  </span>
+                </NuxtLinkLocale>
               </div>
+
+              <div v-else-if="!suggestions.length" class="px-4 py-3 text-sm text-gray-500">No results</div>
             </template>
           </div>
         </transition>
@@ -128,26 +131,22 @@
           <span>{{ t('menu.account') }}</span>
         </NuxtLinkLocale>
 
-        <!-- Wishlist -->
         <NuxtLinkLocale to="/wishlist" class="relative flex items-center gap-2">
           <span class="relative">
             <HeartIcon class="w-7 h-7" />
-            <span
-              class="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-bold"
-              aria-label="Wishlist items count"
-            >{{ wishlistCount }}</span>
+            <span class="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-bold" aria-label="Wishlist items count">
+              {{ wishlistCount }}
+            </span>
           </span>
           <span class="hidden sm:inline">{{ t('menu.wishlist') }}</span>
         </NuxtLinkLocale>
 
-        <!-- Cart -->
         <NuxtLinkLocale to="/cart" class="relative flex items-center gap-2">
           <span class="relative">
             <ShoppingCartIcon class="w-7 h-7" />
-            <span
-              class="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-bold"
-              aria-label="Cart items count"
-            >{{ cartCount }}</span>
+            <span class="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-bold" aria-label="Cart items count">
+              {{ cartCount }}
+            </span>
           </span>
           <span class="hidden sm:inline">{{ t('menu.cart') }}</span>
         </NuxtLinkLocale>
@@ -164,12 +163,7 @@ import { useCurrency } from '~/composables/useCurrency'
 import { useNuxtApp, useRouter } from '#imports'
 import { useWishlist } from '~/composables/useWishlist'
 import { useCart } from '~/composables/useCart'
-import {
-  HeartIcon,
-  UserPlusIcon,
-  ShoppingCartIcon,
-  MagnifyingGlassIcon,
-} from '@heroicons/vue/24/outline'
+import { HeartIcon, UserPlusIcon, ShoppingCartIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 
 const { t, locale } = useI18n()
 const auth = useAuth()
@@ -180,7 +174,6 @@ const { formatMoney } = useCurrency()
 const wishlist = useWishlist()
 const cart = useCart()
 
-// always show a number (fallback to 0)
 const wishlistCount = computed(() => Number(wishlist.count?.value ?? 0))
 const cartCount = computed(() => Number(cart.count?.value ?? 0))
 
@@ -240,26 +233,14 @@ const highlight = (text: string) => {
   return rx ? safe.replace(rx, '<mark class="bg-yellow-200">$1</mark>') : safe
 }
 
-/* price helpers for strike-through */
-const num = (v: any): number | null => {
-  const n = Number(v)
-  return Number.isFinite(n) ? n : null
-}
+/* price helpers */
+const num = (v: any): number | null => { const n = Number(v); return Number.isFinite(n) ? n : null }
 const approxEq = (a: number, b: number, tol = 0.01) => Math.abs(a - b) <= tol
 const oldFor = (p: any): number | null => {
-  const price = num(p?.price)
-  if (price == null) return null
-
-  // Discount case from backend
-  const old = num(p?.old_price)
-  if (old != null && old > price) return old
-
-  // Sale-only case (no discount): show regular as strike if sale < regular
-  const sale = num(p?.sale_price)
-  const reg  = num(p?.regular_price)
-  if (sale != null && reg != null && reg > sale && (approxEq(price, sale) || price < reg)) {
-    return reg
-  }
+  const price = num(p?.price); if (price == null) return null
+  const old = num(p?.old_price); if (old != null && old > price) return old
+  const sale = num(p?.sale_price); const reg = num(p?.regular_price)
+  if (sale != null && reg != null && reg > sale && (approxEq(price, sale) || price < reg)) return reg
   return null
 }
 
@@ -268,6 +249,7 @@ const term = ref('')
 const suggestions = ref<any[]>([])
 const hasMore = ref(false)
 const totalResults = ref(0)
+const showMore = ref(false)     // controlled via API meta
 const loading = ref(false)
 const error = ref('')
 const open = ref(false)
@@ -281,33 +263,51 @@ let debounceId: number | undefined
 watch(term, (v) => {
   if (debounceId) clearTimeout(debounceId)
   if (!v || v.trim().length < 3) {
-    suggestions.value = []; hasMore.value = false; error.value = ''; open.value = false; totalResults.value = 0
+    suggestions.value = []; hasMore.value = false; totalResults.value = 0; showMore.value = false
+    error.value = ''; open.value = false
     return
   }
   open.value = true
   debounceId = window.setTimeout(fetchSuggest, 200)
 })
 
+/* Unify Axios-style and direct-payload responses */
+function unpack(res: any) {
+  const top = res && typeof res === 'object' ? res : {}
+  const payload = (top.data && (top.data.meta || Array.isArray(top.data) || top.data.data))
+    ? top.data
+    : top
+  const dataArr = Array.isArray(payload)
+    ? payload
+    : (Array.isArray(payload?.data) ? payload.data : [])
+  const metaObj = payload?.meta ?? top?.meta ?? {}
+  return { dataArr, metaObj }
+}
+
 async function fetchSuggest() {
   const q = term.value.trim(); if (q.length < 3) return
   loading.value = true; error.value = ''
   try {
     const res: any = await $customApi('/search/suggest', { params: { search: q, limit: 5 } })
-    const root = res?.data ?? res ?? {}
-    const raw  = root.data ?? root
-    const items = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Object.values(raw || {})
-    const mapped = (items || []).map((p: any) => ({
+    const { dataArr, metaObj } = unpack(res)
+
+    const mapped = (dataArr || []).map((p: any) => ({
       ...p,
       title: nameFromJson(p?.title),
       image: isString(p?.image) ? p.image : null
     }))
     suggestions.value = mapped
-    hasMore.value = !!(root?.meta?.has_more)
-    totalResults.value = Number(root?.meta?.total ?? mapped.length) || mapped.length
+
+    const total = Number(metaObj?.total ?? mapped.length) || mapped.length
+    const more  = Boolean(metaObj?.has_more)
+    totalResults.value = total
+    hasMore.value = more
+    showMore.value = more || total > mapped.length
+
     active.value = mapped.length ? 0 : -1
   } catch (e: any) {
     error.value = e?.data?.message || e?.message || 'Failed to fetch suggestions'
-    suggestions.value = []; hasMore.value = false; totalResults.value = 0; active.value = -1
+    suggestions.value = []; hasMore.value = false; totalResults.value = 0; showMore.value = false; active.value = -1
   } finally {
     loading.value = false; open.value = true
   }

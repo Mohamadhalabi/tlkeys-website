@@ -80,7 +80,7 @@
           <!-- Suggestions -->
           <transition name="fade">
             <div
-              v-if="open && (loading || error || suggestions.length || hasMore)"
+              v-if="open && (loading || error || suggestions.length || showMore)"
               class="absolute left-0 right-0 z-[99999] mt-2 rounded-xl border bg-white text-gray-900 shadow-2xl overflow-hidden"
               @mousedown.prevent
             >
@@ -101,6 +101,7 @@
                     class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50"
                     :class="idx === active ? 'bg-gray-100' : ''"
                   >
+                    <!-- image -->
                     <NuxtImg v-if="p.image" :src="p.image" width="80" height="80" class="rounded border object-cover shrink-0" />
                     <div class="min-w-0 flex-1">
                       <div class="text-md font-medium line-clamp-4" v-html="highlight(p.title)"></div>
@@ -111,8 +112,8 @@
                       <div class="text-base font-semibold text-red-700">
                         {{ formatMoney(p.price) }}
                       </div>
-                      <div v-if="p.old_price && p.old_price > p.price" class="text-xs text-gray-500 line-through">
-                        {{ formatMoney(p.old_price) }}
+                      <div v-if="oldFor(p) !== null" class="text-xs text-gray-500 line-through">
+                        {{ formatMoney(oldFor(p)!) }}
                       </div>
                     </div>
 
@@ -126,24 +127,33 @@
                       @click.stop
                       :aria-label="t('search.contactOnWhatsApp')"
                     >
-                      <svg id='WhatsApp_24' width='24' height='24' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'><rect width='24' height='24' stroke='none' fill='#000000' opacity='0'/><g transform="matrix(0.42 0 0 0.42 12 12)"><g><g transform="matrix(1 0 0 1 -0.07 0.15)"><path style="fill:#fff" transform=" translate(-23.93, -24.15)" d="M 4.868 43.303 L 7.562 33.468C 5.9 30.59 5.026 27.324 5.027 23.979C 5.032 13.514 13.548 5 24.014 5C 29.093 5.002 33.859 6.979 37.444 10.566C 41.028 14.154 43.002 18.922 43 23.994C 42.996 34.459 34.478 42.974 24.014 42.974C 20.829 42.973 17.706 42.176 14.933 40.663L 4.868 43.303 z"/></g><g transform="matrix(1 0 0 1 -0.07 0.15)"><path style="fill:#cfd8dc" transform=" translate(-23.93, -24.15)" d="M 24.014 5C 29.093 5.002 33.859 6.979 37.444 10.566C 41.028 14.154 43.002 18.922 43 23.994C 42.996 34.459 34.478 42.974 24.014 42.974"/></g><g transform="matrix(1 0 0 1 0.01 -0.01)"><path style="fill:#40c351" transform=" translate(-24.01, -23.99)" d="M 35.176 12.832C 32.196 9.85 28.235 8.207 24.019 8.206C 15.315 8.206 8.236 15.282 8.232 23.98C 8.231 26.961 9.065 29.863 10.645 32.376L 11.021 32.973L 9.426 38.794L 15.399 37.228L 15.976 37.57C 18.398 39.008 21.176 39.768 24.008 39.769C 32.712 39.769 39.791 32.692 39.794 23.993C 39.795 19.778 38.156 15.814 35.176 12.832 z"/></g><g transform="matrix(1 0 0 1 0.01 0.16)"><path style="fill:#fff" transform=" translate(-24.01, -24.16)" d="M 19.268 16.045C 18.913 15.255 18.539 15.239 18.2 15.225C 17.607 15.214 16.461 15.333 16.026 15.808C 15.591 16.283 14.365 17.43 14.365 19.764C 14.365 22.098 16.065 24.354 16.302 24.67C 16.539 24.986 19.584 29.929 24.406 31.831C 28.413 33.411 29.229 33.097 30.099 33.018C 30.969 32.939 32.906 31.871 33.301 30.763C 33.696 29.655 33.696 28.706 33.578 28.508C 33.459 28.31 33.143 28.192 32.669 27.954C 32.195 27.716 29.862 26.569 29.427 26.411C 28.992 26.253 28.676 26.174 28.359 26.649C 28.043 27.123 27.134 28.192 26.857 28.508C 26.58 28.825 26.303 28.865 25.829 28.627C 25.355 28.389 23.827 27.889 22.014 26.273C 20.604 25.016 19.652 23.463 19.375 22.988C 19.098 22.514 19.345 22.257 19.583 22.02C 19.796 21.807 20.057 21.466 20.295 21.189C 20.532 20.912 20.611 20.714 20.769 20.398C 20.927 20.081 20.848 19.804 20.729 19.567C 20.612 19.329 19.69 16.983 19.268 16.045 z"/></g></g></g></svg>
+                      <svg id="WhatsApp_24" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path
+                          d="M20.52 3.48A11 11 0 0 0 4.6 19.4L3 22.5l3.2-1.55A11 11 0 1 0 20.52 3.48Zm-8.6 4.2c.22 0 .48.01.73.06.24.05.5.27.57.52l.36 1.28c.07.25-.01.56-.19.74l-.6.6a5.9 5.9 0 0 0 2.92 2.92l.6-.6c.18-.18.49-.26.74-.19l1.28.36c.25.07.47.33.52.57.1.5.15.97.06 1.45-.07.35-.4.66-.75.83-1.04.5-2.23.53-3.39.13-1.18-.41-2.45-1.25-3.6-2.4-1.15-1.15-1.99-2.42-2.4-3.6-.4-1.16-.37-2.35.13-3.39.17-.35.48-.68.83-.75.2-.04.41-.06.58-.06Z"
+                          fill="currentColor"
+                        />
+                      </svg>
                       {{ t('search.contactOnWhatsApp') }}
                     </a>
-
-                  </li>
-
-                  <li v-if="hasMore || totalResults > suggestions.length" class="border-t">
-                    <NuxtLinkLocale
-                      :to="`/shop?search=${encodeURIComponent(term.trim())}`"
-                      class="block px-3 py-2 text-emerald-700 hover:bg-emerald-50 text-sm text-center font-medium"
-                      @click="open=false"
-                    >
-                      Show more results<span v-if="totalResults"> ({{ totalResults }})</span>
-                    </NuxtLinkLocale>
                   </li>
                 </ul>
 
-                <div v-else class="px-4 py-3 text-sm text-gray-500">
+                <!-- Footer: show-more (outside the scroll area) -->
+                <div v-if="showMore" class="border-t">
+                  <NuxtLinkLocale
+                    :to="`/shop?search=${encodeURIComponent(term.trim())}`"
+                    class="block px-3 py-2 text-white bg-gray-600 hover:bg-gray-700  hover:text-white text-lg text-center font-medium"
+                    @click="open=false"
+                  >
+                    Show more results
+                    <span v-if="Number(totalResults) > (suggestions.length || 0)">
+                      ({{ totalResults }})
+                    </span>
+                  </NuxtLinkLocale>
+                </div>
+
+                <!-- No results -->
+                <div v-else-if="!suggestions.length" class="px-4 py-3 text-sm text-gray-500">
                   No results
                 </div>
               </template>
@@ -171,7 +181,7 @@
           <button class="p-2 text-gray-700" @click="drawerOpen = false">✕</button>
         </div>
 
-        <!-- 🔧 Quick settings: Currency + Language -->
+        <!-- 🔧 Quick settings: Language + Currency -->
         <div class="p-4 border-b bg-gray-50">
           <div class="flex items-center gap-4">
             <!-- Language -->
@@ -209,7 +219,6 @@
           </div>
         </div>
 
-
         <!-- Simple links -->
         <nav class="px-1 ">
           <ul class=" divide-y">
@@ -225,6 +234,7 @@
           </ul>
         </nav>
         <hr />
+
         <!-- ACCORDION -->
         <div class="divide-y">
           <!-- Cars -->
@@ -384,6 +394,7 @@
               </div>
             </div>
           </section>
+
           <!-- Links under Software & Tokens -->
           <div class="">
             <ul class="divide-y">
@@ -465,7 +476,7 @@ function setHeaderHeightVar() {
   if (!el) return
   requestAnimationFrame(() => {
     const h = el.offsetHeight
-    document.documentElement.style.setProperty('--hdr-h', `${h}px`)
+    document.documentElement.style.setProperty('--hdr-h', `${30}vh`)
   })
 }
 function onResize(){ setHeaderHeightVar() }
@@ -497,8 +508,15 @@ const typedText = ref('')
 let phraseIndex = 0, charIndex = 0, deleting = false, timerId: any
 function tick() {
   const list = phrases.value, current = list[phraseIndex] || ''
-  if (!deleting) { typedText.value = current.substring(0, charIndex + 1); charIndex++; if (charIndex >= current.length) { deleting = true; timerId = setTimeout(tick, 1200); return } }
-  else { typedText.value = current.substring(0, Math.max(0, charIndex - 1)); charIndex--; if (charIndex <= 0) { deleting = false; phraseIndex = (phraseIndex + 1) % list.length } }
+  if (!deleting) {
+    typedText.value = current.substring(0, charIndex + 1)
+    charIndex++
+    if (charIndex >= current.length) { deleting = true; timerId = setTimeout(tick, 1200); return }
+  } else {
+    typedText.value = current.substring(0, Math.max(0, charIndex - 1))
+    charIndex--
+    if (charIndex <= 0) { deleting = false; phraseIndex = (phraseIndex + 1) % list.length }
+  }
   timerId = setTimeout(tick, deleting ? 45 : 90)
 }
 function startTyping() { stopTyping(); phraseIndex=0; charIndex=0; deleting=false; tick() }
@@ -508,15 +526,11 @@ onBeforeUnmount(stopTyping)
 watch(() => locale.value, () => startTyping())
 
 /* ---------- Language switch (same route, other locale) ---------- */
-// selected locale separate from vue-i18n's reactive `locale`
 const selectedLocale = ref<LocaleCode>(locale.value as LocaleCode)
-
-// keep the dropdown in sync if locale changes elsewhere
 watch(() => locale.value, (v) => { selectedLocale.value = v as LocaleCode })
 
 async function onLocaleChange() {
   const code = selectedLocale.value
-  // if user picked the same one, nothing to do
   if (code === (locale.value as LocaleCode)) return
 
   const path = switchLocalePath(code)
@@ -537,47 +551,102 @@ const term = ref('')
 const suggestions = ref<any[]>([])
 const hasMore = ref(false)
 const totalResults = ref(0)
+const showMore = ref(false)     // controls footer visibility
 const loading = ref(false)
 const error = ref('')
 const open = ref(false)
 const active = ref(-1)
 const searchWrap = ref<HTMLElement|null>(null)
 const activeId = computed(() => active.value >= 0 ? `sug-${active.value}` : undefined)
+
 function onFocus(){ if (term.value.trim().length >= 3) open.value = true }
+
+/* helpers */
+const isString = (v: unknown): v is string => typeof v === 'string' && v.trim() !== ''
+const nameFromJson = (n: any): string => {
+  if (!n) return ''
+  if (typeof n === 'string') {
+    try { const o = JSON.parse(n); return (o?.en ?? Object.values(o || {})[0] ?? '') as string }
+    catch { return n }
+  }
+  if (typeof n === 'object') return (n.en ?? Object.values(n)[0] ?? '') as string
+  return String(n)
+}
+const escapeHtml = (s: string) => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c] as string))
+const buildRegex = (q: string) => {
+  const words = q.trim().split(/\s+/).filter(Boolean)
+  const escaped = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  return escaped.length ? new RegExp('(' + escaped.join('|') + ')', 'gi') : null
+}
+const highlight = (text: string) => {
+  const q = term.value.trim()
+  const rx = buildRegex(q)
+  const safe = escapeHtml(String(text || ''))
+  return rx ? safe.replace(rx, '<mark class="bg-yellow-200">$1</mark>') : safe
+}
+
+/* price helpers for strike-through parity with desktop */
+const num = (v: any): number | null => { const n = Number(v); return Number.isFinite(n) ? n : null }
+const approxEq = (a: number, b: number, tol = 0.01) => Math.abs(a - b) <= tol
+const oldFor = (p: any): number | null => {
+  const price = num(p?.price); if (price == null) return null
+  const old = num(p?.old_price); if (old != null && old > price) return old
+  const sale = num(p?.sale_price); const reg = num(p?.regular_price)
+  if (sale != null && reg != null && reg > sale && (approxEq(price, sale) || price < reg)) return reg
+  return null
+}
+
+/* unpacker (accepts axios-style or plain object) */
+function unpack(res:any){
+  const top = res && typeof res === 'object' ? res : {}
+  const payload = (top.data && (top.data.meta || Array.isArray(top.data) || top.data.data)) ? top.data : top
+  return {
+    dataArr: Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : []),
+    metaObj: payload?.meta ?? top?.meta ?? {}
+  }
+}
+
+/* reactive search */
 let debounceId: number | undefined
 watch(term, (v) => {
   if (debounceId) clearTimeout(debounceId)
   if (!v || v.trim().length < 3) {
-    suggestions.value = []; hasMore.value = false; error.value = ''; open.value = false; totalResults.value = 0
+    suggestions.value = []; hasMore.value = false; totalResults.value = 0; showMore.value = false
+    error.value = ''; open.value = false
     return
   }
   open.value = true
   debounceId = window.setTimeout(fetchSuggest, 200)
 })
+
 async function fetchSuggest() {
   const q = term.value.trim(); if (q.length < 3) return
   loading.value = true; error.value = ''
   try {
     const res: any = await $customApi('/search/suggest', { params: { search: q, limit: 5 } })
-    const root = res?.data ?? res ?? {}
-    const raw  = root.data ?? root
-    const items = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Object.values(raw || {})
-    const mapped = (items || []).map((p: any) => ({
+    const { dataArr, metaObj } = unpack(res)
+    const mapped = (dataArr || []).map((p: any) => ({
       ...p,
       title: nameFromJson(p?.title),
       image: isString(p?.image) ? p.image : null
     }))
     suggestions.value = mapped
-    hasMore.value = !!(root?.meta?.has_more)
-    totalResults.value = Number(root?.meta?.total ?? mapped.length) || mapped.length
+
+    const total = Number(metaObj?.total ?? mapped.length) || mapped.length
+    const more  = Boolean(metaObj?.has_more)
+    totalResults.value = total
+    hasMore.value = more
+    showMore.value = more || total > mapped.length
+
     active.value = mapped.length ? 0 : -1
   } catch (e: any) {
     error.value = e?.data?.message || e?.message || 'Failed to fetch suggestions'
-    suggestions.value = []; hasMore.value = false; totalResults.value = 0; active.value = -1
+    suggestions.value = []; hasMore.value = false; totalResults.value = 0; showMore.value = false; active.value = -1
   } finally {
     loading.value = false; open.value = true
   }
 }
+
 function move(delta:number){
   if (!open.value || !suggestions.value.length) return
   const n = suggestions.value.length
@@ -591,7 +660,7 @@ function goToShop(){
   drawerOpen.value = false
 }
 
-/* ---------- Drawer mega menu data/states (mirrors desktop) ---------- */
+/* ---------- Drawer mega menu data/states ---------- */
 const openCars           = ref(false)
 const openManufacturers  = ref(false)
 const openKeys           = ref(false)
@@ -618,7 +687,7 @@ const carsQuery = ref('');           const manufacturersQuery = ref('')
 const keysQuery = ref('');           const devicesQuery = ref('')
 const accessoriesQuery = ref('');    const softTokQuery = ref('')
 
-/* extractors (same as desktop) */
+/* extractors */
 function extractCars(res:any){ return res?.menu?.car_menu ?? res?.data?.menu?.car_menu ?? res?.car_menu ?? (Array.isArray(res) ? res : []) }
 function extractManufacturers(res:any){ return res?.menu?.manufacturer_menu ?? res?.data?.menu?.manufacturer_menu ?? res?.manufacturer_menu ?? (Array.isArray(res) ? res : []) }
 function extractKeysRemotes(res:any){ return res?.menu?.keys_and_remotes_menu ?? res?.data?.menu?.keys_and_remotes_menu ?? res?.keys_and_remotes_menu ?? (Array.isArray(res) ? res : []) }
@@ -679,34 +748,7 @@ async function fetchSoftwareTokens(){ loadingSoftTok.value = true; errorSoftTok.
 /* navigation + close */
 function goToBrand(slug:string){ drawerOpen.value = false; router.push({ path: `/${slug}` }) }
 
-/* utils for highlight */
-const isString = (v: unknown): v is string => typeof v === 'string' && v.trim() !== ''
-const nameFromJson = (n: any): string => {
-  if (!n) return ''
-  if (typeof n === 'string') { try { const o = JSON.parse(n); return (o?.en ?? Object.values(o || {})[0] ?? '') as string } catch { return n } }
-  if (typeof n === 'object') return (n.en ?? Object.values(n)[0] ?? '') as string
-  return String(n)
-}
-const escapeHtml = (s: string) => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c] as string))
-const buildRegex = (q: string) => {
-  const words = q.trim().split(/\s+/).filter(Boolean)
-  const escaped = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  return escaped.length ? new RegExp('(' + escaped.join('|') + ')', 'gi') : null
-}
-const highlight = (text: string) => {
-  const q = term.value.trim()
-  const rx = buildRegex(q)
-  const safe = escapeHtml(String(text || ''))
-  return rx ? safe.replace(rx, '<mark class="bg-yellow-200">$1</mark>') : safe
-}
-/* WhatsApp link builder */
-const WHATSAPP_NUMBER = '971504429045'
-function waLink(p: any) {
-  const msg = t('search.askAboutProduct', { title: p?.title || '' }) as string
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
-}
-
-/* close drawer on route change */
+/* click-outside to close drawer popover if needed (optional) */
 watch(() => route.fullPath, () => { drawerOpen.value = false })
 </script>
 
