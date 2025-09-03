@@ -246,7 +246,7 @@
               <!-- Softwares -->
               <div class="md:pr-4">
                 <h4 class="mb-3 font-semibold text-gray-900">
-                  {{ $t('softwares') || 'Softwares' }}
+                  {{ $t('Softwares') || 'Softwares' }}
                 </h4>
                 <div v-if="filteredSoftwares.length" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   <button
@@ -269,7 +269,7 @@
               <!-- Tokens -->
               <div class="md:pl-4">
                 <h4 class="mb-3 font-semibold text-gray-900">
-                  {{ $t('tokens') || 'Tokens' }}
+                  {{ $t('Tokens') || 'Tokens' }}
                 </h4>
                 <div v-if="filteredTokens.length" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   <button

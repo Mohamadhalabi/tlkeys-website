@@ -10,6 +10,7 @@ const props = defineProps<{
   discountEndsAt?: string | null
   /** numeric amount to animate, e.g. 20 => "20.00$ OFF" */
   discountAmount?: number | null
+  sku?: string | null
 }>()
 
 /* -------- main gallery state -------- */
@@ -160,6 +161,21 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
       :style="boxStyle"
       @click="openLightbox"
     >
+      <!-- Top-center SKU badge (shown on mobile; hidden ≥640px) -->
+      <div
+        v-if="props.sku"
+        class="absolute top-3 left-1/2 -translate-x-1/2 z-10 lg:hidden"
+      >
+        <span
+          class="inline-flex items-center rounded-full bg-emerald-600 text-white
+                px-2.5 py-1 text-[12px] font-bold tracking-wide ring-1 ring-white/70 shadow-sm"
+        >
+        {{ props.sku }}
+        </span>
+      </div>
+
+
+
       <NuxtImg
         :src="activeImage?.src"
         :alt="activeImage?.alt || 'image'"

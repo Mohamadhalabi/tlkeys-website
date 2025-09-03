@@ -803,6 +803,7 @@ watch(() => product.value?.id, () => {
             :images="product.images"
             :maxWidth="680"
             :maxHeight="520"
+            :sku="product.sku"
             :discount-ends-at="product.discount_active ? product.discount_end : null"
             :discount-amount="hasDiscountNow ? discountAmountNow : 0"
           />
