@@ -1,1227 +1,313 @@
 <script setup lang="ts">
-import {
-  ref, reactive, computed, watch, watchEffect,
-  onMounted, onBeforeUnmount, onUnmounted, nextTick
-} from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import ProductGrid from '~/components/products/ProductGrid.vue'
-import { buildCatalogParams } from '~/composables/useCatalog'
-import { useTopLoader } from '~/composables/useTopLoader'
-const { start: startTopLoad, finish: finishTopLoad } = useTopLoader()
-const props = defineProps<{
-  initialFilters?: {
-    brands?: string[]
-    categories?: string[]
-    manufacturers?: string[]
-    models?: string[]
-  }
-}>()
+import Breadcrumbs from '~/components/catalog/Breadcrumbs.vue'
+import Toolbar from '~/components/catalog/Toolbar.vue'
+import SelectedChips from '~/components/catalog/SelectedChips.vue'
+import FacetSidebar from '~/components/catalog/FacetSidebar.vue'
+import Pagination from '~/components/catalog/Pagination.vue'
+import InfiniteLoader from '~/components/catalog/InfiniteLoader.vue'
 
-const { public: { API_BASE_URL, SITE_URL } } = useRuntimeConfig()
-const { $customApi } = useNuxtApp()
-const route = useRoute()
-const router = useRouter()
+import { useCatalogState } from '~/composables/catalog/useCatalogState'
+import { useCatalogFetch } from '~/composables/catalog/useCatalogFetch'
+import { useCatalogSeo } from '~/composables/catalog/useCatalogSeo'
 
-// i18n (loaded from global translation files; no inline <i18n> here)
-const i18nApi = (useI18n?.() as any) || null
-const t = i18nApi?.t ?? ((s: string) => s)
-const currentLocale = i18nApi?.locale ?? ref('en')
-const localeProperties = i18nApi?.localeProperties ?? computed(() => ({ dir: 'ltr' }))
+const props = defineProps<{ initialFilters?: { brands?:string[]; categories?:string[]; manufacturers?:string[]; models?:string[] } }>()
 
-/* ---------- helpers ---------- */
-const SHOP_PATH = '/shop'
-const managedKeys = ['brands','categories','manufacturers','models','q','search','sort','page','per_page','attributes'] as const
+const { t, localeProperties } = useI18n()
+const state = useCatalogState(props.initialFilters)
+const data  = useCatalogFetch(state)
 
-// flags we forward to the API if present in the URL
-const flagKeys = ['offers','promotion','free-shipping','bundled','new-arrival'] as const
-
-// stable key that changes whenever path or query changes
-const routeKey = computed(() => {
-  const parts = Object.entries(route.query)
-    .sort(([a],[b]) => a.localeCompare(b))
-    .map(([k,v]) => `${k}=${Array.isArray(v)? v.join(',') : (v ?? '')}`)
-    .join('&')
-  return `${route.path}?${parts}`
-})
-const gridKey = computed(() => routeKey.value)
-
-function parseCsv(v: unknown): string[] {
-  if (typeof v === 'string') return v.split(',').map(s => s.trim()).filter(Boolean)
-  if (Array.isArray(v)) return v.map(String).map(s => s.trim()).filter(Boolean)
-  return []
-}
-function prettify(slug: string) {
-  return slug.replace(/-/g, ' ').replace(/\b\w/g, m => m.toUpperCase())
-}
-function parsePerPage(v: unknown): number | 'all' {
-  const raw = (Array.isArray(v) ? v[0] : v) as string | undefined
-  if (!raw) return 25
-  if (raw === 'all') return 'all'
-  const n = Number(raw)
-  return Number.isFinite(n) && n > 0 ? n : 25
-}
-function scrollTop(smooth = true) {
-  if (process.client) window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' })
-}
-
-// ---- attributes param helpers ----
-function stableStringify(obj: Record<string, string[]>): string {
-  const out: Record<string, string[]> = {}
-  Object.keys(obj).sort().forEach(k => { out[k] = [...obj[k]].sort() })
-  return JSON.stringify(out)
-}
-function parseAttributesParam(v: unknown): Record<string, string[]> {
-  if (!v) return {}
-  try {
-    const raw = typeof v === 'string' ? JSON.parse(v) : v
-    if (!raw || typeof raw !== 'object') return {}
-    const out: Record<string, string[]> = {}
-    Object.entries(raw as Record<string, any>).forEach(([k, list]) => {
-      const arr = Array.isArray(list) ? list : [list]
-      const cleaned = arr.map(String).map(s => s.trim().toLowerCase()).filter(Boolean)
-      if (cleaned.length) out[k.toLowerCase()] = Array.from(new Set(cleaned)).sort()
-    })
-    return out
-  } catch { return {} }
-}
-
-/** merge URL query with initialFilters (for first load & SSR) */
-const mergedFilters = computed(() => {
-  const qy = route.query
-  return {
-    brands:        qy.brands ? parseCsv(qy.brands) : (props.initialFilters?.brands ?? []),
-    categories:    qy.categories ? parseCsv(qy.categories) : (props.initialFilters?.categories ?? []),
-    manufacturers: qy.manufacturers ? parseCsv(qy.manufacturers) : (props.initialFilters?.manufacturers ?? []),
-    models:        qy.models ? parseCsv(qy.models) : (props.initialFilters?.models ?? []),
-    attributes:    parseAttributesParam(qy.attributes),
-
-    // 👇 read q OR search (alias coming from the header)
-    q:    (qy.q as string) || (qy.search as string) || '',
-
-    sort: (qy.sort as string) || 'newest',
-    page: Number(qy.page || 1),
-    perPage: parsePerPage(qy.per_page || qy.page_size)
-  }
+useCatalogSeo({
+  entryType: state.entryType,
+  sel: state.sel,
+  facets: data.facets,
+  breadcrumbs: () => breadcrumbs.value,
+  t,
+  siteNameFromI18n: () => t('site.name') as string
 })
 
-/** Where user "came from" (based on initialFilters) */
-const entryType = computed<'brand'|'category'|'manufacturer'|'unknown'>(() => {
-  const init = props.initialFilters || {}
-  if (init.categories?.length) return 'category'
-  if (init.manufacturers?.length) return 'manufacturer'
-  if (init.brands?.length) return 'brand'
-  return 'unknown'
+const isRTL = computed(() => localeProperties.value?.dir === 'rtl')
+
+/* =========================
+   Mobile filters (launcher + modal)
+   ========================= */
+type KFixed = 'brands' | 'categories' | 'manufacturers' | 'models'
+
+const activeMobileModal = ref<null | KFixed>(null)
+function openMobileModal(k: KFixed) {
+  activeMobileModal.value = k
+  state.ui.search[k] = ''
+}
+function closeMobileModal() { activeMobileModal.value = null }
+
+const modalSection = computed(() => {
+  const fac = data.facets.value
+  const k = activeMobileModal.value
+  if (!fac || !k) return null
+  const sections = {
+    brands:        { key: 'brands' as const,        label: t('facets.brands'),        items: fac.brands || [],        list: state.sel.brands },
+    models:        { key: 'models' as const,        label: t('facets.models'),        items: fac.models || [],        list: state.sel.models },
+    categories:    { key: 'categories' as const,    label: t('facets.categories'),    items: fac.categories || [],    list: state.sel.categories },
+    manufacturers: { key: 'manufacturers' as const, label: t('facets.manufacturers'), items: fac.manufacturers || [], list: state.sel.manufacturers },
+  }
+  return sections[k]
+})
+function filteredModalItems(items: Array<{slug:string; name:string}>, key: string) {
+  const q = (state.ui.search[key] || '').toLowerCase()
+  return q ? items.filter(i => i.name.toLowerCase().includes(q) || i.slug.toLowerCase().includes(q)) : items
+}
+function applyMobileFilters() {
+  state.applyAndResetPage()
+  closeMobileModal()
+}
+function clearMobileGroup() {
+  const k = activeMobileModal.value
+  if (!k) return
+  if (k === 'brands') state.sel.brands = []
+  else if (k === 'categories') state.sel.categories = []
+  else if (k === 'manufacturers') state.sel.manufacturers = []
+  else state.sel.models = []
+  applyMobileFilters()
+}
+
+/* ============ facet order by entry type ============ */
+const facetOrder = computed(() => {
+  const sel = state.sel
+  if (state.entryType.value === 'category')       return ['categories','manufacturers','brands', ...(sel.brands.length? ['models']:[])] as const
+  if (state.entryType.value === 'manufacturer')   return ['manufacturers','categories','brands', ...(sel.brands.length? ['models']:[])] as const
+  if (state.entryType.value === 'brand')          return ['brands', ...(sel.brands.length? ['models']:[]), 'categories','manufacturers'] as const
+  return ['brands', ...(sel.brands.length? ['models']:[]), 'manufacturers','categories'] as const
 })
 
-/** local UI state (mirrors URL; URL is the source of truth) */
-type AttrMap = Record<string, string[]>
-const sel = reactive({
-  brands: [] as string[],
-  categories: [] as string[],
-  manufacturers: [] as string[],
-  models: [] as string[],
-  attributes: {} as AttrMap, // NEW
-  q: '',
-  sort: 'newest',
-  page: 1,
-  perPage: 25 as number | 'all'
-})
-
-/** collapsible + UI state per section */
-type KFixed = 'brands'|'models'|'categories'|'manufacturers'
-const ui = reactive({
-  // allow dynamic keys for attribute sections too
-  open:   { brands: false, models: false, categories: false, manufacturers: false } as Record<string, boolean>,
-  search: { brands: '',    models: '',    categories: '',    manufacturers: ''    } as Record<string, string>,
-})
-
-/** Initialize once from mergedFilters (first render) */
-{
-  const v = mergedFilters.value
-  sel.brands = [...v.brands]
-  sel.categories = [...v.categories]
-  sel.manufacturers = [...v.manufacturers]
-  sel.models = [...v.models]
-  sel.attributes = { ...v.attributes } // NEW
-  sel.q = v.q
-  sel.sort = v.sort
-  sel.page = v.page
-  sel.perPage = v.perPage
-
-  ui.open.brands = sel.brands.length > 0
-  ui.open.models = sel.models.length > 0
-  ui.open.categories = sel.categories.length > 0
-  ui.open.manufacturers = sel.manufacturers.length > 0
-}
-
-function buildQueryFromSel() {
-  const q: Record<string, string> = {}
-  if (sel.brands.length)         q.brands         = sel.brands.join(',')
-  if (sel.categories.length)     q.categories     = sel.categories.join(',')
-  if (sel.manufacturers.length)  q.manufacturers  = sel.manufacturers.join(',')
-  if (sel.models.length)         q.models         = sel.models.join(',')
-
-  // attributes → stable JSON only if any picked
-  const hasAttrs = Object.values(sel.attributes || {}).some(arr => (arr?.length ?? 0) > 0)
-  if (hasAttrs) q.attributes = stableStringify(sel.attributes)
-
-  // 👇 use 'search' so /shop?search=... remains canonical
-  if (sel.q)                     q.search         = sel.q
-
-  if (sel.sort)                  q.sort           = sel.sort
-  if (sel.page > 1)              q.page           = String(sel.page)
-  q.per_page = sel.perPage === 'all' ? 'all' : String(sel.perPage || 25)
-
-  // preserve unknown params
-  const next: Record<string, any> = {}
-  Object.keys(route.query).forEach(k => {
-    if (!managedKeys.includes(k as any)) next[k] = (route.query as any)[k]
-  })
-  Object.assign(next, q)
-  return next
-}
-const withoutPage = (q: Record<string, any>) => {
-  const { page, ...rest } = q; return rest
-}
-
-/** Decide whether we should be on /shop after a chip removal */
-function computeTargetPath() {
-  const baseCat = (props.initialFilters?.categories?.[0] || '').toLowerCase()
-  const baseMan = (props.initialFilters?.manufacturers?.[0] || '').toLowerCase()
-
-  const hasAnyFilter =
-    sel.brands.length || sel.categories.length || sel.manufacturers.length || sel.models.length ||
-    Object.values(sel.attributes).some(a => a.length) || !!sel.q
-
-  const hasBaseCat = sel.categories.map(s => s.toLowerCase()).includes(baseCat)
-  const hasBaseMan = sel.manufacturers.map(s => s.toLowerCase()).includes(baseMan)
-
-  if (!hasAnyFilter && (entryType.value === 'category' || entryType.value === 'manufacturer')) {
-    return SHOP_PATH
-  }
-  if (entryType.value === 'category' && baseCat && !hasBaseCat) return SHOP_PATH
-  if (entryType.value === 'manufacturer' && baseMan && !hasBaseMan) return SHOP_PATH
-  return route.path
-}
-
-/** push clean URL every time (no stale params); reset page if path is changing */
-function updateRoute(replace = false) {
-  const path  = computeTargetPath()
-  const query = (path !== route.path) ? withoutPage(buildQueryFromSel()) : buildQueryFromSel()
-  return router[replace ? 'replace' : 'push']({ path, query })
-}
-
-function toggle(list: string[], slug: string) {
-  const i = list.indexOf(slug)
-  i >= 0 ? list.splice(i, 1) : list.push(slug)
-}
-function toggleSection(which: string) { ui.open[which] = !ui.open[which] }
-
-function clearGroup(which: KFixed) {
-  if (which === 'brands') sel.brands = []
-  else if (which === 'categories') sel.categories = []
-  else if (which === 'manufacturers') sel.manufacturers = []
-  else sel.models = []
-
-  const totalAfter =
-    sel.brands.length + sel.models.length + sel.categories.length + sel.manufacturers.length +
-    Object.values(sel.attributes).reduce((n, a) => n + a.length, 0)
-
-  if (totalAfter === 0) { router.push({ path: SHOP_PATH }); return }
-  if (which === entryType.value) {
-    router.push({ path: SHOP_PATH, query: withoutPage(buildQueryFromSel()) })
-    return
-  }
-  applyAndResetPage()
-}
-
-// ---- attributes toggle/clear ----
-function toggleAttr(attrSlug: string, subSlug: string) {
-  const key = attrSlug.toLowerCase()
-  const list = sel.attributes[key] || []
-  const i = list.indexOf(subSlug)
-  if (i >= 0) list.splice(i, 1)
-  else list.push(subSlug)
-  if (list.length) sel.attributes[key] = list
-  else delete sel.attributes[key]
-}
-function clearAttr(attrSlug: string) {
-  const key = attrSlug.toLowerCase()
-  if (sel.attributes[key]) delete sel.attributes[key]
-}
-
-/* ---------- API unwrap + pricing helpers ---------- */
-function unwrapApi(res: any) {
-  const body = (res && typeof res === 'object' && 'data' in res && !Array.isArray(res.data)) ? res.data : res
-  const items = Array.isArray(body?.data) ? body.data : (Array.isArray(body) ? body : [])
-  const meta  = (body && body.meta) ?? (res && res.meta) ?? null
-  return { items, meta, body }
-}
-function toNum(v: any): number | null { const n = Number(v); return Number.isFinite(n) ? n : null }
-function isType(v: any): v is 'percent' | 'fixed' { return v === 'percent' || v === 'fixed' }
-function normalizeDiscount(raw: any) {
-  const d = raw?.data ?? raw ?? {}
-  const type = isType(d?.type) ? d.type : null
-  const value = toNum(d?.value)
-  const now = Date.now()
-  const okStart = d?.start_date ? now >= Date.parse(d.start_date) : true
-  const okEnd   = d?.end_date   ? now <= Date.parse(d.end_date)   : true
-  const active  = !!d?.active && type && value != null && okStart && okEnd
-  return { discount_type: active ? (type as 'percent'|'fixed') : null, discount_value: active ? (value as number) : null }
-}
-
-/** Map API → card item with sale/discount awareness */
-function mapApiProduct(p: any) {
-  const discRaw = (p?.discount?.data ?? p?.discount) || null
-  const disc    = normalizeDiscount(discRaw)
-
-  // normalize stock (supports several backends)
-  const stockRaw =
-    p?.quantity ??
-    p?.stock ??
-    p?.available_quantity ??
-    p?.inventory?.quantity ??
-    null
-  const stock = stockRaw == null ? null : (Number.isFinite(Number(stockRaw)) ? Number(stockRaw) : null)
-
-  return {
-    id: p.id,
-    name: p.title ?? p.short_title ?? '',
-    image: p.image,
-
-    price: p.price,
-    oldPrice: null,
-
-    regular_price: p.regular_price ?? null,
-    sale_price:    p.sale_price ?? null,
-    table_price:   Array.isArray(p?.table_price) ? p.table_price : null,
-
-    discount_type:  disc.discount_type,
-    discount_value: disc.discount_value,
-    discount_start_date: discRaw?.start_date ?? null,
-    discount_end_date:   discRaw?.end_date   ?? null,
-    stock,
-    sku: p.sku ?? '',
-    category: (Array.isArray(p?.categories) && p.categories[0]?.name) ? String(p.categories[0].name) : '',
-    categorySlug: (Array.isArray(p?.categories) && p.categories[0]?.slug) ? String(p.categories[0].slug).toLowerCase() : '',
-    slug: p.slug,
-    href: p.slug ? `/products/${p.slug}` : `/products/${p.id}`,
-    freeShipping: p?.is_free_shipping === 1 || p?.is_free_shipping === '1' || p?.is_free_shipping === true,
-
-    hide_price: Number(p?.hide_price ?? 0) === 1,
-    requires_serial: (Array.isArray(p?.categories) ? p.categories : []).some((c:any) => Number(c?.id) === 47 || Number(c?.id) === 48),
-  }
-}
-function lastFromMeta(meta: any) {
-  const lp = Number(meta?.last_page)
-  if (Number.isFinite(lp) && lp > 1) return lp
-  const total = Number(meta?.total || 0)
-  const size  = Math.max(1, Number(meta?.page_size || meta?.per_page || (sel.perPage === 'all' ? 25 : sel.perPage || 24)))
-  const calc  = Math.ceil(total / size)
-  return calc > 0 ? calc : 1
-}
-
-/* ---------- data ---------- */
-const items   = ref<any[]>([])
-const meta    = ref<any | null>(null)
-type FacetT = { id?: number|string; slug: string; name: string; count: number }
-type AttrFacet = { slug: string; name: string; priority: number; items: FacetT[] }
-const facets  = ref<{
-  brands: FacetT[];
-  models: FacetT[];
-  categories: FacetT[];
-  manufacturers: FacetT[];
-  attributes?: AttrFacet[];
-} | null>(null)
-const pending = ref(false)
-const errorMsg = ref('')
-
-/* ---------- Infinite scroll ---------- */
-const infiniteSentinel = ref<HTMLElement | null>(null)
-const isInfinite = computed(() => sel.perPage === 'all')
-const CHUNK = 25
-const canLoadMore = computed(() => {
-  if (!meta.value) return false
-  const current = Number(meta.value.current_page || sel.page || 1)
-  const last = Number(meta.value.last_page || lastFromMeta(meta.value))
-  return current < last
-})
-
-
-// after entryType / sel definitions
-const showAttrFilters = computed(() => {
-  // true unless we are on a manufacturer landing with no category chosen yet
-  return !(entryType.value === 'manufacturer' && sel.categories.length === 0)
-})
-/* ---------- SSR fetch (first load) ---------- */
-const keyForSSR = computed(() => `catalog:${JSON.stringify({
-  brands: sel.brands, categories: sel.categories, manufacturers: sel.manufacturers, models: sel.models,
-  attributes: sel.attributes, q: sel.q, sort: sel.sort, page: sel.page, per_page: sel.perPage
-})}`)
-
-async function fetchOnce() {
-  pending.value = true
-  errorMsg.value = ''
-  startTopLoad()
-  try {
-    const effectivePerPage = sel.perPage === 'all' ? CHUNK : sel.perPage
-
-    // --- build params ---
-    const params = buildCatalogParams({
-      brands:        sel.brands,
-      categories:    sel.categories,
-      manufacturers: sel.manufacturers,
-      models:        sel.models,
-      attributes:    sel.attributes,    // will stringify just below
-      q:             sel.q,
-      sort:          sel.sort,
-      page:          sel.page,
-      per_page:      effectivePerPage,
-    })
-
-    // API uses ?search= instead of ?q=
-    ;(params as any).search = sel.q
-    delete (params as any).q
-
-    // ensure attributes are a stable JSON string
-    if ((params as any).attributes && typeof (params as any).attributes !== 'string') {
-      ;(params as any).attributes = stableStringify(sel.attributes)
-    }
-
-    // forward any flag-like params from the current URL
-    flagKeys.forEach((k) => {
-      if (Object.prototype.hasOwnProperty.call(route.query, k)) {
-        ;(params as any)[k] = (route.query as any)[k] === '' ? 1 : (route.query as any)[k]
-      }
-    })
-
-    // include extra product bits you already depend on
-    ;(params as any).include = 'table_price,categories'
-
-    // ✅ tell backend whether to compute attribute facets
-    ;(params as any).attr_facets = showAttrFilters.value ? 1 : 0
-
-    // --- request ---
-    const res = await $customApi(`${API_BASE_URL}/catalog`, { method: 'GET', params })
-    const { items: list, meta: m, body } = unwrapApi(res)
-
-    // --- items/meta ---
-    const mapped = list.map(mapApiProduct)
-    if (isInfinite.value && sel.page > 1) items.value = items.value.concat(mapped)
-    else items.value = mapped
-    meta.value = m
-
-    // --- facets: fixed groups ---
-    const fix = (arr: any[] = []): FacetT[] =>
-      arr.map((f: any) => ({
-        id: f.id,
-        slug: String(f.slug),
-        name: (f.name ?? '').toString() || prettify(String(f.slug)),
-        count: Number(f.count ?? 0),
-      }))
-
-    const hasFacets = body && body.facets
-    const baseFacets = hasFacets ? {
-      brands:        fix(body.facets.brands),
-      models:        fix(body.facets.models || []),
-      categories:    fix(body.facets.categories),
-      manufacturers: fix(body.facets.manufacturers),
-    } : null
-
-    // --- facets: dynamic attribute groups (only when requested) ---
-    const attrFacets: AttrFacet[] =
-      (showAttrFilters.value && hasFacets && Array.isArray(body.facets.attributes))
-        ? body.facets.attributes
-            .map((a: any) => ({
-              slug: String(a.slug),
-              name: (a.name ?? '').toString() || prettify(String(a.slug)),
-              priority: Number(a.priority ?? 0),
-              items: fix(a.items || []),
-            }))
-            .filter(a => a.items.length > 0)                       // hide empty attributes
-            .sort((x, y) => y.priority - x.priority || x.name.localeCompare(y.name))
-        : []
-
-    facets.value = baseFacets
-      ? { ...baseFacets, attributes: attrFacets }
-      : null
-
-  } catch (e: any) {
-    errorMsg.value = e?.data?.message || e?.message || 'Failed to load catalog'
-  } finally {
-    pending.value = false
-    finishTopLoad()
-  }
-}
-
-// SSR + first client render (Nuxt 4): avoid double re-fetch by not making the watcher immediate.
-await useAsyncData(keyForSSR, () => fetchOnce(), { server: true, immediate: true })
-
-/* ---------- robust URL → state resync (on every route change) ---------- */
-async function resyncFromUrlAndFetch() {
-  await nextTick()
-
-  const v = mergedFilters.value
-
-  // snapshot previous to decide if we should clear list
-  const prev = {
-    perPage: sel.perPage,
-    sort: sel.sort,
-    brands: sel.brands.join(','),
-    models: sel.models.join(','),
-    cats: sel.categories.join(','),
-    mans: sel.manufacturers.join(','),
-    attrs: stableStringify(sel.attributes),
-    q: sel.q,
-  }
-
-  // mirror URL → local state
-  sel.brands        = [...v.brands]
-  sel.categories    = [...v.categories]
-  sel.manufacturers = [...v.manufacturers]
-  sel.models        = [...v.models]
-  sel.attributes    = { ...v.attributes }
-  sel.q             = v.q
-  sel.sort          = v.sort
-  sel.page          = v.page
-  sel.perPage       = v.perPage
-
-  // always reset facets/meta when route changes; clear items if material change
-  items.value  = (prev.perPage !== sel.perPage ||
-                  prev.sort    !== sel.sort ||
-                  prev.brands  !== sel.brands.join(',') ||
-                  prev.models  !== sel.models.join(',') ||
-                  prev.cats    !== sel.categories.join(',') ||
-                  prev.mans    !== sel.manufacturers.join(',') ||
-                  prev.attrs   !== stableStringify(sel.attributes) ||
-                  prev.q       !== sel.q) ? [] : items.value
-  meta.value   = null
-  facets.value = null
-
-  // open sections that have selections (fixed)
-  ui.open.brands        = sel.brands.length > 0
-  ui.open.models        = sel.models.length > 0
-  ui.open.categories    = sel.categories.length > 0
-  ui.open.manufacturers = sel.manufacturers.length > 0
-
-  await fetchOnce()
-}
-// Not immediate -> prevents double fetch after SSR
-watch(routeKey, () => { resyncFromUrlAndFetch() }, { immediate: false })
-
-// open attribute sections that have selections when facets load / selection changes
-watchEffect(() => {
-  if (facets.value?.attributes?.length) {
-    facets.value.attributes.forEach(a => {
-      if ((sel.attributes[a.slug]?.length || 0) > 0) ui.open[a.slug] = true
-    })
-  }
-})
-
-/* ---------- mount-only: infinite scroll observer ---------- */
-onMounted(() => {
-  const io = new IntersectionObserver((entries) => {
-    const [entry] = entries
-    if (!entry?.isIntersecting) return
-    if (!isInfinite.value) return
-    if (!canLoadMore.value) return
-    if (pending.value) return
-    sel.page += 1
-    updateRoute()
-  }, { rootMargin: '300px 0px 300px 0px', threshold: 0 })
-
-  watchEffect(() => {
-    const el = infiniteSentinel.value
-    if (el) io.observe(el)
-    return () => { if (el) io.unobserve(el) }
-  })
-
-  onBeforeUnmount(() => io.disconnect())
-})
-
-function goPage(p: number) {
-  sel.page = p
-  updateRoute().then(() => scrollTop())
-}
-function applyAndResetPage() {
-  sel.page = 1
-  items.value = []
-  updateRoute().then(() => scrollTop())
-}
-
-/* ---------- ORDER + Selected chips ---------- */
-const facetMaps = computed(() => {
-  const b = new Map<string,string>()
-  const mdl = new Map<string,string>()
-  const c = new Map<string,string>()
-  const m = new Map<string,string>()
-  if (facets.value) {
-    facets.value.brands.forEach(f => b.set(f.slug, f.name))
-    facets.value.models.forEach(f => mdl.set(f.slug, f.name))
-    facets.value.categories.forEach(f => c.set(f.slug, f.name))
-    facets.value.manufacturers.forEach(f => m.set(f.slug, f.name))
-  }
-  return { b, mdl, c, m }
-})
-
-/** Order: depends on entry type */
-const facetSections = computed(() => {
-  if (!facets.value) return []
-
-  const sectionsMap = {
-    brands:        { key: 'brands' as const,        label: t('facets.brands'),        items: facets.value.brands,        list: sel.brands },
-    models:        { key: 'models' as const,        label: t('facets.models'),        items: facets.value.models,        list: sel.models },
-    categories:    { key: 'categories' as const,    label: t('facets.categories'),    items: facets.value.categories,    list: sel.categories },
-    manufacturers: { key: 'manufacturers' as const, label: t('facets.manufacturers'), items: facets.value.manufacturers, list: sel.manufacturers }
-  }
-
-  const order: (keyof typeof sectionsMap)[] = []
-
-  if (entryType.value === 'category') {
-    order.push('categories', 'manufacturers', 'brands')
-    if (sel.brands.length) order.push('models')
-  } else if (entryType.value === 'manufacturer') {
-    order.push('manufacturers', 'categories', 'brands')
-    if (sel.brands.length) order.push('models')
-  } else if (entryType.value === 'brand') {
-    order.push('brands')
-    if (sel.brands.length) order.push('models')
-    order.push('categories', 'manufacturers')
-  } else {
-    order.push('brands')
-    if (sel.brands.length) order.push('models')
-    order.push('manufacturers', 'categories')
-  }
-
-  return order.map(k => sectionsMap[k])
-})
-
-type Chip =
-  | { type:'page'; value:number; active:boolean }
-  | { type:'gap'; dir:'prev'|'next' }
-
+/* ============ selected chips ============ */
 const selectedChips = computed(() => {
-  const chips: Array<{ group: KFixed | 'attr'; slug: string; label: string; attrSlug?: string }> = []
-  const { b, mdl, c, m } = facetMaps.value
-  sel.brands.forEach(s => chips.push({ group: 'brands', slug: s, label: b.get(s) || prettify(s) }))
-  sel.models.forEach(s => chips.push({ group: 'models', slug: s, label: mdl.get(s) || prettify(s) }))
-  sel.manufacturers.forEach(s => chips.push({ group: 'manufacturers', slug: s, label: m.get(s) || prettify(s) }))
-  sel.categories.forEach(s => chips.push({ group: 'categories', slug: s, label: c.get(s) || prettify(s) }))
+  const chips: Array<{ group:any; slug:string; label:string; attrSlug?:string }> = []
+  const fac = data.facets?.value
+  const labelFrom = (arr?: any[]) => new Map((arr||[]).map(i => [i.slug, i.name]))
+  const mapB = labelFrom(fac?.brands)
+  const mapMdl = labelFrom(fac?.models)
+  const mapC = labelFrom(fac?.categories)
+  const mapMan = labelFrom(fac?.manufacturers)
 
-  // attributes (labels from facets.attributes)
-  if (facets.value?.attributes?.length) {
-    const attrMap = new Map<string, AttrFacet>()
-    facets.value.attributes.forEach(a => attrMap.set(a.slug, a))
-    Object.entries(sel.attributes).forEach(([aSlug, subs]) => {
-      const sec = attrMap.get(aSlug)
-      const nameMap = new Map(sec?.items.map(i => [i.slug, i.name]))
-      subs.forEach(sub => chips.push({
-        group: 'attr',
-        slug: sub,
-        attrSlug: aSlug,
-        label: nameMap.get(sub) || prettify(sub)
-      }))
+  state.sel.brands.forEach(s => chips.push({ group:'brands', slug:s, label: mapB.get(s) || s }))
+  state.sel.models.forEach(s => chips.push({ group:'models', slug:s, label: mapMdl.get(s) || s }))
+  state.sel.categories.forEach(s => chips.push({ group:'categories', slug:s, label: mapC.get(s) || s }))
+  state.sel.manufacturers.forEach(s => chips.push({ group:'manufacturers', slug:s, label: mapMan.get(s) || s }))
+
+  if (fac?.attributes?.length) {
+    const attrMap = new Map(fac.attributes.map(a => [a.slug, new Map(a.items.map(i => [i.slug, i.name]))]))
+    Object.entries(state.sel.attributes).forEach(([aSlug, subs]) => {
+      const nameMap = attrMap.get(aSlug) || new Map()
+      subs.forEach(sub => chips.push({ group:'attr', slug:sub, attrSlug:aSlug, label:nameMap.get(sub) || sub }))
     })
   }
   return chips
 })
-
-function removeChip(group: KFixed | 'attr', slug: string, attrSlug?: string) {
-  if (group === 'attr' && attrSlug) {
-    const list = sel.attributes[attrSlug] || []
-    const i = list.indexOf(slug)
-    if (i >= 0) list.splice(i, 1)
-    if (!list.length) delete sel.attributes[attrSlug]
+function removeChip(payload: { group:string; slug:string; attrSlug?:string }) {
+  if (payload.group === 'attr' && payload.attrSlug) {
+    const list = state.sel.attributes[payload.attrSlug] || []
+    const i = list.indexOf(payload.slug); if (i>=0) list.splice(i,1)
+    if (!list.length) delete state.sel.attributes[payload.attrSlug]
   } else {
-    const map = { brands: sel.brands, models: sel.models, categories: sel.categories, manufacturers: sel.manufacturers }[group as KFixed]
-    const i = map.indexOf(slug)
-    if (i >= 0) map.splice(i, 1)
+    const map = { brands: state.sel.brands, models: state.sel.models, categories: state.sel.categories, manufacturers: state.sel.manufacturers } as any
+    const i = map[payload.group].indexOf(payload.slug); if (i>=0) map[payload.group].splice(i,1)
   }
 
   const totalAfter =
-    sel.brands.length + sel.models.length + sel.categories.length + sel.manufacturers.length +
-    Object.values(sel.attributes).reduce((n, a) => n + a.length, 0)
+    state.sel.brands.length + state.sel.models.length + state.sel.categories.length + state.sel.manufacturers.length +
+    Object.values(state.sel.attributes).reduce((n, a) => n + a.length, 0)
 
-  if (totalAfter === 0) { router.push({ path: SHOP_PATH }); return }
-
-  const init = props.initialFilters || {}
-  const isEntryGroup = group === entryType.value
-  const removedWasEntrySlug =
-    isEntryGroup &&
-    Array.isArray((init as any)[group]) &&
-    (init as any)[group].includes(slug)
-
-  if (removedWasEntrySlug) {
-    router.push({ path: SHOP_PATH, query: withoutPage(buildQueryFromSel()) })
+  if (totalAfter === 0 && !state.sel.q?.trim()) {
+    clearAllAndGoShop()
     return
   }
-
-  applyAndResetPage()
+  state.applyAndResetPage()
 }
 
-/* inline search (no "show more" on purpose) */
-type FacetTList = FacetT[]
-function filteredItems(items: FacetTList, key: string) {
-  const q = (ui.search[key] || '').toLowerCase()
-  return q
-    ? items.filter(i =>
-        i.name.toLowerCase().includes(q) || i.slug.toLowerCase().includes(q)
-      )
-    : items
-}
-
-/* ---------- ProductGrid config ---------- */
-const PRODUCTS_PER_ROW: 3 | 4 | 5 | 6 = 5;
-const rowsForGrid = computed(() =>
-  Math.max(1, Math.ceil(items.value.length / PRODUCTS_PER_ROW))
-);
-
-/* ---------- Pagination (responsive, accessible) ---------- */
-const vw = ref(1024)
-if (process.client) {
-  const set = () => { vw.value = window.innerWidth }
-  set()
-  window.addEventListener('resize', set)
-  onUnmounted(() => window.removeEventListener('resize', set))
-}
-const pageRadius = computed(() => vw.value < 480 ? 1 : (vw.value < 768 ? 2 : 3))
+/* ============ grid + pagination ============ */
+const PRODUCTS_PER_ROW: 3|4|5|6 = 5
+const rowsForGrid = computed(() => Math.max(1, Math.ceil(data.items.value.length / PRODUCTS_PER_ROW)))
 
 const pageInfo = computed(() => {
-  const m = meta.value || {}
-  const current = Number(m.current_page || sel.page || 1)
-  const size = sel.perPage === 'all'
-    ? Number(m.page_size || m.per_page || CHUNK)
-    : Number(sel.perPage || m.page_size || m.per_page || CHUNK)
+  const m:any = data.meta.value || {}
+  const current = Number(m.current_page || state.sel.page || 1)
+  const size = state.sel.perPage === 'all'
+    ? Number(m.page_size || m.per_page || 25)
+    : Number(state.sel.perPage || m.page_size || m.per_page || 25)
   const total = Number(m.total || 0)
-  const last  = Number(m.last_page || (total && size ? Math.ceil(total / size) : lastFromMeta(m)))
+  const last  = Number(m.last_page || (total && size ? Math.ceil(total / size) : 1))
   const from  = total ? (current - 1) * size + 1 : 0
   const to    = total ? Math.min(current * size, total) : 0
   return { current, size, total, last, from, to }
 })
 
-const paginationItems = computed<Chip[]>(() => {
-  if (isInfinite.value) return []
-  const { current, last } = pageInfo.value
-  const r = pageRadius.value
-  const set = new Set<number>([1, last])
-  for (let p = current - r; p <= current + r; p++) if (p >= 1 && p <= last) set.add(p)
-  const sorted = Array.from(set).sort((a,b)=>a-b)
+const breadcrumbs = computed(() => ([
+  { label: t('breadcrumbs.home'), to: '/' },
+  { label: t('breadcrumbs.shop'), to: '/shop' },
+]))
 
-  const out: Chip[] = []
-  let prev = 0
-  for (const p of sorted) {
-    if (prev && p - prev > 1) out.push({ type:'gap', dir: p < current ? 'prev' : 'next' })
-    out.push({ type:'page', value:p, active:p===current })
-    prev = p
-  }
-  return out
-})
-
-function jumpGap(dir:'prev'|'next') {
-  const { current, last } = pageInfo.value
-  const step = pageRadius.value * 2 + 1
-  const target = dir === 'prev' ? Math.max(1, current - step) : Math.min(last, current + step)
-  goPage(target)
+/* ============ clear-all helpers ============ */
+function hasAnySelection() {
+  return (
+    state.sel.brands.length ||
+    state.sel.categories.length ||
+    state.sel.manufacturers.length ||
+    state.sel.models.length ||
+    Object.values(state.sel.attributes).some(a => (a?.length ?? 0) > 0) ||
+    !!state.sel.q?.trim()
+  )
 }
-function goFirst(){ if (pageInfo.value.current > 1) goPage(1) }
-function goLast(){  if (pageInfo.value.current < pageInfo.value.last) goPage(pageInfo.value.last) }
-
-/* ---------- RTL-aware ordering ---------- */
-const isRTL = computed(() => localeProperties.value?.dir === 'rtl')
-
-/* ---------- Mobile modal state ---------- */
-const activeMobileModal = ref<null | KFixed>(null)
-function openMobileModal(k: KFixed) { activeMobileModal.value = k; ui.search[k] = '' }
-function closeMobileModal() { activeMobileModal.value = null }
-const modalSection = computed(() => {
-  if (!activeMobileModal.value || !facets.value) return null
-  return facetSections.value.find(s => s.key === activeMobileModal.value) || null
-})
-function applyMobileFilters() { applyAndResetPage(); closeMobileModal() }
-function clearMobileGroup() {
-  const k = activeMobileModal.value
-  if (!k) return
-  if (k === 'brands') sel.brands = []
-  else if (k === 'categories') sel.categories = []
-  else if (k === 'manufacturers') sel.manufacturers = []
-  else sel.models = []
-  applyMobileFilters()
+async function clearAllAndGoShop() {
+  state.sel.brands = []
+  state.sel.categories = []
+  state.sel.manufacturers = []
+  state.sel.models = []
+  state.sel.attributes = {}
+  state.sel.q = ''
+  state.sel.page = 1
+  await state.updateRoute(true) // goes to /shop when needed
+  if (process.client) window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-/* ---------- Breadcrumb helpers ---------- */
-function getFacetLabel(group: 'categories'|'manufacturers'|'brands'|'models', slug?: string | null) {
-  if (!slug) return ''
-  const { c, m, b, mdl } = facetMaps.value
-  if (group === 'categories')     return c.get(slug)   || prettify(slug)
-  if (group === 'manufacturers')  return m.get(slug)   || prettify(slug)
-  if (group === 'brands')         return b.get(slug)   || prettify(slug)
-  return (mdl.get(slug) || prettify(slug))
+/* ============ page nav ============ */
+function goPage(p:number){
+  state.sel.page = p
+  state.updateRoute()
+  if (process.client) window.scrollTo({ top: 0, behavior: 'smooth' })
 }
-
-type Crumb = { label: string; to?: string }
-const breadcrumbs = computed<Crumb[]>(() => {
-  const items: Crumb[] = [
-    { label: t('breadcrumbs.home'), to: '/' },
-    { label: t('breadcrumbs.shop'), to: SHOP_PATH },
-  ]
-  const baseCat = props.initialFilters?.categories?.[0]
-  const baseMan = props.initialFilters?.manufacturers?.[0]
-  const baseBrand = props.initialFilters?.brands?.[0]
-
-  if (entryType.value === 'category' && baseCat) {
-    items.push({ label: getFacetLabel('categories', baseCat) })
-  } else if (entryType.value === 'manufacturer' && baseMan) {
-    items.push({ label: getFacetLabel('manufacturers', baseMan) })
-  } else if (entryType.value === 'brand' && baseBrand) {
-    items.push({ label: getFacetLabel('brands', baseBrand) })
-  }
-  return items
-})
-
-/* ---------- Goto page small helper (used in template) ---------- */
-const gotoModel = ref<string>('')
-function submitGoto() {
-  const n = Number(gotoModel.value)
-  if (Number.isFinite(n) && n >= 1 && n <= pageInfo.value.last) {
-    goPage(n)
-  }
-  gotoModel.value = ''
+function loadMore(){
+  state.sel.page += 1
+  state.updateRoute()
 }
-
-/* ---------- SEO: meta + canonical ---------- */
-const humanContext = computed(() => {
-  if (entryType.value === 'category') return getFacetLabel('categories', props.initialFilters?.categories?.[0]) || t('breadcrumbs.shop')
-  if (entryType.value === 'manufacturer') return getFacetLabel('manufacturers', props.initialFilters?.manufacturers?.[0]) || t('breadcrumbs.shop')
-  if (entryType.value === 'brand') return getFacetLabel('brands', props.initialFilters?.brands?.[0]) || t('breadcrumbs.shop')
-  return t('breadcrumbs.shop')
-})
-
-const siteName = computed(() => t('site.name') || 'Store')
-
-const titleBase = computed(() => {
-  const q = sel.q?.trim()
-  if (q) return `${humanContext.value}: ${q}`
-  return humanContext.value
-})
-const seoTitle = computed(() => `${titleBase.value} | ${siteName.value}`)
-
-const seoDescription = computed(() => {
-  const parts: string[] = []
-  if (sel.q?.trim()) parts.push(t('seo.searchingFor') ? t('seo.searchingFor', { q: sel.q }) : `Searching for “${sel.q}”`)
-  if (sel.brands.length) parts.push(`${t('facets.brands')}: ${sel.brands.map(prettify).join(', ')}`)
-  if (sel.categories.length) parts.push(`${t('facets.categories')}: ${sel.categories.map(prettify).join(', ')}`)
-  if (sel.manufacturers.length) parts.push(`${t('facets.manufacturers')}: ${sel.manufacturers.map(prettify).join(', ')}`)
-  if (sel.models.length) parts.push(`${t('facets.models')}: ${sel.models.map(prettify).join(', ')}`)
-  const count = meta.value?.total ?? items.value.length
-  const countText = count ? `${count} ${t('products').toLowerCase?.() || 'products'}` : t('seo.defaultDesc') || 'Browse products, filter and sort to find what you need.'
-  const preface = (entryType.value !== 'unknown') ? `${humanContext.value} – ` : ''
-  const body = parts.length ? parts.join(' • ') : countText
-  return `${preface}${body}`.slice(0, 300)
-})
-
-
-const hasQuery = computed(() => Object.keys(route.query || {}).length > 0)
-
-/** Treat any query-string page (filters/sort/search/pagination) as non-indexable */
-const shouldNoindex = hasQuery
-
-/** Canonical:
- * - Clean path (no query) when we're noindexing
- * - Full path (with query) otherwise (e.g., plain /shop without params)
- */
-const canonicalUrl = computed<string | undefined>(() => {
-  const base = (SITE_URL || '').replace(/\/+$/, '')
-  if (!base) return undefined
-  const pathOnly = route.path || '/'
-  const full = route.fullPath || pathOnly
-  return shouldNoindex.value ? `${base}${pathOnly}` : `${base}${full}`
-})
-useSeoMeta({
-  title: seoTitle,
-  description: seoDescription,
-  ogTitle: seoTitle,
-  ogDescription: seoDescription,
-  ogType: 'website',
-  ogUrl: canonicalUrl,
-  twitterCard: 'summary_large_image',
-  robots: 'index,follow',
-  language: currentLocale,
-})
-
-/* ---------- JSON-LD ---------- */
-const ldCollectionPage = computed(() => ({
-  "@context": "https://schema.org",
-  "@type": "CollectionPage",
-  "name": titleBase.value,
-  "description": seoDescription.value,
-  "url": canonicalUrl.value || '',
-  "inLanguage": String(currentLocale.value || 'en')
-}))
-
-const ldBreadcrumb = computed(() => ({
-  "@context": "https://schema.org",
-  "@type": "BreadcrumbList",
-  "itemListElement": breadcrumbs.value.map((c, i) => ({
-    "@type": "ListItem",
-    "position": i + 1,
-    "name": c.label,
-    "item": c.to ? (canonicalUrl.value ? new URL(c.to, canonicalUrl.value).toString() : c.to) : undefined
-  }))
-}))
-
-const ldWebsite = computed(() => ({
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "name": siteName.value,
-  "url": (SITE_URL || '').replace(/\/+$/,''),
-  "inLanguage": String(currentLocale.value || 'en'),
-  "potentialAction": {
-    "@type": "SearchAction",
-    "target": `${(SITE_URL || '').replace(/\/+$/,'')}/shop?search={search_term_string}`,
-    "query-input": "required name=search_term_string"
-  }
-}))
-
-const ldOrg = computed(() => ({
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "name": siteName.value,
-  "url": (SITE_URL || '').replace(/\/+$/,'')
-}))
-
-useHead(() => ({
-  link: canonicalUrl.value ? [{ rel: 'canonical', href: canonicalUrl.value }] : [],
-  script: [
-    { type: 'application/ld+json', key: 'ld-collection', innerHTML: JSON.stringify(ldCollectionPage.value) },
-    { type: 'application/ld+json', key: 'ld-breadcrumb', innerHTML: JSON.stringify(ldBreadcrumb.value) },
-    { type: 'application/ld+json', key: 'ld-website', innerHTML: JSON.stringify(ldWebsite.value) },
-    { type: 'application/ld+json', key: 'ld-org', innerHTML: JSON.stringify(ldOrg.value) }
-  ]
-}))
 </script>
 
 <template>
   <div class="container mx-auto px-4 py-6 grid grid-cols-12 gap-6">
     <!-- Breadcrumbs -->
-    <nav class="col-span-12 -mt-2" aria-label="Breadcrumb">
-      <ol class="flex flex-wrap items-center gap-1 text-sm text-gray-600">
-        <li v-for="(c, i) in breadcrumbs" :key="i" class="flex items-center">
-          <template v-if="c.to">
-            <NuxtLink :to="c.to" class="hover:text-gray-900">{{ c.label }}</NuxtLink>
-            <span v-if="i < breadcrumbs.length - 1" class="mx-2 text-gray-400">/</span>
-          </template>
-          <template v-else>
-            <span class="text-gray-900 font-medium">{{ c.label }}</span>
-          </template>
-        </li>
-      </ol>
-    </nav>
+    <Breadcrumbs :items="breadcrumbs" class="col-span-12 -mt-2" />
 
-    <!-- Mobile chip bar -->
+    <!-- Mobile chips + launchers -->
     <div class="min-[993px]:hidden col-span-12">
       <div class="flex items-center justify-between mb-2">
         <div class="text-sm text-gray-600">
-          <span v-if="meta?.total">{{ meta.total }}</span>
-          <span v-else>{{ items.length }}</span>
+          <span v-if="data.meta?.value?.total">{{ data.meta.value.total }}</span>
+          <span v-else>{{ data.items.value.length }}</span>
           {{ t('products') }}
         </div>
         <button
-          v-if="selectedChips.length"
+          v-if="hasAnySelection()"
           class="text-xs text-red-600 border border-red-200 rounded-lg px-2 py-1 hover:bg-red-50"
-          @click="sel.brands=[]; sel.models=[]; sel.categories=[]; sel.manufacturers=[]; sel.attributes={}; router.push({ path: SHOP_PATH })"
-        >
-          {{ t('filters.clearAll') }}
-        </button>
+          @click="clearAllAndGoShop"
+        >{{ t('filters.clearAll') }}</button>
       </div>
 
-      <!-- Active filter chips -->
-      <div v-if="selectedChips.length" class="mb-3 flex flex-wrap gap-2">
-        <button
-          v-for="chip in selectedChips"
-          :key="(chip.group==='attr' ? 'attr:'+chip.attrSlug+':' : chip.group + ':') + chip.slug"
-          class="inline-flex items-center gap-1 rounded-full bg-gray-100 border px-2.5 py-1.5 text-xs"
-          @click="chip.group==='attr'
-                    ? removeChip('attr', chip.slug, chip.attrSlug)
-                    : removeChip(chip.group as any, chip.slug)"
-        >
-          <span>{{ chip.label }}</span>
-          <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M10 8.586l4.95-4.95 1.414 1.414L11.414 10l4.95 4.95-1.414 1.414L10 11.414l-4.95 4.95-1.414-1.414L8.586 10l-4.95-4.95L5.05 3.636 10 8.586z" clip-rule="evenodd"/>
-          </svg>
-        </button>
-      </div>
+      <SelectedChips :chips="selectedChips" @remove="removeChip" class="mb-3" />
 
-      <!-- Filter category chips (open modal) -->
-      <div class="flex flex-wrap gap-2">
-        <button class="px-3 py-1.5 rounded-full border border-orange-300 text-orange-700 text-sm bg-orange-50" @click="openMobileModal('categories')">{{ t('facets.categories') }}</button>
-        <button class="px-3 py-1.5 rounded-full border border-orange-300 text-orange-700 text-sm bg-orange-50" @click="openMobileModal('manufacturers')">{{ t('facets.manufacturers') }}</button>
-        <button class="px-3 py-1.5 rounded-full border border-orange-300 text-orange-700 text-sm bg-orange-50" @click="openMobileModal('brands')">{{ t('facets.brands') }}</button>
-        <button class="px-3 py-1.5 rounded-full border border-orange-300 text-orange-700 text-sm bg-orange-50" @click="openMobileModal('models')">{{ t('facets.models') }}</button>
+      <!-- Mobile launcher buttons (hidden when group empty) -->
+      <div v-if="data.facets.value" class="flex flex-wrap gap-2">
+        <button v-if="(data.facets.value.categories?.length || 0) > 0"
+                class="px-3 py-1.5 rounded-full border border-orange-300 text-orange-700 text-sm bg-orange-50"
+                @click="openMobileModal('categories')">
+          {{ t('facets.categories') }}
+        </button>
+        <button v-if="(data.facets.value.manufacturers?.length || 0) > 0"
+                class="px-3 py-1.5 rounded-full border border-orange-300 text-orange-700 text-sm bg-orange-50"
+                @click="openMobileModal('manufacturers')">
+          {{ t('facets.manufacturers') }}
+        </button>
+        <button v-if="(data.facets.value.brands?.length || 0) > 0"
+                class="px-3 py-1.5 rounded-full border border-orange-300 text-orange-700 text-sm bg-orange-50"
+                @click="openMobileModal('brands')">
+          {{ t('facets.brands') }}
+        </button>
+        <button v-if="(data.facets.value.models?.length || 0) > 0"
+                class="px-3 py-1.5 rounded-full border border-orange-300 text-orange-700 text-sm bg-orange-50"
+                @click="openMobileModal('models')">
+          {{ t('facets.models') }}
+        </button>
       </div>
     </div>
 
-    <!-- Sidebar (desktop only) -->
-    <ClientOnly>
-      <aside class="hidden min-[993px]:block col-span-12 min-[993px]:col-span-3" :class="isRTL ? 'min-[993px]:order-2' : 'min-[993px]:order-1'">
-        <div class="lg:top-32 space-y-4  overflow-auto pr-1">
-          <!-- Selected chips -->
-          <div v-if="selectedChips.length" class="rounded-2xl border bg-white/80 backdrop-blur p-3 shadow-sm">
-            <div class="mb-2 text-sm font-semibold text-gray-700">{{ t('filters.active') }}</div>
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="chip in selectedChips"
-                :key="(chip.group==='attr' ? 'attr:'+chip.attrSlug+':' : chip.group + ':') + chip.slug"
-                class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-xs bg-gray-50 hover:bg-gray-100 shadow-sm"
-                @click="chip.group==='attr'
-                          ? removeChip('attr', chip.slug, chip.attrSlug)
-                          : removeChip(chip.group as any, chip.slug)"
-                :title="t('filters.remove', { label: chip.label })"
-              >
-                <span class="font-medium line-clamp-1 max-w-[10rem]">{{ chip.label }}</span>
-                <svg class="w-3.5 h-3.5 opacity-70" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 8.586l4.95-4.95 1.414 1.414L11.414 10l4.95 4.95-1.414 1.414L10 11.414l-4.95 4.95-1.414-1.414L8.586 10l-4.95-4.95L5.05 3.636 10 8.586z" clip-rule="evenodd"/>
-                </svg>
-              </button>
-            </div>
-            <button class="mt-3 text-xs text-red-600 hover:underline"
-                    @click="sel.brands=[]; sel.models=[]; sel.categories=[]; sel.manufacturers=[]; sel.attributes={}; router.push({ path: SHOP_PATH })">
-              {{ t('filters.clearAll') }}
-            </button>
-          </div>
-
-          <!-- Facets (desktop sidebar) -->
-          <div v-if="facets" class="space-y-3">
-            <!-- Fixed sections -->
-            <div v-for="section in facetSections" :key="section.key" class="rounded-2xl border bg-white/80 backdrop-blur shadow-sm overflow-hidden">
-              <!-- Header -->
-              <button class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition"
-                      @click="toggleSection(section.key)" :aria-expanded="ui.open[section.key]">
-                <div class="flex items-center gap-2">
-                  <span class="font-semibold text-gray-800">{{ section.label }}</span>
-                  <span v-if="section.list.length" class="inline-flex items-center rounded-full text-[10px] px-1.5 py-0.5 bg-gray-100 border">
-                    {{ section.list.length }} {{ t('filters.selectedSuffix') }}
-                  </span>
-                </div>
-                <div class="flex items-center gap-3">
-                  <button v-if="section.list.length" @click.stop="clearGroup(section.key)" class="text-xs text-gray-500 hover:text-red-600 underline underline-offset-2">
-                    {{ t('filters.clear') }}
-                  </button>
-                  <svg :class="['w-4 h-4 text-gray-500 transition-transform', ui.open[section.key] ? 'rotate-180' : 'rotate-0']" viewBox="0 0 20 20" fill="currentColor"><path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"/></svg>
-                </div>
-              </button>
-
-              <!-- Body -->
-              <div v-show="ui.open[section.key]" class="px-4 pb-4">
-                <div class="relative mb-3">
-                  <input v-model="ui.search[section.key]" type="search"
-                         :placeholder="t('filters.searchPlaceholder', { label: (section.label || '').toString().toLowerCase() })"
-                         class="w-full border rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200" />
-                  <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M12.9 14.32a7 7 0 111.414-1.414l3.387 3.387-1.414 1.414-3.387-3.387zM8 13a5 5 0 100-10 5 5 0 000 10z" clip-rule="evenodd"/>
-                  </svg>
-                </div>
-
-                <div class="space-y-1.5 max-h-64 overflow-auto pr-1">
-                  <div v-for="f in filteredItems(section.items, section.key)" :key="f.slug"
-                       class="group flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 hover:bg-gray-50">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" :checked="section.list.includes(f.slug)"
-                             @change="toggle(section.list, f.slug); applyAndResetPage()"
-                             class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-300" />
-                      <span class="text-sm text-gray-800 line-clamp-1">{{ f.name }}</span>
-                    </label>
-                    <span class="text-[11px] text-gray-500">{{ f.count }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Dynamic Attribute Facets -->
-            <div v-if="facets?.attributes?.length" class="space-y-3">
-              <div v-for="attr in facets.attributes" :key="'attr:' + attr.slug"
-                   class="rounded-2xl border bg-white/80 backdrop-blur shadow-sm overflow-hidden">
-
-                <!-- Header -->
-                <button class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition"
-                        @click="toggleSection(attr.slug)" :aria-expanded="ui.open[attr.slug]">
-                  <div class="flex items-center gap-2">
-                    <span class="font-semibold text-gray-800">{{ attr.name }}</span>
-                    <span v-if="(sel.attributes[attr.slug]?.length || 0) > 0"
-                          class="inline-flex items-center rounded-full text-[10px] px-1.5 py-0.5 bg-gray-100 border">
-                      {{ sel.attributes[attr.slug].length }} {{ t('filters.selectedSuffix') }}
-                    </span>
-                  </div>
-                  <div class="flex items-center gap-3">
-                    <button v-if="(sel.attributes[attr.slug]?.length || 0) > 0"
-                            @click.stop="clearAttr(attr.slug); applyAndResetPage()"
-                            class="text-xs text-gray-500 hover:text-red-600 underline underline-offset-2">
-                      {{ t('filters.clear') }}
-                    </button>
-                    <svg :class="['w-4 h-4 text-gray-500 transition-transform', ui.open[attr.slug] ? 'rotate-180' : 'rotate-0']"
-                         viewBox="0 0 20 20" fill="currentColor"><path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"/></svg>
-                  </div>
-                </button>
-
-                <!-- Body -->
-                <div v-show="ui.open[attr.slug]" class="px-4 pb-4">
-                  <div class="relative mb-3">
-                    <input v-model="ui.search[attr.slug]" type="search"
-                           :placeholder="t('filters.searchPlaceholder', { label: attr.name.toLowerCase() })"
-                           class="w-full border rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200" />
-                    <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M12.9 14.32a7 7 0 111.414-1.414l3.387 3.387-1.414 1.414-3.387-3.387zM8 13a5 5 0 100-10 5 5 0 000 10z" clip-rule="evenodd"/>
-                    </svg>
-                  </div>
-
-                  <div class="space-y-1.5 max-h-64 overflow-auto pr-1">
-                    <div v-for="f in filteredItems(attr.items, attr.slug)" :key="f.slug"
-                         class="group flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 hover:bg-gray-50">
-                      <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox"
-                               :checked="(sel.attributes[attr.slug] || []).includes(f.slug)"
-                               @change="toggleAttr(attr.slug, f.slug); applyAndResetPage()"
-                               class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-300" />
-                        <span class="text-sm text-gray-800 line-clamp-1">{{ f.name }}</span>
-                      </label>
-                      <span class="text-[11px] text-gray-500">{{ f.count }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <!-- /Dynamic Attribute Facets -->
-
-          </div>
+    <!-- Sidebar (desktop) -->
+    <aside class="hidden min-[993px]:block col-span-12 min-[993px]:col-span-3" :class="isRTL ? 'min-[993px]:order-2' : 'min-[993px]:order-1'">
+      <div class="space-y-4">
+        <div class="rounded-2xl border bg-white/80 backdrop-blur p-3 shadow-sm" v-if="selectedChips.length">
+          <div class="mb-2 text-sm font-semibold text-gray-700">{{ t('filters.active') }}</div>
+          <SelectedChips :chips="selectedChips" @remove="removeChip" />
+          <button class="mt-3 text-xs text-red-600 hover:underline" @click="clearAllAndGoShop">
+            {{ t('filters.clearAll') }}
+          </button>
         </div>
-      </aside>
-      <template #fallback>
-        <aside class="hidden min-[993px]:block col-span-12 min-[993px]:col-span-3" :class="isRTL ? 'min-[993px]:order-2' : 'min-[993px]:order-1'"></aside>
-      </template>
-    </ClientOnly>
 
-    <!-- Products column -->
+        <ClientOnly>
+          <FacetSidebar
+            v-if="data.facets.value"
+            :facets="data.facets.value"
+            :order="facetOrder as any"
+            :uiOpen="state.ui.open"
+            :uiSearch="state.ui.search"
+            :sel="state.sel as any"
+            @toggleOpen="k => state.ui.open[k] = !state.ui.open[k]"
+            @clearGroup="k => state.clearGroup(k)"
+            @pickFixed="(k, slug) => { state.toggle((state.sel as any)[k], slug); state.applyAndResetPage() }"
+            @setSearch="(k,v) => state.ui.search[k] = v"
+            @clearAttr="k => { state.clearAttr(k); state.applyAndResetPage() }"
+            @pickAttr="({attr,slug}) => { state.toggleAttr(attr, slug); state.applyAndResetPage() }"
+          />
+        </ClientOnly>
+      </div>
+    </aside>
+
+    <!-- Products -->
     <section :class="['col-span-12 min-[993px]:col-span-9', isRTL ? 'min-[993px]:order-1' : 'min-[993px]:order-2']">
-      <!-- Top toolbar -->
-      <div class="rounded-2xl border bg-white/80 backdrop-blur p-4 shadow-sm mb-4">
-        <div class="grid grid-cols-1 min-[993px]:grid-cols-12 gap-3 items-center">
-          <!-- <div class="min-[993px]:col-span-5">
-            <label class="block text-xs font-medium text-gray-600 mb-1">{{ t('search') }}</label>
-            <input
-              :value="sel.q"
-              @input="(e:any)=>{ sel.q=e.target.value }"
-              @keyup.enter="applyAndResetPage"
-              @change="applyAndResetPage"
-              type="search"
-              :placeholder="t('filters.searchPlaceholder')"
-              class="w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gray-200"
-            />
-          </div> -->
+      <Toolbar
+        :sort="state.sel.sort"
+        :perPage="state.sel.perPage"
+        :t="t"
+        @update:sort="v => { state.sel.sort = v; state.applyAndResetPage() }"
+        @update:perPage="v => { state.sel.perPage = v; state.applyAndResetPage() }"
+      />
 
-          <div class="min-[993px]:col-span-4">
-            <label class="block text-xs font-medium text-gray-600 mb-1">{{ t('sortBy') }}</label>
-            <select
-              :value="sel.sort"
-              @change="(e:any)=>{ sel.sort=e.target.value; applyAndResetPage() }"
-              class="w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gray-200"
-            >
-              <option value="price_asc">{{ t('sort.priceLowHigh') }}</option>
-              <option value="price_desc">{{ t('sort.priceHighLow') }}</option>
-              <option value="newest">{{ t('sort.newToOld') }}</option>
-              <option value="oldest">{{ t('sort.oldToNew') }}</option>
-            </select>
-          </div>
-
-          <div class="min-[993px]:col-span-3">
-            <label class="block text-xs font-medium text-gray-600 mb-1">{{ t('perPage') }}</label>
-            <select
-              :value="sel.perPage === 'all' ? 'all' : String(sel.perPage)"
-              @change="(e:any)=>{ const v=e.target.value; sel.perPage = v==='all'? 'all' : Number(v); applyAndResetPage() }"
-              class="w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gray-200"
-            >
-              <option value="16">16</option>
-              <option value="25">25</option>
-              <option value="all">{{ t('perPageAll') }}</option>
-            </select>
-          </div>
-        </div>
+      <div v-if="data.errorMsg.value" class="mb-4 rounded-md border border-red-300/60 bg-red-50 text-red-700 px-4 py-2 text-sm">
+        {{ data.errorMsg.value }}
       </div>
 
-      <!-- Error -->
-      <div v-if="errorMsg" class="mb-4 rounded-md border border-red-300/60 bg-red-50 text-red-700 px-4 py-2 text-sm">
-        {{ errorMsg }}
-      </div>
-
-      <!-- Grid or skeleton -->
-      <template v-if="pending && items.length === 0">
+      <template v-if="data.pending.value && data.items.value.length === 0">
         <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
           <div v-for="i in 12" :key="i" class="h-44 bg-gray-200/70 animate-pulse rounded-xl" />
         </div>
       </template>
-
       <template v-else>
-
         <ProductGrid
-          :key="gridKey"
+          :key="state.gridKey"
           :title="t('products')"
-          :products="items"
+          :products="data.items.value"
           :rows="rowsForGrid"
-          :productsPerRow="PRODUCTS_PER_ROW"
+          :productsPerRow="5"
           :show-rewards="true"
           :show-add="true"
           :show-qty="true"
           container-class="max-w-screen-2xl"
         />
 
-        <!-- Upgraded pagination -->
-        <div v-if="meta && !isInfinite" class="mt-6 flex flex-col items-center gap-3">
-          <div v-if="pageInfo.total" class="text-sm text-gray-600">
-            {{ t('pagination.showing') }} {{ pageInfo.from }}–{{ pageInfo.to }} {{ t('pagination.of') }} {{ pageInfo.total }}
-          </div>
+        <Pagination
+          v-if="data.meta.value && state.sel.perPage !== 'all'"
+          :pageInfo="pageInfo"
+          :t="t"
+          @go="goPage"
+        />
 
-          <nav class="flex items-center gap-1 flex-wrap" aria-label="Pagination">
-            <button class="px-3 py-1.5 border rounded-lg bg-white disabled:opacity-40"
-                    :disabled="pageInfo.current <= 1" @click="goFirst" :aria-label="t('pagination.firstAria')">«</button>
-            <button class="px-3 py-1.5 border rounded-lg bg-white disabled:opacity-40"
-                    :disabled="pageInfo.current <= 1" @click="goPage(pageInfo.value.current - 1)" :aria-label="t('pagination.prevAria')">‹</button>
-
-            <template v-for="(it, idx) in paginationItems" :key="idx">
-              <button v-if="it.type==='page'"
-                      class="px-3 py-1.5 border rounded-lg bg-gray-50"
-                      :class="it.active ? 'bg-gray-900 text-white hover:bg-gray-900' : ''"
-                      :aria-current="it.active ? 'page' : undefined"
-                      @click="!it.active && goPage(it.value)">
-                {{ it.value }}
-              </button>
-              <button v-else
-                      class="px-2 py-1.5 text-gray-500 hover:text-gray-900"
-                      @click="jumpGap(it.dir)" :aria-label="t('pagination.jumpAria')">…</button>
-            </template>
-
-            <button class="px-3 py-1.5 border rounded-lg bg-white disabled:opacity-40"
-                    :disabled="pageInfo.current >= pageInfo.last" @click="goPage(pageInfo.value.current + 1)" :aria-label="t('pagination.nextAria')">›</button>
-            <button class="px-3 py-1.5 border rounded-lg bg-white disabled:opacity-40"
-                    :disabled="pageInfo.current >= pageInfo.last" @click="goLast" :aria-label="t('pagination.lastAria')">»</button>
-          </nav>
-
-          <form class="flex items-center gap-2 text-sm" @submit.prevent="submitGoto">
-            <label class="text-gray-600">{{ t('pagination.goTo') }}</label>
-            <input v-model="gotoModel" inputmode="numeric" pattern="[0-9]*"
-                   class="w-16 border rounded-lg px-2 py-1.5" :placeholder="String(pageInfo.current)" />
-            <button class="px-3 py-1.5 border rounded-lg hover:bg-gray-50">{{ t('pagination.go') }}</button>
-          </form>
-        </div>
-
-        <div v-if="isInfinite" class="mt-6 flex flex-col items-center gap-3">
-          <div ref="infiniteSentinel" class="h-1 w-full"></div>
-          <div v-if="pending" class="text-sm text-gray-500">{{ t('infinite.loading') }}</div>
-          <button v-else-if="canLoadMore" class="px-4 py-2 border rounded-lg hover:bg-gray-50" @click="sel.page += 1; updateRoute()">
-            {{ t('infinite.loadMore') }}
-          </button>
-          <div v-else class="text-sm text-gray-500">{{ t('infinite.noMore') }}</div>
-        </div>
+        <InfiniteLoader v-else
+          :canLoadMore="data.canLoadMore.value"
+          :pending="data.pending.value"
+          @loadMore="loadMore"
+        />
       </template>
     </section>
 
-    <!-- Mobile modal -->
+    <!-- Mobile facet modal -->
     <transition name="fade">
       <div v-if="activeMobileModal" class="fixed inset-0 z-50">
         <div class="absolute inset-0 bg-black/40" @click="closeMobileModal"></div>
@@ -1231,27 +317,38 @@ useHead(() => ({
               {{ modalSection?.label }}
             </h3>
             <button class="p-2 rounded hover:bg-gray-100" @click="closeMobileModal" :aria-label="t('common.close')">
-              <svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 8.586l4.95-4.95 1.414 1.414L11.414 10l4.95 4.95-1.414 1.414L10 11.414l-4.95 4.95-1.414-1.414L8.586 10l-4.95-4.95L5.05 3.636 10 8.586z" clip-rule="evenodd"/></svg>
+              <svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 8.586l4.95-4.95 1.414 1.414L11.414 10l4.95 4.95-1.414 1.414L10 11.414l-4.95 4.95-1.414-1.414L8.586 10l-4.95-4.95L5.05 3.636 10 8.586z" clip-rule="evenodd"/>
+              </svg>
             </button>
           </div>
 
           <div class="p-4">
             <div class="relative mb-3">
-              <input v-model="ui.search[activeMobileModal!]" type="search"
-                     :placeholder="t('filters.searchPlaceholder', { label: (modalSection?.label || '').toString().toLowerCase() })"
-                     class="w-full border rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200" />
+              <input
+                v-model="state.ui.search[activeMobileModal!]"
+                type="search"
+                :placeholder="t('filters.searchPlaceholder', { label: (modalSection?.label || '').toString().toLowerCase() })"
+                class="w-full border rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+              />
               <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M12.9 14.32a7 7 0 111.414-1.414l3.387 3.387-1.414 1.414-3.387-3.387zM8 13a5 5 0 100-10 5 5 0 000 10z" clip-rule="evenodd"/>
               </svg>
             </div>
 
             <div class="space-y-1.5 max-h-64 overflow-auto pr-1">
-              <div v-for="f in (modalSection ? filteredItems(modalSection.items, modalSection.key) : [])"
-                   :key="f.slug" class="flex items-center justify-between gap-3 rounded-lg px-2 py-2 hover:bg-gray-50">
+              <div
+                v-for="f in (modalSection ? filteredModalItems(modalSection.items, modalSection.key) : [])"
+                :key="f.slug"
+                class="flex items-center justify-between gap-3 rounded-lg px-2 py-2 hover:bg-gray-50"
+              >
                 <label class="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" :checked="modalSection?.list.includes(f.slug)"
-                         @change="toggle(modalSection!.list, f.slug)"
-                         class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-300" />
+                  <input
+                    type="checkbox"
+                    :checked="modalSection?.list.includes(f.slug)"
+                    @change="state.toggle(modalSection!.list as any, f.slug)"
+                    class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-300"
+                  />
                   <span class="text-sm text-gray-800 line-clamp-1">{{ f.name }}</span>
                 </label>
                 <span class="text-[11px] text-gray-500">{{ f.count }}</span>
@@ -1263,7 +360,6 @@ useHead(() => ({
             <button class="px-4 py-2 rounded-lg border text-gray-700 hover:bg-gray-50" @click="clearMobileGroup">
               {{ t('filters.clear') }}
             </button>
-
             <div class="ml-auto flex gap-3">
               <button class="px-4 py-2 rounded-lg border text-gray-700 hover:bg-gray-50" @click="closeMobileModal">
                 {{ t('common.close') }}

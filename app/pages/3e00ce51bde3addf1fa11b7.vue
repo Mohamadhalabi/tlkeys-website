@@ -145,7 +145,7 @@ async function handleSubmit() {
             inputmode="text"
             autocomplete="off"
             placeholder="VIN Number"
-            class="w-full h-12 rounded-xl border border-white/10 bg-neutral-800/70 px-3 text-black placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            class="w-full h-12 rounded-xl border border-white/10 bg-neutral-800/70 px-3 text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
           />
         </div>
 
@@ -157,7 +157,7 @@ async function handleSubmit() {
             autocomplete="current-password"
             placeholder="Enter Username"
             required
-            class="w-full h-12 rounded-xl border border-white/10 bg-neutral-800/70 px-3 text-black placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            class="w-full h-12 rounded-xl border border-white/10 bg-neutral-800/70 px-3 text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
           />
         </div>
 
@@ -168,7 +168,7 @@ async function handleSubmit() {
             v-model="pinCode"
             placeholder="Part Number"
             readonly
-            class="w-full h-12 rounded-xl border border-white/10 bg-neutral-800/70 px-3 text-black placeholder:text-neutral-400"
+            class="w-full h-12 rounded-xl border border-white/10 bg-neutral-800/70 px-3 text-white placeholder:text-neutral-400"
           />
         </div>
 

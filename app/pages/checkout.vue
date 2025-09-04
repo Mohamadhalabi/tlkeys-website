@@ -28,7 +28,7 @@ type Address = {
   phone?: string | null
   postal_code?: string | null
 }
-type ShippingKey = 'pickup'|'local'|'dhl'|'fedex'|'aramex'|'ups'
+type ShippingKey = 'pick_up'|'domestic'|'dhl'|'fedex'|'aramex'|'ups'
 type ShippingOption = { key: ShippingKey; label: string; price: number; disabled?: boolean }
 type Quote = {
   products: QuoteProduct[]
@@ -122,8 +122,8 @@ async function fetchCountries() {
 const shippingOptions = computed<ShippingOption[]>(() => {
   if (selectedAddress.value?.country_id === UAE_COUNTRY_ID) {
     return [
-      { key: 'pickup', label: t('checkout.pickup') || 'Pickup', price: 0 },
-      { key: 'local',  label: t('checkout.localShipping') || 'Local shipping', price: 10 },
+      { key: 'pick_up', label: t('checkout.pickup') || 'Pickup', price: 0 },
+      { key: 'domestic',  label: t('checkout.localShipping') || 'Local shipping', price: 10 },
     ]
   }
   return quote.value?.shipping?.options ?? []
@@ -179,7 +179,7 @@ async function fetchQuote() {
       selectedShipping.value = res.shipping.selected as ShippingKey
     }
 
-    if (selectedAddress.value?.country_id === UAE_COUNTRY_ID && selectedShipping.value && !['pickup','local'].includes(selectedShipping.value)) {
+    if (selectedAddress.value?.country_id === UAE_COUNTRY_ID && selectedShipping.value && !['pick_up','domestic'].includes(selectedShipping.value)) {
       selectedShipping.value = null
     }
   } finally {
@@ -456,10 +456,10 @@ watch([selectedShipping, coupon], async () => {
             >
               <input type="radio" class="sr-only" :value="opt.key" v-model="selectedShipping" :disabled="opt.disabled" />
               <div class="flex items-center justify-center gap-2">
-                <span v-if="opt.key==='pickup'" class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                <span v-if="opt.key==='pick_up'" class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
                   {{ $t('checkout.pickup') || 'Pickup' }}
                 </span>
-                <span v-else-if="opt.key==='local'" class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold bg-cyan-100 text-cyan-700 border border-cyan-200">
+                <span v-else-if="opt.key==='domestic'" class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold bg-cyan-100 text-cyan-700 border border-cyan-200">
                   {{ $t('checkout.localShipping') || 'Local' }}
                 </span>
                 <span v-else-if="opt.key==='dhl'" class="inline-flex items-center rounded px-1.5 py-0.5 text-md font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">DHL</span>
@@ -564,10 +564,10 @@ watch([selectedShipping, coupon], async () => {
               @click="showAllProducts = !showAllProducts"
             >
               <template v-if="showAllProducts">
-                {{ $t('showLess') || 'Show less' }}
+                {{ $t('show Less') || 'Show less' }}
               </template>
               <template v-else>
-                {{ ($t('showMore') || 'Show more') + ' (' + remainingCount + ')' }}
+                {{ ($t('show More') || 'Show more') + ' (' + remainingCount + ')' }}
               </template>
             </button>
           </div>
