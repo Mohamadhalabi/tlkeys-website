@@ -18,6 +18,8 @@ const props = defineProps<{ initialFilters?: { brands?:string[]; categories?:str
 const { t, localeProperties } = useI18n()
 const state = useCatalogState(props.initialFilters)
 const data  = useCatalogFetch(state)
+const route = useRoute()
+const router = useRouter()
 
 useCatalogSeo({
   entryType: state.entryType,
@@ -160,6 +162,7 @@ function hasAnySelection() {
   )
 }
 async function clearAllAndGoShop() {
+  // reset selections
   state.sel.brands = []
   state.sel.categories = []
   state.sel.manufacturers = []
@@ -167,8 +170,18 @@ async function clearAllAndGoShop() {
   state.sel.attributes = {}
   state.sel.q = ''
   state.sel.page = 1
-  await state.updateRoute(true) // goes to /shop when needed
-  if (process.client) window.scrollTo({ top: 0, behavior: 'smooth' })
+
+  // navigate to clean /shop
+  const to = { path: '/shop', query: {} as Record<string, string> }
+  if (route.path !== '/shop') {
+    await router.replace(to)
+  } else {
+    // already on /shop → nudge, then normalize to force watchers
+    await router.replace({ ...to, query: { _r: Date.now().toString() } })
+    await router.replace(to)
+  }
+  // await nextTick()
+  // if (process.client) window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 /* ============ page nav ============ */

@@ -80,7 +80,14 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
 
   const showAttrFilters = computed(() => !(state.entryType.value === 'manufacturer' && state.sel.categories.length === 0))
 
+  // --- simple de-dupe: skip if params key didn’t change
+  const lastFetchKey = ref<string>('')
+
   async function fetchOnce() {
+    const currentKey = keyForSSR.value
+    if (currentKey === lastFetchKey.value) return
+    lastFetchKey.value = currentKey
+
     pending.value = true
     errorMsg.value = ''
     const effectivePerPage = state.sel.perPage === 'all' ? CHUNK : state.sel.perPage
@@ -99,7 +106,6 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
         include:       'table_price,categories',
         attr_facets:   showAttrFilters.value ? 1 : 0,
       }
-      // forward flag-like params
       state.flagKeys.forEach((k) => {
         if (Object.prototype.hasOwnProperty.call(route.query, k)) {
           params[k] = (route.query as any)[k] === '' ? 1 : (route.query as any)[k]
@@ -131,7 +137,6 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
           }
         : null
 
-      // dynamic attributes (optional)
       const attrFacets: AttrFacet[] =
         (showAttrFilters.value && body?.facets?.attributes?.length)
           ? body.facets.attributes
@@ -141,11 +146,10 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
                 priority: Number(a.priority ?? 0),
                 items: fix(a.items || []),
               }))
-              .filter((a: AttrFacet) => a.items.length > 0) // ← HIDE empty attributes
+              .filter((a: AttrFacet) => a.items.length > 0)
               .sort((x:AttrFacet, y:AttrFacet) => y.priority - x.priority || x.name.localeCompare(y.name))
           : []
 
-      // HIDE empty fixed groups right here
       const onlyNonEmpty = (o: any) => {
         const out: any = {}
         if (o.brands?.length)        out.brands = o.brands
@@ -164,17 +168,21 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
     }
   }
 
-  // SSR + first client
+  // Initial load (SSR on server; hydrated on client). Don’t combine with a second immediate watch.
   useAsyncData(keyForSSR, () => fetchOnce(), { server: true, immediate: true })
 
-  // Re-fetch on route change
-  watch(() => state.routeKey.value, async () => {
-    await nextTick()
-    items.value = []
-    meta.value = null
-    facets.value = null
-    await fetchOnce()
-  }, { immediate: false })
+  // Re-fetch on real navigation changes (ignore hash). Not immediate.
+  watch(
+    () => [route.path, route.query],
+    async () => {
+      await nextTick()
+      items.value = []
+      meta.value = null
+      facets.value = null
+      await fetchOnce()
+    },
+    { deep: true, flush: 'post', immediate:true } // no `immediate`
+  )
 
   const canLoadMore = computed(() => {
     const m = meta.value

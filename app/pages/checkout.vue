@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useI18n, useRouter, useNuxtApp, definePageMeta, useSeoMeta, useHead } from '#imports'
+import { useI18n, useRouter, useNuxtApp, definePageMeta, useSeoMeta, useHead, useRuntimeConfig } from '#imports'
 
 definePageMeta({ ssr: false })
 
@@ -51,6 +51,18 @@ const UAE_COUNTRY_ID = 231
 const { $customApi } = useNuxtApp()
 const { t, locale } = useI18n()
 const router = useRouter()
+const runtimeConfig = useRuntimeConfig()
+
+/** Put your WhatsApp number in .env as:
+ *  NUXT_PUBLIC_WHATSAPP_NUMBER=9715XXXXXXXX (digits only, no + or spaces)
+ *  Fallback below is used if not provided.
+ */
+const WHATSAPP_NUMBER = String((runtimeConfig as any)?.public?.whatsappNumber || '905376266092')
+
+const whatsappLink = computed(() => {
+  const msg = t('common.whatsappPrefill') || 'Hello, I need help completing my order.'
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
+})
 
 /* ---------------- Helpers ---------------- */
 const isString = (v: unknown): v is string => typeof v === 'string' && v.trim() !== ''
@@ -528,6 +540,31 @@ watch([selectedShipping, coupon], async () => {
         <div class="rounded-2xl border p-4 bg-white shadow-sm lg:sticky lg:top-6">
           <h3 class="text-lg font-semibold mb-3">{{ $t('checkout.yourOrder') }}</h3>
 
+          <!-- Help note + WhatsApp -->
+          <div class="mb-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 flex items-start gap-3">
+            <!-- Icon (chat bubble + handset) -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                 class="w-6 h-6 shrink-0 text-emerald-600" fill="currentColor" aria-hidden="true">
+              <path d="M2 5a3 3 0 013-3h14a3 3 0 013 3v8a3 3 0 01-3 3H9.41L5.7 19.71A1 1 0 014 19v-3H5a3 3 0 01-3-3V5z"/>
+              <path d="M15.23 7.2a1 1 0 011.41.06l1.1 1.18a1 1 0 01-.05 1.41l-.68.64a2.5 2.5 0 01-2.14.62 7.8 7.8 0 01-3.82-1.94 7.8 7.8 0 01-1.94-3.82 2.5 2.5 0 01.62-2.14l.64-.68A1 1 0 0111.5 2.3l1.18 1.1a1 1 0 01.06 1.41l-.62.66a.5.5 0 000 .68l.43.43a5.8 5.8 0 002.06 1.23.5.5 0 00.62-.11l.66-.62z"/>
+            </svg>
+            <div class="text-sm leading-5">
+              <p class="text-emerald-900">
+                {{ $t('common.helpNote') || 'If you face any problem during checkout, please contact us.' }}
+              </p>
+              <a :href="whatsappLink"
+                 target="_blank" rel="noopener"
+                 class="mt-2 inline-flex items-center gap-2 rounded-lg bg-emerald-600 text-white px-3 py-1.5 hover:bg-emerald-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                 aria-label="Contact us on WhatsApp">
+                <!-- WhatsApp mini mark -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" class="w-4 h-4" fill="currentColor" aria-hidden="true">
+                  <path d="M128,24A104,104,0,0,0,44.24,194.34L36,224l29.66-8.24A104,104,0,1,0,128,24Zm0,184a80,80,0,0,1-41.05-11.39l-2.61-.17L66.1,200.9l4.46-16.22-.18-2.82A80,80,0,1,1,128,208Zm44.2-54.35c-2.58-1.31-15.28-7.53-17.63-8.39s-4.09-1.32-5.8,1.32-6.64,8.39-8.15,10.11-3,2-5.59.65a64.83,64.83,0,0,1-19.18-11.82,72.09,72.09,0,0,1-13.3-16.68c-1.39-2.42,0-3.74,1-5.14a47.88,47.88,0,0,0,3.51-4.84,4.55,4.55,0,0,0,.44-4.26c-.44-1.32-5.8-14.08-7.95-19.29s-4.22-4.43-5.79-4.5-3.2-.07-4.94-.07A9.47,9.47,0,0,0,83,93.4c-2.36,2.42-9,8.88-9,21.67s9.23,25.12,10.54,26.86,18.19,28,44.09,39.2c6.17,2.68,11,4.29,14.77,5.5a35.09,35.09,0,0,0,16.26,1,26.67,26.67,0,0,0,17.47-12,21.41,21.41,0,0,0,1.51-12.37C172.63,155.6,170.79,154,172.2,153.65Z"/>
+                </svg>
+                <span class="font-medium">WhatsApp</span>
+              </a>
+            </div>
+          </div>
+
           <!-- Products (first 5 + full-width orange toggle) -->
           <ul class="divide-y">
             <li
@@ -585,7 +622,7 @@ watch([selectedShipping, coupon], async () => {
             <div class="flex justify-between font-medium pt-2 border-t">
               <span>{{ $t('checkout.total') }}</span><span>{{ money(quote?.summary?.total) }}$</span>
             </div>
-            <div v-if="surchargePct" class="flex justify-between text-rose-700">
+            <div class="flex justify-between text-rose-700" v-if="surchargePct">
               <span>{{ $t('checkout.paymentSurcharge') }} ({{ surchargePct }}%)</span>
               <span>{{ money(totalWithSurcharge - (quote?.summary?.total ?? 0)) }}$</span>
             </div>

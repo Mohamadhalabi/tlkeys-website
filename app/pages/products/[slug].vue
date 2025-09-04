@@ -631,22 +631,25 @@ useHead(() => {
       }
     : undefined
 
-  const videosLd =
-    Array.isArray(p?.videos) && p!.videos!.length
-      ? p!.videos!
-          .filter(v => v && v.url)
-          .map(v => ({
-            '@type': 'VideoObject',
-            name: v.title || title,
-            description: desc || undefined,
-            thumbnailUrl: primaryImg ? [primaryImg] : undefined,
-            contentUrl: v.url,
-            embedUrl: v.url,
-            url: v.url
-          }))
-      : undefined
+  // const videosLd =
+  //   Array.isArray(p?.videos) && p!.videos!.length
+  //     ? p!.videos!
+  //         .filter(v => v && v.url)
+  //         .map(v => ({
+  //           '@type': 'VideoObject',
+  //           name: v.title || title,
+  //           description: desc || undefined,
+  //           thumbnailUrl: primaryImg ? [primaryImg] : undefined,
+  //           contentUrl: v.url,
+  //           embedUrl: v.url,
+  //           url: v.url
+  //         }))
+  //     : undefined
 
-  const graph = [productLd, breadcrumbLd, faqLd, ...(Array.isArray(videosLd) ? videosLd : videosLd ? [videosLd] : [])].filter(Boolean)
+  // const graph = [productLd, breadcrumbLd, faqLd, ...(Array.isArray(videosLd) ? videosLd : videosLd ? [videosLd] : [])].filter(Boolean)
+
+  const graph = [productLd, breadcrumbLd, faqLd].filter(Boolean)
+
 
   return {
     title,
@@ -817,7 +820,7 @@ watch(() => product.value?.id, () => {
               <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-gray-900">
                 {{ product.title }}
               </h1>
-              <p v-if="product.summary_name" class="mt-1 text-base text-green-800 text-gray-600">
+              <p v-if="product.summary_name" class="mt-5 mb-2 text-base text-green-800 text-gray-600">
                 {{ product.summary_name }}
               </p>
               <hr />

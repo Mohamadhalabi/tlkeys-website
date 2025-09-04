@@ -1,40 +1,54 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-type VideoItem = { title?: string | null; url: string }
-const props = defineProps<{ videos: VideoItem[] }>()
-
-function toEmbedUrl(url: string): string {
-  try {
-    const u = new URL(url)
-    const host = u.hostname.replace(/^www\./, '')
-    if (host === 'youtube.com' || host === 'm.youtube.com') {
-      const v = u.searchParams.get('v')
-      return v ? `https://www.youtube.com/embed/${v}` : url
-    }
-    if (host === 'youtu.be') return `https://www.youtube.com/embed/${u.pathname.replace('/', '')}`
-    if (host === 'vimeo.com') return `https://player.vimeo.com/video/${u.pathname.replace('/', '')}`
-    return url
-  } catch { return url }
+/* ---------------- Types ---------------- */
+type Review = {
+  id: number | string
+  author_name?: string | null
+  rating?: number | null
+  content?: string | null
+  created_at?: string | null
 }
-const normalized = computed(() => (props.videos || []).map(v => ({ ...v, src: toEmbedUrl(v.url) })))
+
+const props = defineProps<{ reviews: Review[] }>()
+
+/* ---------------- Helpers ---------------- */
+function maskName(name?: string | null): string {
+  if (!name) return 'Anonymous'
+  const parts = name.trim().split(/\s+/)
+  return parts
+    .map((part) => {
+      if (part.length <= 2) return part
+      return part.slice(0, 2) + '*'.repeat(part.length - 2)
+    })
+    .join(' ')
+}
 </script>
 
 <template>
   <div>
-    <div v-if="normalized.length" class="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <div v-for="(v, i) in normalized" :key="i" class="space-y-2">
-        <div class="aspect-video overflow-hidden rounded-xl border border-gray-200 shadow-sm">
-          <iframe
-            class="h-full w-full"
-            :src="v.src"
-            title="video"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowfullscreen
-          ></iframe>
+    <!-- Review list -->
+    <div v-if="reviews?.length" class="space-y-4">
+      <article
+        v-for="rev in reviews"
+        :key="rev.id"
+        class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+      >
+        <div class="flex items-center justify-between">
+          <h4 class="font-semibold text-gray-900">
+            {{ maskName(rev.author_name) }}
+          </h4>
+          <ProductRatingStars :value="rev.rating || 0" />
         </div>
-        <div v-if="v.title" class="text-sm text-gray-700">{{ v.title }}</div>
-      </div>
+
+        <p
+          v-if="rev.content"
+          class="mt-2 text-gray-700 whitespace-pre-line leading-relaxed"
+        >
+          {{ rev.content }}
+        </p>
+      </article>
     </div>
-    <div v-else class="text-gray-500">No videos.</div>
+
+    <!-- Empty state -->
+    <div v-else class="text-gray-500 italic">No reviews yet.</div>
   </div>
 </template>

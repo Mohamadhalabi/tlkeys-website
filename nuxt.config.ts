@@ -43,12 +43,6 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/icons/favicon-32x32.png' },
         { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/icons/favicon-16x16.png' },
         { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
-        // { rel: 'mask-icon', href: '/safari-pinned-tab.svg', color: '#f07905' },
-        // { rel: 'manifest', href: '/site.webmanifest' },
-
-        // preload your self-hosted fonts (optional)
-        { rel: 'preload', as: 'font', href: '/fonts/proximanova_regular.woff2', type: 'font/woff2', crossorigin: 'anonymous' },
-        { rel: 'preload', as: 'font', href: '/fonts/proximanova_bold.woff2',    type: 'font/woff2', crossorigin: 'anonymous' },
       ],
 
       meta: [
@@ -60,9 +54,9 @@ export default defineNuxtConfig({
         { name: 'description', content: 'Automotive locksmith tools, remotes, shells, and key programming devices.' },
         { property: 'og:type', content: 'website' },
         { property: 'og:site_name', content: 'Techno Lock Keys' },
-        { property: 'og:image', content: '/images/og-default.jpg' },
+        { property: 'og:image', content: '/images/og-image.jpg' },
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:image', content: '/images/og-default.jpg' }
+        { name: 'twitter:image', content: '/images/og-image.jpg' }
       ],
 
       // Keep your GTM <noscript> here if you want (optional)

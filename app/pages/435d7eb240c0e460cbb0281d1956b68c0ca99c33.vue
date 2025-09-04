@@ -89,16 +89,25 @@ async function handleSubmit() {
 
     requestsToday.value = data?.requests_today ?? 0
     requestsThisMonth.value = data?.requests_this_month ?? 0
-  } catch (e: any) {
-    if (e?.data?.errors?.vin?.[0])      errorMessage.value = e.data.errors.vin[0]
-    else if (e?.data?.message)           errorMessage.value = e.data.message
-    else if (e?.response?.data?.message) errorMessage.value = e.response.data.message
-    else                                 errorMessage.value = 'An error occurred. Please try again later.'
-    keyCode.value = ''
-    pinCode.value = ''
-  } finally {
-    isLoading.value = false
-  }
+    } catch (e: any) {
+      if (e?.data?.errors?.vin?.[0]) {
+        errorMessage.value = e.data.errors.vin[0]
+      } else if (e?.data?.message) {
+        errorMessage.value = e.data.message
+      } else if (e?.data?.error) {
+        errorMessage.value = e.data.error
+      } else if (e?.response?.data?.error) {
+        errorMessage.value = e.response.data.error
+      } else if (e?.response?.data?.message) {
+        errorMessage.value = e.response.data.message
+      } else {
+        errorMessage.value = 'An error occurred. Please try again later.'
+      }
+      keyCode.value = ''
+      pinCode.value = ''
+    } finally {
+      isLoading.value = false
+    }
 }
 
 function copyToClipboard() {
@@ -109,8 +118,8 @@ function copyToClipboard() {
 useHead({
   title: 'Vin To Pin',
   meta: [
-    { name: 'robots', content: 'noindex, noarchive, nofollow' },
-    { name: 'googlebot', content: 'noindex, noarchive, nofollow' },
+    { name: 'robots', content: 'noindex, nofollow, noarchive, nosnippet, noimageindex' },
+    { name: 'googlebot', content: 'noindex, nofollow, noarchive, nosnippet, noimageindex' },
   ],
 })
 </script>
@@ -126,7 +135,7 @@ useHead({
       <!-- Error -->
       <div
         v-if="errorMessage"
-        class="mx-auto mb-5 max-w-[680px] text-center bg-red rounded-md border border-red-400 px-4 py-3 text-md custom-message"
+        class="mx-auto mb-5 max-w-[680px] text-center rounded-md border border-red-400 bg-red-400 text-white text-xl px-4 py-3 text-sm"
         role="alert"
       >
         {{ errorMessage }}

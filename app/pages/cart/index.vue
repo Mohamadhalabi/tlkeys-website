@@ -328,21 +328,24 @@ async function clearAll() {
           {{ clearing ? t('cart.clearing') : t('cart.clear') }}
         </button>
 
-        <button
-          v-if="rows.length"
-          type="button"
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
-          :disabled="downloading"
-          @click="downloadPdf"
-        >
-          <!-- Small inline SVG PDF icon -->
-          <svg viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor" aria-hidden="true">
-            <path d="M14.5 2a1 1 0 01.7.3l4.5 4.5a1 1 0 01.3.7V20a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2h8.5zM14 3.5V7h3.5L14 3.5z"/>
-            <!-- crude 'PDF' glyphs -->
-            <path d="M7.5 14H9a1.5 1.5 0 000-3H7.5v3zm0 1.5H6V10h3a3 3 0 010 6H7.5zM11 10h1.25A2.25 2.25 0 1111 14.5V10zm5 0h-2v6h1.25a1.75 1.75 0 000-3.5H15V11h1a1.5 1.5 0 000-3z"/>
+
+        <div v-if="rows.length" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl cursor-pointer text-white disabled:opacity-60"@click="downloadPdf">
+          <svg id='PDF_48' width='48' height='48' viewBox='0 0 48 48' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'><rect width='48' height='48' stroke='none' fill='#000000' opacity='0'/>
+          <g transform="matrix(0.92 0 0 0.92 24 24)" >
+          <g style="" >
+          <g transform="matrix(1 0 0 1 0 0)" >
+          <path style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,87,34); fill-rule: nonzero; opacity: 1;" transform=" translate(-24, -24)" d="M 40 45 L 8 45 L 8 3 L 30 3 L 40 13 z" stroke-linecap="round" />
+          </g>
+          <g transform="matrix(1 0 0 1 9.75 -14.75)" >
+          <path style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(251,233,231); fill-rule: nonzero; opacity: 1;" transform=" translate(-33.75, -9.25)" d="M 38.5 14 L 29 14 L 29 4.5 z" stroke-linecap="round" />
+          </g>
+          <g transform="matrix(1 0 0 1 0.49 4.02)" >
+          <path style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,235,238); fill-rule: nonzero; opacity: 1;" transform=" translate(-24.49, -28.02)" d="M 15.81 29.5 L 15.81 33 L 13.8 33 L 13.8 23.047 L 17.191000000000003 23.047 C 18.175000000000004 23.047 18.961000000000002 23.353 19.546000000000003 23.963 C 20.131000000000004 24.573 20.424000000000003 25.366 20.424000000000003 26.342000000000002 C 20.424000000000003 27.318000000000005 20.134000000000004 28.087000000000003 19.556000000000004 28.653000000000002 C 18.978000000000005 29.219 18.175 29.5 17.149 29.5 L 15.81 29.5 z M 15.81 27.825 L 17.191 27.825 C 17.573999999999998 27.825 17.869999999999997 27.7 18.08 27.448999999999998 C 18.29 27.197999999999997 18.394 26.834 18.394 26.354999999999997 C 18.394 25.857999999999997 18.287 25.462999999999997 18.072999999999997 25.167999999999996 C 17.858999999999998 24.874999999999996 17.571999999999996 24.725999999999996 17.211999999999996 24.720999999999997 L 15.81 24.720999999999997 L 15.81 27.825 z M 21.764 33 L 21.764 23.047 L 24.396 23.047 C 25.558 23.047 26.485 23.416 27.174 24.154 C 27.865 24.892 28.217 25.904 28.230999999999998 27.189 L 28.230999999999998 28.802 C 28.230999999999998 30.11 27.884999999999998 31.137 27.195999999999998 31.881 C 26.504 32.628 25.553 33 24.341 33 L 21.764 33 z M 23.773 24.722 L 23.773 31.332 L 24.375 31.332 C 25.045 31.332 25.517 31.155 25.79 30.802 C 26.063 30.448999999999998 26.207 29.84 26.221 28.974 L 26.221 27.245 C 26.221 26.315 26.091 25.667 25.831 25.301000000000002 C 25.570999999999998 24.934 25.128999999999998 24.741000000000003 24.505 24.723000000000003 L 23.773 24.723000000000003 z M 34.807 28.939 L 31.683000000000003 28.939 L 31.683000000000003 33 L 29.673000000000002 33 L 29.673000000000002 23.047 L 35.183 23.047 L 35.183 24.722 L 31.683 24.722 L 31.683 27.272000000000002 L 34.807 27.272000000000002 L 34.807 28.939 z" stroke-linecap="round" />
+          </g>
+          </g>
+          </g>
           </svg>
-          {{ downloading ? 'Preparing…' : 'Download PDF' }}
-        </button>
+        </div>
       </div>
     </div>
 

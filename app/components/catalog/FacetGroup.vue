@@ -24,7 +24,7 @@ const filtered = computed(() => {
     <button class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50"
             @click="emit('toggleOpen', keyName)">
       <div class="flex items-center gap-2">
-        <span class="font-semibold text-gray-800">{{ label }}</span>
+        <span class="font-semibold text-gray-800 capitalize">{{ label }}</span>
         <span v-if="selected.length" class="inline-flex items-center rounded-full text-[10px] px-1.5 py-0.5 bg-gray-100 border">
           {{ selected.length }}
         </span>
@@ -48,7 +48,7 @@ const filtered = computed(() => {
       </div>
 
       <div class="space-y-1.5 max-h-64 overflow-auto pr-1">
-        <div v-for="f in filtered" :key="f.slug" class="group flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 hover:bg-gray-50">
+        <div v-for="f in filtered" :key="f.slug" class="group flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 hover:bg-gray-50 capitalize">
           <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" :checked="selected.includes(f.slug)"
                    @change="emit('pick', f.slug)" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-300" />
