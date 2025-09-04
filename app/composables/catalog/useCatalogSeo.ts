@@ -7,7 +7,10 @@ export function useCatalogSeo(opts: {
   facets: any,
   breadcrumbs: () => { label: string; to?: string }[],
   t: (k:string, p?:any)=>string,
-  siteNameFromI18n: () => string
+  siteNameFromI18n: () => string,
+  // ✅ NEW (optional)
+  overrideTitle?: import('vue').ComputedRef<string | undefined>,
+  overrideDescription?: import('vue').ComputedRef<string | undefined>,
 }) {
   const { public: { SITE_URL } } = useRuntimeConfig()
 
@@ -34,9 +37,14 @@ export function useCatalogSeo(opts: {
   })
 
   const siteName = computed(() => opts.siteNameFromI18n() || 'Store')
-  const titleBase = computed(() => opts.sel.q?.trim() ? `${humanContext.value}: ${opts.sel.q}` : humanContext.value)
-  const seoTitle = computed(() => `${titleBase.value} | ${siteName.value}`)
-  const seoDescription = computed(() => {
+  const titleBase = computed(() =>
+    opts.sel.q?.trim()
+      ? `${humanContext.value}: ${opts.sel.q}`
+      : humanContext.value
+  )
+  const dynamicTitle = computed(() => `${titleBase.value} | ${siteName.value}`)
+
+  const dynamicDescription = computed(() => {
     const parts: string[] = []
     if (opts.sel.q?.trim()) parts.push(opts.t('seo.searchingFor', { q: opts.sel.q }) || `Searching for “${opts.sel.q}”`)
     if (opts.sel.brands.length)        parts.push(`${opts.t('facets.brands')}: ${opts.sel.brands.join(', ')}`)
@@ -47,11 +55,15 @@ export function useCatalogSeo(opts: {
     return body.slice(0, 300)
   })
 
+  // ✅ Prefer overrides from parent (slug page). If not provided, use dynamic values.
+  const finalTitle = computed(() => opts.overrideTitle?.value || dynamicTitle.value)
+  const finalDescription = computed(() => opts.overrideDescription?.value || dynamicDescription.value)
+
   useSeoMeta({
-    title: seoTitle,
-    description: seoDescription,
-    ogTitle: seoTitle,
-    ogDescription: seoDescription,
+    title: finalTitle,
+    description: finalDescription,
+    ogTitle: finalTitle,
+    ogDescription: finalDescription,
     ogType: 'website',
     ogUrl: canonicalUrl,
     twitterCard: 'summary_large_image',

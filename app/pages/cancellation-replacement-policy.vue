@@ -8,7 +8,7 @@ const runtime = useRuntimeConfig()
 
 const siteName = runtime.public.siteName || 'Techno Lock Keys'
 const siteUrl  = (runtime.public.siteUrl || runtime.public.SITE_URL || 'https://www.tlkeys.com').replace(/\/+$/, '')
-const ogImage  = runtime.public.defaultOgImage || '/images/og-image.jpg'
+const ogImage  = 'https://www.tlkeys.com/images/og-image.jpg'
 
 const pageTitle = `Cancellation & Replacement Policy | ${siteName}`
 const pageDesc =

@@ -13,7 +13,11 @@ import { useCatalogState } from '~/composables/catalog/useCatalogState'
 import { useCatalogFetch } from '~/composables/catalog/useCatalogFetch'
 import { useCatalogSeo } from '~/composables/catalog/useCatalogSeo'
 
-const props = defineProps<{ initialFilters?: { brands?:string[]; categories?:string[]; manufacturers?:string[]; models?:string[] } }>()
+const props = defineProps<{
+  initialFilters?: { brands?:string[]; categories?:string[]; manufacturers?:string[]; models?:string[] },
+  seoTitle?: string,
+  seoDescription?: string
+}>()
 
 const { t, localeProperties } = useI18n()
 const state = useCatalogState(props.initialFilters)
@@ -27,7 +31,9 @@ useCatalogSeo({
   facets: data.facets,
   breadcrumbs: () => breadcrumbs.value,
   t,
-  siteNameFromI18n: () => t('site.name') as string
+  siteNameFromI18n: () => t('site.name') as string,
+  overrideTitle: computed(() => props.seoTitle),
+  overrideDescription: computed(() => props.seoDescription),
 })
 
 const isRTL = computed(() => localeProperties.value?.dir === 'rtl')

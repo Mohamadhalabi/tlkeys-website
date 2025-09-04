@@ -431,7 +431,7 @@ async function clearAll() {
       </div>
 
       <!-- Summary -->
-      <aside class="lg:col-span-1">
+    <aside class="lg:col-span-1 lg:sticky lg:top-32 self-start">
         <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-3">
           <h2 class="font-semibold text-gray-900">{{ t('cart.summary') }}</h2>
 

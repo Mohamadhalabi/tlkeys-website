@@ -226,17 +226,17 @@ async function onAdd() {
 <template>
   <div
     ref="cardEl"
-    class="group h-full rounded-xl bg-white ring-1 ring-black/5 shadow-sm hover:shadow-md transition overflow-hidden flex flex-col"
+    class="group h-full rounded-xl bg-white ring-1 ring-black/5 shadow-sm hover:shadow-[0_35px_35px_rgba(0,0,0,0.15)] transition overflow-hidden flex flex-col"
   >
     <!-- IMAGE -->
     <NuxtLinkLocale :to="linkTo" class="relative block rounded-t-xl overflow-hidden bg-white">
       <div class="relative w-full aspect-[3/3]">
-        <NuxtImg
-          :src="product.image"
-          :alt="product.name"
-          loading="lazy"
-          class="absolute inset-0 h-full w-full object-cover filter drop-shadow-md md:drop-shadow-lg transition-[filter] duration-300 group-hover:drop-shadow-xl"
-        />
+      <NuxtImg
+        :src="product.image"
+        :alt="product.name"
+        loading="lazy"
+        class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+      />
         <div class="pointer-events-none absolute inset-0 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)]"></div>
       </div>
 

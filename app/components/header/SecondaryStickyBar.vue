@@ -8,14 +8,17 @@
     <div class="container mx-auto px-3">
       <ul class="flex items-center justify-center gap-4 md:gap-6 py-1.5">
         <li v-for="item in items" :key="item.key">
-          <NuxtLinkLocale
-            :to="item.to"
-            :aria-current="isActive(item.key) ? 'page' : undefined"
-            class="group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-md
-                   text-[15px] md:text-[16px] font-semibold text-gray-700 hover:text-gray-900
-                   transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
-            :class="isActive(item.key) ? 'text-orange-700' : ''"
-          >
+            <NuxtLinkLocale
+              :to="item.to"
+              :aria-current="isActive(item.key) ? 'page' : undefined"
+              class="group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-md
+                    text-[15px] md:text-[16px] font-semibold hover:text-gray-900
+                    transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+              :class="[
+                isActive(item.key) ? 'text-orange-700' : '',
+                item.key === 'new-arrival' ? 'text-orange-700 hover:text-orange-800' : 'text-gray-700'
+              ]"
+            >
             <!-- SVG icon -->
             <Icon :name="item.key" class="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
             <span class="whitespace-nowrap">{{ item.label }}</span>

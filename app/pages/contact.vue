@@ -325,7 +325,7 @@ async function sendMessage() {
 const siteName = 'Techno Lock Keys'
 const canonical = 'https://www.tlkeys.com/contact'
 const baseUrl = 'https://www.tlkeys.com'
-const ogImage = 'httphttps://www.tlkeys.com/images/og-image.jpg'
+const ogImage = 'https://www.tlkeys.com/images/og-image.jpg'
 const logoUrl = 'https://www.tlkeys.com/images/logo/techno-lock-desktop-logo.webp'
 
 useSeoMeta({
