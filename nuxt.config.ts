@@ -13,12 +13,7 @@ export default defineNuxtConfig({
     '@nuxtjs/i18n',
     '@nuxt/image',
     '@pinia/nuxt',
-    '@nuxtjs/critters',
-    'nuxt-delay-hydration'
   ],
-
-  delayHydration: { mode: 'mount' },
-  critters: { config: { preload: 'swap' } },
 
   css: [
     fileURLToPath(new URL('./app/assets/css/main.css', import.meta.url)),

@@ -6,7 +6,7 @@
     class="fixed inset-x-0 top-0 z-40"
   >
     <!-- Row 1: top white bar -->
-    <div class="row-top bg-white py-2 shadow-sm" style="padding-top: env(safe-area-inset-top, 0px)">
+    <div class="row-top bg-white py-2 shadow-sm">
       <div class="mx-auto px-4 flex items-center justify-between">
         <!-- Hamburger (mobile only, bigger) -->
         <button
@@ -163,6 +163,7 @@
     </div>
   </header>
 
+  <slot />
 
   <!-- Drawer: accordion mega menu -->
   <transition name="slide">
@@ -214,7 +215,7 @@
         </div>
 
         <!-- Simple links -->
-        <nav class="sticky z-40 border-b" :style="{ top: 'var(--hdr-h, 0px)' }">
+        <nav class="sticky z-40 ">
           <ul class=" divide-y">
             <li>
               <NuxtLinkLocale
