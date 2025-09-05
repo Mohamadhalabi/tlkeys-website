@@ -3,11 +3,10 @@
   <header
     id="app-header"
     ref="hdrRef"
-    class="fixed left-0 right-0 z-40"
-    :style="{ top: 'env(safe-area-inset-top, 0px)' }"
+    class="fixed inset-x-0 top-0 z-40"
   >
     <!-- Row 1: top white bar -->
-    <div class="row-top bg-white py-2 shadow-sm">
+    <div class="row-top bg-white py-2 shadow-sm" style="padding-top: env(safe-area-inset-top, 0px)">
       <div class="mx-auto px-4 flex items-center justify-between">
         <!-- Hamburger (mobile only, bigger) -->
         <button
@@ -164,11 +163,6 @@
     </div>
   </header>
 
-  <!-- Spacer equals header height (prevents CLS) -->
-  <div :style="{ height: `calc(var(--hdr-h, 0px) * 0.6)` }"></div>
-
-  <!-- Page content -->
-  <slot />
 
   <!-- Drawer: accordion mega menu -->
   <transition name="slide">
@@ -220,7 +214,7 @@
         </div>
 
         <!-- Simple links -->
-        <nav class="px-1 ">
+        <nav class="sticky z-40 border-b" :style="{ top: 'var(--hdr-h, 0px)' }">
           <ul class=" divide-y">
             <li>
               <NuxtLinkLocale
@@ -471,14 +465,20 @@ function close(){ drawerOpen.value = false }
 
 /* Header height measurement (no shy) */
 const hdrRef = ref<HTMLElement|null>(null)
-function setHeaderHeightVar() {
+
+function setHeaderHeightVar () {
   const el = hdrRef.value
   if (!el) return
+  // Wait for layout
   requestAnimationFrame(() => {
     const h = el.offsetHeight
-    document.documentElement.style.setProperty('--hdr-h', `${30}vh`)
+    // expose as CSS var
+    document.documentElement.style.setProperty('--hdr-h', `${h}px`)
+    // ensure the page content sits below the fixed header
+    if (process.client) document.body.style.paddingTop = `${h}px`
   })
 }
+
 function onResize(){ setHeaderHeightVar() }
 onMounted(async () => {
   await nextTick()
