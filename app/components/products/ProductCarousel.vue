@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, computed, watchEffect, watch, nextTick } from 'vue'
+import { onMounted, onBeforeUnmount, ref, computed, watchEffect, watch } from 'vue'
 import ProductGrid from '~/components/products/ProductGrid.vue'
 
 type Product = Record<string, any>
@@ -33,6 +33,11 @@ const props = withDefaults(defineProps<{
   autoSlide?: boolean
   autoSlideMs?: number
   pauseOnHover?: boolean
+
+  /* page transition */
+  transitionType?: 'slide' | 'fade' | 'none'
+  transitionMs?: number
+  transitionEasing?: string
 }>(), {
   title: 'Products',
   rowsBase: 1, rowsSm: 1, rowsMd: 1, rowsLg: 1, rowsXl: 1,
@@ -46,9 +51,12 @@ const props = withDefaults(defineProps<{
   currentPage: 1,
   lastPage: 1,
   rtl: null,
-  autoSlide: true,          // turn on by default since you asked for it
-  autoSlideMs: 10000,        // 5 seconds
-  pauseOnHover: true
+  autoSlide: true,
+  autoSlideMs: 10000,
+  pauseOnHover: true,
+  transitionType: 'slide',
+  transitionMs: 280,
+  transitionEasing: 'ease-out'
 })
 
 const emit = defineEmits<{
@@ -70,14 +78,13 @@ function detectDir() {
 const rootEl = ref<HTMLElement | null>(null)
 const perRow = ref(2)
 const rows = ref(1)
+const layoutReady = ref(false) // ✅ prevents the “two big cards” flash
 
 let ro: ResizeObserver | null = null
 const BP = { xsMicro: 340, sm: 640, md: 768, lg: 1024, xl: 1280 }
 
 function computeLayout() {
   const w = rootEl.value?.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 1024)
-
-  // Force 1×1 on very small screens
   if (w < BP.xsMicro) { perRow.value = 1; rows.value = 1; return }
 
   perRow.value =
@@ -94,13 +101,19 @@ function computeLayout() {
   : w < BP.xl ? Math.max(1, props.rowsLg)
               : Math.max(1, props.rowsXl)
 
-  // If 1-per-row, lock to a single row
   if (perRow.value === 1) rows.value = 1
+}
+
+/* compute before first paint (client) */
+if (typeof window !== 'undefined') {
+  computeLayout()
+  layoutReady.value = true
 }
 
 onMounted(() => {
   detectDir()
-  nextTick(computeLayout)
+  if (!layoutReady.value) { computeLayout(); layoutReady.value = true }
+
   if (typeof window !== 'undefined' && 'ResizeObserver' in window && rootEl.value) {
     ro = new ResizeObserver(() => computeLayout())
     ro.observe(rootEl.value)
@@ -108,6 +121,7 @@ onMounted(() => {
   setupVisibilityPause(true)
   startAuto()
 })
+
 onBeforeUnmount(() => {
   ro?.disconnect()
   stopAuto()
@@ -125,21 +139,23 @@ const pageClient = ref(0)
 const totalPagesClient = computed(() =>
   Math.max(1, Math.ceil((props.products?.length || 0) / perPage.value))
 )
+
 const slicedClient = computed(() => {
   const start = pageClient.value * perPage.value
   return (props.products || []).slice(start, start + perPage.value)
 })
 
-// with serverPaging, still cap visible items to viewport (tiny = 1 item)
 const visibleServerSlice = computed(() => (props.products || []).slice(0, perPage.value))
 const visibleProducts = computed(() => props.serverPaging ? visibleServerSlice.value : slicedClient.value)
 
 watch([perPage, () => props.products?.length], () => {
   if (pageClient.value > totalPagesClient.value - 1) pageClient.value = 0
-  restartAuto() // layout/data change → keep autoslide in sync
+  restartAuto()
 })
 
+/* animation state */
 const pageAnim = ref<'next' | 'prev' | null>(null)
+
 function next() {
   pageAnim.value = 'next'
   if (props.serverPaging) {
@@ -157,7 +173,7 @@ function prev() {
   }
 }
 
-/* advance specifically for auto mode (wrap around on server paging) */
+/* auto advance (wrap on server) */
 function advanceAuto() {
   if (props.serverPaging) {
     const cur = Number(props.currentPage || 1)
@@ -170,13 +186,26 @@ function advanceAuto() {
   }
 }
 
+/* remember last server page to pick direction */
 const lastServerPage = ref(props.currentPage || 1)
 watch(() => props.currentPage, (p) => {
   if (!props.serverPaging) return
   const cur = Number(p || 1)
   pageAnim.value = cur > lastServerPage.value ? 'next' : 'prev'
   lastServerPage.value = cur
-  restartAuto() // server page changed → keep autoslide cadence
+  restartAuto()
+})
+
+/* computed transition name */
+const transitionName = computed(() => {
+  if (props.transitionType === 'none') return ''
+  if (props.transitionType === 'fade') return 'pc-fade'
+  // slide
+  const isNext = pageAnim.value === 'next'
+  // RTL flips directions
+  const left = isRTL.value ? 'pc-slide-right' : 'pc-slide-left'
+  const right = isRTL.value ? 'pc-slide-left' : 'pc-slide-right'
+  return isNext ? left : right
 })
 
 /* ---- background ---- */
@@ -195,7 +224,6 @@ function onTouchStart(e: TouchEvent) {
   tActive.value = true
   tX.value = e.touches[0].clientX
   tY.value = e.touches[0].clientY
-  // pause while user interacts
   stopAuto()
 }
 function onTouchEnd(e: TouchEvent) {
@@ -207,13 +235,13 @@ function onTouchEnd(e: TouchEvent) {
   if (Math.abs(dx) >= 32 && Math.abs(dx) >= Math.abs(dy)) {
     if (isRTL.value) { dx > 0 ? next() : prev() } else { dx < 0 ? next() : prev() }
   }
-  // give a small grace then resume
   resumeAutoSoon()
 }
 
 /* ---- autoslide timer ---- */
 let timer: number | null = null
 const isHovering = ref(false)
+
 function startAuto() {
   if (!props.autoSlide || timer != null) return
   if (typeof window === 'undefined') return
@@ -223,26 +251,12 @@ function startAuto() {
     advanceAuto()
   }, Math.max(1000, props.autoSlideMs || 5000))
 }
-function stopAuto() {
-  if (timer != null) {
-    clearInterval(timer)
-    timer = null
-  }
-}
-function restartAuto() {
-  stopAuto()
-  startAuto()
-}
-function resumeAutoSoon(delay = 1200) {
-  stopAuto()
-  setTimeout(() => startAuto(), delay)
-}
+function stopAuto() { if (timer != null) { clearInterval(timer); timer = null } }
+function restartAuto() { stopAuto(); startAuto() }
+function resumeAutoSoon(delay = 1200) { stopAuto(); setTimeout(() => startAuto(), delay) }
 
 /* pause when tab hidden / resume when visible */
-function onVisibilityChange() {
-  if (document.hidden) stopAuto()
-  else resumeAutoSoon(300)
-}
+function onVisibilityChange() { if (document.hidden) stopAuto(); else resumeAutoSoon(300) }
 function setupVisibilityPause(enable: boolean) {
   if (typeof document === 'undefined') return
   if (enable) document.addEventListener('visibilitychange', onVisibilityChange)
@@ -257,14 +271,14 @@ function setupVisibilityPause(enable: boolean) {
     :style="sectionStyle"
     @touchstart.passive="onTouchStart"
     @touchend.passive="onTouchEnd"
-    @mouseenter="() => { if (pauseOnHover) { isHovering = true; stopAuto() } }"
-    @mouseleave="() => { if (pauseOnHover) { isHovering = false; resumeAutoSoon() } }"
+    @mouseenter="() => { if (pauseOnHover) { isHovering.value = true; stopAuto() } }"
+    @mouseleave="() => { if (pauseOnHover) { isHovering.value = false; resumeAutoSoon() } }"
   >
     <div v-if="hasBackground" class="absolute inset-0 pointer-events-none" :class="overlayClass"></div>
 
     <div class="relative mx-auto max-w-screen-2xl px-3 sm:px-4 py-6 sm:py-8">
-      <!-- HEADER: title centered, optional action on same row (LTR right / RTL left) -->
-      <div v-if="title">
+      <!-- HEADER -->
+      <div v-if="title" class="grid grid-cols-[1fr_auto_1fr] items-center mb-2">
         <div class="justify-self-start">
           <template v-if="isRTL">
             <slot name="title-action" />
@@ -282,7 +296,7 @@ function setupVisibilityPause(enable: boolean) {
         </div>
       </div>
 
-      <!-- Stage with reserved arrow gutters so cards never sit under buttons -->
+      <!-- Stage -->
       <div class="relative pc-stage">
         <!-- Prev -->
         <button
@@ -293,10 +307,12 @@ function setupVisibilityPause(enable: boolean) {
           class="pc-arrow pc-arrow--prev grid place-items-center rounded-full bg-white/95 shadow ring-1 ring-black/5 hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed z-10"
         >‹</button>
 
-        <!-- Smooth slide -->
-        <Transition :name="(pageAnim === 'next') !== isRTL ? 'slide-left' : 'slide-right'" mode="out-in">
-          <div :key="serverPaging ? (currentPage || 1)+'-'+perPage : pageClient+'-'+perPage" class="will-change-transform">
+        <!-- Smooth page transition -->
+        <Transition :name="transitionName" mode="out-in">
+          <!-- 🔑 key changes on page + layout → animates cleanly -->
+          <div :key="(serverPaging ? (currentPage || 1) : pageClient) + '-' + perPage" class="will-change-transform">
             <ProductGrid
+              v-if="layoutReady"
               :title="''"
               :products="visibleProducts"
               :rows="rows"
@@ -348,24 +364,19 @@ function setupVisibilityPause(enable: boolean) {
 .pc-stage {
   /* base sizes */
   --pc-arrow-gap: 10px;  /* space from content edge */
+  --pc-arrow-size: 38px; /* default; overridden by media queries */
+  --pc-trans-ms: v-bind('transitionMs + "ms"');
+  --pc-trans-ease: v-bind('transitionEasing');
 
   position: relative;
   padding-left: calc(var(--pc-arrow-size) + var(--pc-arrow-gap));
   padding-right: calc(var(--pc-arrow-size) + var(--pc-arrow-gap));
 }
 
-@media (min-width: 640px) { /* sm */
-  .pc-stage { --pc-arrow-size: 38px; --pc-arrow-gap: 12px; }
-}
-@media (min-width: 768px) { /* md */
-  .pc-stage { --pc-arrow-size: 40px; --pc-arrow-gap: 14px; }
-}
-@media (min-width: 1024px) { /* lg */
-  .pc-stage { --pc-arrow-size: 44px; --pc-arrow-gap: 16px; }
-}
-@media (min-width: 1280px) { /* xl */
-  .pc-stage { --pc-arrow-size: 48px; --pc-arrow-gap: 18px; }
-}
+@media (min-width: 640px) { .pc-stage { --pc-arrow-size: 38px; --pc-arrow-gap: 12px; } } /* sm */
+@media (min-width: 768px) { .pc-stage { --pc-arrow-size: 40px; --pc-arrow-gap: 14px; } } /* md */
+@media (min-width: 1024px){ .pc-stage { --pc-arrow-size: 44px; --pc-arrow-gap: 16px; } } /* lg */
+@media (min-width: 1280px){ .pc-stage { --pc-arrow-size: 48px; --pc-arrow-gap: 18px; } } /* xl */
 
 .pc-arrow {
   position: absolute;
@@ -381,15 +392,42 @@ function setupVisibilityPause(enable: boolean) {
   .pc-arrow--prev, .pc-arrow--next { display: none; }
 }
 
-/* smooth page transition */
-.slide-left-enter-active,
-.slide-left-leave-active,
-.slide-right-enter-active,
-.slide-right-leave-active {
-  transition: transform 280ms ease-out, opacity 280ms ease-out;
+/* ====== Page Transitions ====== */
+/* Slide (direction aware via class name) */
+.pc-slide-left-enter-active,
+.pc-slide-left-leave-active,
+.pc-slide-right-enter-active,
+.pc-slide-right-leave-active {
+  transition: transform var(--pc-trans-ms) var(--pc-trans-ease), opacity var(--pc-trans-ms) var(--pc-trans-ease);
+  will-change: transform, opacity;
 }
-.slide-left-enter-from   { transform: translateX(20px);  opacity: 0; }
-.slide-left-leave-to     { transform: translateX(-20px); opacity: 0; }
-.slide-right-enter-from  { transform: translateX(-20px); opacity: 0; }
-.slide-right-leave-to    { transform: translateX(20px);  opacity: 0; }
+.pc-slide-left-enter-from  { transform: translateX(24px);  opacity: 0; }
+.pc-slide-left-leave-to    { transform: translateX(-24px); opacity: 0; }
+.pc-slide-right-enter-from { transform: translateX(-24px); opacity: 0; }
+.pc-slide-right-leave-to   { transform: translateX(24px);  opacity: 0; }
+
+/* Fade */
+.pc-fade-enter-active,
+.pc-fade-leave-active { transition: opacity var(--pc-trans-ms) var(--pc-trans-ease); }
+.pc-fade-enter-from,
+.pc-fade-leave-to { opacity: 0; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .pc-slide-left-enter-active,
+  .pc-slide-left-leave-active,
+  .pc-slide-right-enter-active,
+  .pc-slide-right-leave-active,
+  .pc-fade-enter-active,
+  .pc-fade-leave-active {
+    transition-duration: 120ms;
+    transition-timing-function: linear;
+  }
+  .pc-slide-left-enter-from,
+  .pc-slide-left-leave-to,
+  .pc-slide-right-enter-from,
+  .pc-slide-right-leave-to {
+    transform: none;
+  }
+}
 </style>

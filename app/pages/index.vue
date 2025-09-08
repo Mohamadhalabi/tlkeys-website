@@ -189,9 +189,6 @@ const featuredPage    = ref(1)
 const featuredLastRef = ref(1)
 
 async function fetchFeatured(page = 1, rows = 2, perRow = 6) {
-  // stop if we already reached the cap and someone asks for more pages
-  if (page > 1 && featured.value.length >= MAX_PER_SECTION) return
-
   const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
     method: 'GET',
     params: {
@@ -202,22 +199,15 @@ async function fetchFeatured(page = 1, rows = 2, perRow = 6) {
   })
   const { items, meta } = unwrapApi(res)
   const capLast = cappedLastPage(meta, rows, perRow, items.length)
-  if (page > capLast) return
 
-  if (page <= 1) {
-    featured.value = items.map(mapApiProduct)
-  } else {
-    featured.value = [...featured.value, ...items.map(mapApiProduct)]
-  }
-  // enforce hard cap
-  if (featured.value.length > MAX_PER_SECTION) {
-    featured.value = featured.value.slice(0, MAX_PER_SECTION)
-  }
+  // 🔁 always REPLACE the products with the requested page
+  featured.value = items.map(mapApiProduct)
 
-  featuredMeta.value     = meta
-  featuredPage.value     = Number(meta?.current_page || page || 1)
-  featuredLastRef.value  = capLast
+  featuredMeta.value    = meta
+  featuredPage.value    = Number(meta?.current_page || page || 1)
+  featuredLastRef.value = capLast
 }
+
 const { el: featuredEl } = useLazySection(() => fetchFeatured(1))
 
 /* -------- NEW ARRIVALS -------- */
@@ -227,8 +217,6 @@ const newPage     = ref(1)
 const newLastRef  = ref(1)
 
 async function fetchNew(page = 1, rows = 1, perRow = 6) {
-  if (page > 1 && newArrivals.value.length >= MAX_PER_SECTION) return
-
   const res = await $customApi(`${API_BASE_URL}/homepage-products/new-arrivals`, {
     method: 'GET',
     params: {
@@ -239,21 +227,15 @@ async function fetchNew(page = 1, rows = 1, perRow = 6) {
   })
   const { items, meta } = unwrapApi(res)
   const capLast = cappedLastPage(meta, rows, perRow, items.length)
-  if (page > capLast) return
 
-  if (page <= 1) {
-    newArrivals.value = items.map(mapApiProduct)
-  } else {
-    newArrivals.value = [...newArrivals.value, ...items.map(mapApiProduct)]
-  }
-  if (newArrivals.value.length > MAX_PER_SECTION) {
-    newArrivals.value = newArrivals.value.slice(0, MAX_PER_SECTION)
-  }
+  // 🔁 always REPLACE the products with the requested page
+  newArrivals.value = items.map(mapApiProduct)
 
-  newMeta.value     = meta
-  newPage.value     = Number(meta?.current_page || page || 1)
-  newLastRef.value  = capLast
+  newMeta.value    = meta
+  newPage.value    = Number(meta?.current_page || page || 1)
+  newLastRef.value = capLast
 }
+
 const { el: newEl } = useLazySection(() => fetchNew(1))
 
 /* ================= SEO ================= */
@@ -390,9 +372,6 @@ useHead({
       :show-dots="featuredLastRef <= 12"
       @request-page="fetchFeatured"
     />
-    <div v-else class="mx-auto max-w-screen-2xl px-3 sm:px-4 py-6 text-sm text-gray-500">
-      {{ t('home.loadingFeatured') || 'Loading featured…' }}
-    </div>
   </section>
 
   <!-- New Arrivals -->
@@ -412,10 +391,8 @@ useHead({
       :show-dots="newLastRef <= 12"
       @request-page="fetchNew"
     />
-    <div v-else class="mx-auto max-w-screen-2xl px-3 sm:px-4 py-6 text-sm text-gray-500">
-      {{ t('home.loadingNewArrivals') || 'Loading new arrivals…' }}
-    </div>
   </section>
+
 
   <!-- Brand sections -->
   <BrandSection
