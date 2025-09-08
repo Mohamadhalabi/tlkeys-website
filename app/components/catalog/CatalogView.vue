@@ -151,10 +151,45 @@ const pageInfo = computed(() => {
   return { current, size, total, last, from, to }
 })
 
-const breadcrumbs = computed(() => ([
-  { label: t('breadcrumbs.home'), to: '/' },
-  { label: t('breadcrumbs.shop'), to: '/shop' },
-]))
+/* ============ Breadcrumbs (with leaf + H1 in component) ============ */
+const prettify = (s: string) => s.replace(/-/g, ' ').replace(/\b\w/g, m => m.toUpperCase())
+
+const breadcrumbs = computed(() => {
+  const base = [
+    { label: t('breadcrumbs.home') as string, to: '/' },
+    { label: t('breadcrumbs.shop') as string, to: '/shop' },
+  ]
+
+  const fac = data.facets.value
+  const mapFrom = (arr?: Array<{slug:string; name:string}>) =>
+    new Map((arr || []).map(i => [i.slug, i.name]))
+
+  const mBrands = mapFrom(fac?.brands)
+  const mCats   = mapFrom(fac?.categories)
+  const mMfrs   = mapFrom(fac?.manufacturers)
+  const mModels = mapFrom(fac?.models)
+
+  let leaf: string | null = null
+
+  // Priority by entry type
+  if (state.entryType.value === 'brand' && state.sel.brands.length) {
+    const s = state.sel.brands[0]; leaf = mBrands.get(s) || prettify(s)
+  } else if (state.entryType.value === 'category' && state.sel.categories.length) {
+    const s = state.sel.categories[0]; leaf = mCats.get(s) || prettify(s)
+  } else if (state.entryType.value === 'manufacturer' && state.sel.manufacturers.length) {
+    const s = state.sel.manufacturers[0]; leaf = mMfrs.get(s) || prettify(s)
+  } else {
+    // Fallbacks if entryType isn't set or multiple filters
+    if (!leaf && state.sel.brands.length)        { const s = state.sel.brands[0];        leaf = mBrands.get(s) || prettify(s) }
+    if (!leaf && state.sel.categories.length)    { const s = state.sel.categories[0];    leaf = mCats.get(s)   || prettify(s) }
+    if (!leaf && state.sel.manufacturers.length) { const s = state.sel.manufacturers[0]; leaf = mMfrs.get(s)   || prettify(s) }
+    if (!leaf && state.sel.models.length)        { const s = state.sel.models[0];        leaf = mModels.get(s) || prettify(s) }
+  }
+
+  if (leaf) base.push({ label: leaf }) // last item has no link; Breadcrumbs.vue will render <h1>
+
+  return base
+})
 
 /* ============ clear-all helpers ============ */
 function hasAnySelection() {
@@ -168,7 +203,6 @@ function hasAnySelection() {
   )
 }
 async function clearAllAndGoShop() {
-  // reset selections
   state.sel.brands = []
   state.sel.categories = []
   state.sel.manufacturers = []
@@ -177,17 +211,13 @@ async function clearAllAndGoShop() {
   state.sel.q = ''
   state.sel.page = 1
 
-  // navigate to clean /shop
   const to = { path: '/shop', query: {} as Record<string, string> }
   if (route.path !== '/shop') {
     await router.replace(to)
   } else {
-    // already on /shop → nudge, then normalize to force watchers
     await router.replace({ ...to, query: { _r: Date.now().toString() } })
     await router.replace(to)
   }
-  // await nextTick()
-  // if (process.client) window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 /* ============ page nav ============ */
@@ -224,7 +254,6 @@ function loadMore(){
 
       <SelectedChips :chips="selectedChips" @remove="removeChip" class="mb-3" />
 
-      <!-- Mobile launcher buttons (hidden when group empty) -->
       <div v-if="data.facets.value" class="flex flex-wrap gap-2">
         <button v-if="(data.facets.value.categories?.length || 0) > 0"
                 class="px-3 py-1.5 rounded-full border border-orange-300 text-orange-700 text-sm bg-orange-50"
@@ -305,11 +334,15 @@ function loadMore(){
           :products="data.items.value"
           :rows="rowsForGrid"
           :productsPerRow="5"
+          v-if="data.items.value.length > 0"
           :show-rewards="true"
           :show-add="true"
           :show-qty="true"
           container-class="max-w-screen-2xl"
         />
+        <div v-else class="text-center text-lg font-bold">
+          No Results Found
+        </div>
 
         <Pagination
           v-if="data.meta.value && state.sel.perPage !== 'all'"

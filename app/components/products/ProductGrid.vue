@@ -78,7 +78,6 @@ const visible = computed(() => (props.products || []).slice(0, limit.value))
     <div class="mx-auto w-full" :class="containerClass">
       <!-- header -->
       <div class="mb-3 flex items-center justify-between px-3 sm:px-4">
-        <h2 class="text-base font-bold">{{ title }}</h2>
         <NuxtLinkLocale
           v-if="linkMoreHref"
           :to="linkMoreHref"
