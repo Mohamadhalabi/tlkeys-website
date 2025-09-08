@@ -122,8 +122,8 @@
             </div>
             <div class="p-4 max-h-[40vh] lg:max-h-[50vh] xl:max-h-[60vh] overflow-y-auto">
               <div v-if="filteredCars.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-                <button v-for="item in filteredCars" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-50 text-center" @click="goToBrand(item.slug)">
-                  <img :src="item.image" :alt="item.name" class="h-20 w-20 object-contain rounded" loading="lazy" />
+                <button v-for="item in filteredCars" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-100 text-center" @click="goToBrand(item.slug)">
+                  <NuxtImg :src="item.image" :alt="item.name" class="h-20 w-20 object-contain rounded" loading="lazy" />
                   <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">{{ item.name }}</span>
                 </button>
               </div>
@@ -144,8 +144,8 @@
             </div>
             <div class="p-4 max-h-[60vh] overflow-y-auto">
               <div v-if="filteredManufacturers.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3">
-                <button v-for="item in filteredManufacturers" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-50 text-center" @click="goToBrand(item.slug)">
-                  <img :src="item.image" :alt="item.name" class="h-20 w-20 object-contain rounded" loading="lazy" />
+                <button v-for="item in filteredManufacturers" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-100 text-center" @click="goToBrand(item.slug)">
+                  <NuxtImg :src="item.image" :alt="item.name" class="h-20 w-20 object-contain rounded" loading="lazy" />
                   <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">{{ item.name }}</span>
                 </button>
               </div>
@@ -166,8 +166,8 @@
             </div>
             <div class="p-4 max-h-[60vh] overflow-y-auto">
               <div v-if="filteredKeys.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3">
-                <button v-for="item in filteredKeys" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-50 text-center" @click="goToBrand(item.slug)">
-                  <img :src="item.image" :alt="item.name" class="h-20 w-20 object-contain rounded" loading="lazy" />
+                <button v-for="item in filteredKeys" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-100 text-center" @click="goToBrand(item.slug)">
+                  <NuxtImg :src="item.image" :alt="item.name" class="h-20 w-20 object-contain rounded" loading="lazy" />
                   <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">{{ item.name }}</span>
                 </button>
               </div>
@@ -188,8 +188,8 @@
             </div>
             <div class="p-4 max-h-[60vh] overflow-y-auto">
               <div v-if="filteredDevices.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3">
-                <button v-for="item in filteredDevices" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-50 text-center" @click="goToBrand(item.slug)">
-                  <img :src="item.image" :alt="item.name" class="h-20 w-20 object-contain rounded" loading="lazy" />
+                <button v-for="item in filteredDevices" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-100 text-center" @click="goToBrand(item.slug)">
+                  <NuxtImg :src="item.image" :alt="item.name" class="h-20 w-20 object-contain rounded" loading="lazy" />
                   <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">{{ item.name }}</span>
                 </button>
               </div>
@@ -210,8 +210,8 @@
             </div>
             <div class="p-4 max-h-[60vh] overflow-y-auto">
               <div v-if="filteredAccessories.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3">
-                <button v-for="item in filteredAccessories" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-50 text-center" @click="goToBrand(item.slug)">
-                  <img :src="item.image" :alt="item.name" class="h-20 w-20 object-contain rounded" loading="lazy" />
+                <button v-for="item in filteredAccessories" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-100 text-center" @click="goToBrand(item.slug)">
+                  <NuxtImg :src="item.image" :alt="item.name" class="h-20 w-20 object-contain rounded" loading="lazy" />
                   <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">{{ item.name }}</span>
                 </button>
               </div>
@@ -252,10 +252,10 @@
                   <button
                     v-for="item in filteredSoftwares"
                     :key="'soft-'+item.slug"
-                    class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-50 text-center"
+                    class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-100 text-center"
                     @click="goToBrand(item.slug, 'software')"
                   >
-                    <img :src="item.image" :alt="item.name" class="h-16 w-16 object-contain rounded" loading="lazy" />
+                    <NuxtImg :src="item.image" :alt="item.name" class="h-16 w-16 object-contain rounded" loading="lazy" />
                     <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">
                       {{ item.name }}
                     </span>
@@ -275,10 +275,10 @@
                   <button
                     v-for="item in filteredTokens"
                     :key="'tok-'+item.slug"
-                    class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-50 text-center"
+                    class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-100 text-center"
                     @click="goToBrand(item.slug, 'token')"
                   >
-                    <img :src="item.image" :alt="item.name" class="h-16 w-16 object-contain rounded" loading="lazy" />
+                    <NuxtImg :src="item.image" :alt="item.name" class="h-16 w-16 object-contain rounded" loading="lazy" />
                     <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">
                       {{ item.name }}
                     </span>

@@ -292,7 +292,7 @@ const orgLd = computed(() => ({
   '@type': 'Organization',
   name: siteName.value,
   url: siteUrl.value,
-  logo: toAbs('/images/logo.png')
+  logo: toAbs('/images/logo/techno-lock-desktop-logo.webp')
 }))
 const webPageLd = computed(() => ({
   '@context': 'https://schema.org',

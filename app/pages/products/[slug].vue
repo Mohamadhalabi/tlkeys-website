@@ -884,7 +884,7 @@ watch(() => product.value?.id, () => {
                     :href="waLinkForProduct(product)"
                     target="_blank"
                     rel="noopener"
-                    class="mt-3 inline-flex items-center gap-2 rounded-lg border border-green-600 bg-green-700 text-white hover:bg-green-800 px-3 py-3 font-semibold"
+                    class="mt-3 inline-flex items-center gap-2 rounded-lg border border-green-600 bg-green-700 text-white hover:text-white hover:bg-green-800 px-3 py-3 font-semibold"
                     :aria-label="_t('search.contactOnWhatsApp','Contact on WhatsApp')"
                   >
                     <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">

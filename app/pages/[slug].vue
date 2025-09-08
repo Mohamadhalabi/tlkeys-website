@@ -46,7 +46,7 @@ function fallbackDescription(r: any) {
 const seoTitle = computed(() => {
   const r = resolved.value
   const t = r?.meta_title?.toString().trim()
-  return (t && t.length) ? `${t} | Techno Lock Keys` : `${r?.name ?? route.params.slug} | Techno Lock Keys`
+  return (t && t.length) ? `${t}` : `${r?.name ?? route.params.slug}`
 })
 const seoDescription = computed(() => {
   const r = resolved.value
