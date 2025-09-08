@@ -2,34 +2,41 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { useAsyncData, useNuxtApp, useRoute, useRuntimeConfig } from '#imports'
 
 export type FacetItem = { id?: number|string; slug: string; name: string; count: number }
-export type AttrFacet = { slug: string; name: string; priority: number; items: FacetItem[] }
+export type AttrFacet  = { slug: string; name: string; priority: number; items: FacetItem[] }
 
 export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogState').useCatalogState>) {
   const { $customApi } = useNuxtApp()
   const route = useRoute()
   const { public: { API_BASE_URL } } = useRuntimeConfig()
 
-  const items   = ref<any[]>([])
-  const meta    = ref<any | null>(null)
-  const facets  = ref<{ brands: FacetItem[]; models: FacetItem[]; categories: FacetItem[]; manufacturers: FacetItem[]; attributes?: AttrFacet[] } | null>(null)
-  const pending = ref(false)
+  const items    = ref<any[]>([])
+  const meta     = ref<any | null>(null)
+  const facets   = ref<{ brands: FacetItem[]; models: FacetItem[]; categories: FacetItem[]; manufacturers: FacetItem[]; attributes?: AttrFacet[] } | null>(null)
+  const pending  = ref(false)
   const errorMsg = ref('')
   const isInfinite = computed(() => state.sel.perPage === 'all')
   const CHUNK = 25
 
   const keyForSSR = computed(() => `catalog:${JSON.stringify({
-    brands: state.sel.brands, categories: state.sel.categories, manufacturers: state.sel.manufacturers, models: state.sel.models,
-    attributes: state.sel.attributes, q: state.sel.q, sort: state.sel.sort, page: state.sel.page, per_page: state.sel.perPage
+    brands: state.sel.brands,
+    categories: state.sel.categories,
+    manufacturers: state.sel.manufacturers,
+    models: state.sel.models,
+    attributes: state.sel.attributes,
+    q: state.sel.q,
+    sort: state.sel.sort,
+    page: state.sel.page,
+    per_page: state.sel.perPage
   })}`)
 
   function stableStringify(obj: Record<string, string[]>): string {
     const out: Record<string, string[]> = {}
-    Object.keys(obj).sort().forEach(k => { out[k] = [...obj[k]].sort() })
+    Object.keys(obj || {}).sort().forEach(k => { out[k] = [...obj[k]].sort() })
     return JSON.stringify(out)
   }
 
   function unwrapApi(res: any) {
-    const body = (res && typeof res === 'object' && 'data' in res && !Array.isArray(res.data)) ? res.data : res
+    const body  = (res && typeof res === 'object' && 'data' in res && !Array.isArray(res.data)) ? res.data : res
     const items = Array.isArray(body?.data) ? body.data : (Array.isArray(body) ? body : [])
     const meta  = (body && body.meta) ?? (res && res.meta) ?? null
     return { items, meta, body }
@@ -42,13 +49,13 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
   function mapApiProduct(p: any) {
     const discRaw = (p?.discount?.data ?? p?.discount) || null
     const toNum = (v:any)=> Number.isFinite(Number(v)) ? Number(v) : null
-    const type = discRaw?.type === 'percent' || discRaw?.type === 'fixed' ? discRaw?.type : null
+    const type  = discRaw?.type === 'percent' || discRaw?.type === 'fixed' ? discRaw?.type : null
     const value = toNum(discRaw?.value)
-    const now = Date.now()
+    const now   = Date.now()
     const active = !!discRaw?.active &&
       type && value != null &&
       (discRaw?.start_date ? now >= Date.parse(discRaw.start_date) : true) &&
-      (discRaw?.end_date ? now <= Date.parse(discRaw.end_date) : true)
+      (discRaw?.end_date   ? now <= Date.parse(discRaw.end_date)   : true)
 
     const stockRaw =
       p?.quantity ?? p?.stock ?? p?.available_quantity ?? p?.inventory?.quantity ?? null
@@ -80,7 +87,7 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
 
   const showAttrFilters = computed(() => !(state.entryType.value === 'manufacturer' && state.sel.categories.length === 0))
 
-  // --- simple de-dupe: skip if params key didn’t change
+  // --- de-dupe: skip if params key didn’t change
   const lastFetchKey = ref<string>('')
 
   async function fetchOnce() {
@@ -116,8 +123,10 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
       const { items: list, meta: m, body } = unwrapApi(res)
 
       const mapped = list.map(mapApiProduct)
-      if (isInfinite.value && state.sel.page > 1) items.value = items.value.concat(mapped)
+      // append only when infinite + page>1; otherwise replace
+      if (isInfinite.value && Number(state.sel.page || 1) > 1) items.value = items.value.concat(mapped)
       else items.value = mapped
+
       meta.value = m
 
       const fix = (arr: any[] = []): FacetItem[] =>
@@ -168,27 +177,53 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
     }
   }
 
-  // Initial load (SSR on server; hydrated on client). Don’t combine with a second immediate watch.
+  // ===== Initial load (SSR on server; hydrated on client)
   useAsyncData(keyForSSR, () => fetchOnce(), { server: true, immediate: true })
 
-  // Re-fetch on real navigation changes (ignore hash). Not immediate.
+  // ===== Route-driven refetch (keep old items when ONLY page++ in infinite mode)
+  const num = (v:any) => {
+    const n = Number(v)
+    return Number.isFinite(n) && n > 0 ? n : 1 // default to page 1 when missing/invalid
+  }
+  function equalExceptPage(a:Record<string,any> = {}, b:Record<string,any> = {}) {
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)])
+    for (const k of keys) {
+      if (k === 'page') continue
+      if (a[k] !== b[k]) return false
+    }
+    return true
+  }
+
   watch(
     () => [route.path, route.query],
-    async () => {
+    async (cur, prev) => {
+      const [curPath, curQ]   = cur
+      const [prevPath, prevQ] = prev || []
+
+      const onlyPageIncrement =
+        isInfinite.value &&
+        !!prev &&
+        curPath === prevPath &&
+        equalExceptPage(curQ as any, prevQ as any) &&
+        num((curQ as any)?.page) === num((prevQ as any)?.page) + 1
+
       await nextTick()
-      items.value = []
-      meta.value = null
-      facets.value = null
+
+      if (!onlyPageIncrement) {
+        items.value = []
+        meta.value = null
+        facets.value = null
+      }
       await fetchOnce()
     },
-    { deep: true, flush: 'post', immediate:true } // no `immediate`
+    { deep: true, flush: 'post', immediate: false } // SSR already did the first fetch
   )
 
   const canLoadMore = computed(() => {
     const m = meta.value
     if (!m) return false
     const current = Number(m.current_page || state.sel.page || 1)
-    const last = Number(m.last_page || 1)
+    const last    = Number(m.last_page || 1)
     return current < last
   })
 

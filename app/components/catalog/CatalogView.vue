@@ -300,7 +300,7 @@ function loadMore(){
       </template>
       <template v-else>
         <ProductGrid
-          :key="state.gridKey"
+          :key="state.sel.perPage === 'all' ? 'grid-infinite' : state.gridKey"
           :title="t('products')"
           :products="data.items.value"
           :rows="rowsForGrid"

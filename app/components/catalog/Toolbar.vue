@@ -24,7 +24,7 @@ const emit = defineEmits<{ (e:'update:sort', v:string):void; (e:'update:perPage'
                 class="w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gray-200">
           <option value="16">16</option>
           <option value="25">25</option>
-          <option value="all">{{ t('perPageAll') }}</option>
+          <option value="all">{{ t('All') }}</option>
         </select>
       </div>
     </div>
