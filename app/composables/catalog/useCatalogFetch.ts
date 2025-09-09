@@ -1,5 +1,5 @@
-import { ref, computed, watch, nextTick } from 'vue'
-import { useAsyncData, useNuxtApp, useRoute, useRuntimeConfig } from '#imports'
+import { ref, computed, watch, nextTick, onMounted, onServerPrefetch } from 'vue'
+import { useNuxtApp, useRoute, useRouter, useRuntimeConfig } from '#imports'
 
 export type FacetItem = { id?: number|string; slug: string; name: string; count: number }
 export type AttrFacet  = { slug: string; name: string; priority: number; items: FacetItem[] }
@@ -7,6 +7,7 @@ export type AttrFacet  = { slug: string; name: string; priority: number; items: 
 export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogState').useCatalogState>) {
   const { $customApi } = useNuxtApp()
   const route = useRoute()
+  const router = useRouter()
   const { public: { API_BASE_URL } } = useRuntimeConfig()
 
   const items    = ref<any[]>([])
@@ -17,23 +18,46 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
   const isInfinite = computed(() => state.sel.perPage === 'all')
   const CHUNK = 25
 
-  const keyForSSR = computed(() => `catalog:${JSON.stringify({
-    brands: state.sel.brands,
-    categories: state.sel.categories,
-    manufacturers: state.sel.manufacturers,
-    models: state.sel.models,
-    attributes: state.sel.attributes,
-    q: state.sel.q,
-    sort: state.sel.sort,
-    page: state.sel.page,
-    per_page: state.sel.perPage
-  })}`)
-
-  function stableStringify(obj: Record<string, string[]>): string {
-    const out: Record<string, string[]> = {}
-    Object.keys(obj || {}).sort().forEach(k => { out[k] = [...obj[k]].sort() })
-    return JSON.stringify(out)
+  // ---------- helpers ----------
+  const parseQ = (fp?: string): Record<string, any> => {
+    if (!fp) return {}
+    const qs = fp.split('?')[1] || ''
+    return Object.fromEntries(new URLSearchParams(qs))
   }
+  const num = (v:any) => {
+    const n = Number(v)
+    return Number.isFinite(n) && n > 0 ? n : 1
+  }
+  const equalExceptPage = (a:Record<string,any>={}, b:Record<string,any>={}) => {
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)])
+    for (const k of keys) {
+      if (k === 'page') continue
+      if (a[k] !== b[k]) return false
+    }
+    return true
+  }
+  function stableStringify(obj: Record<string, any>): string {
+    const sorted: Record<string, any> = {}
+    Object.keys(obj || {}).sort().forEach(k => {
+      const v = (obj as any)[k]
+      if (Array.isArray(v)) sorted[k] = [...v].sort()
+      else if (v && typeof v === 'object') sorted[k] = JSON.parse(stableStringify(v))
+      else sorted[k] = v
+    })
+    return JSON.stringify(sorted)
+  }
+
+  // Include active boolean/flag query params (promotion, free-shipping, etc.)
+  const activeFlags = computed(() => {
+    const out: Record<string, any> = {}
+    state.flagKeys.forEach((k) => {
+      if (Object.prototype.hasOwnProperty.call(route.query, k)) {
+        const qv = (route.query as any)[k]
+        out[k] = qv === '' ? 1 : qv
+      }
+    })
+    return out
+  })
 
   function unwrapApi(res: any) {
     const body  = (res && typeof res === 'object' && 'data' in res && !Array.isArray(res.data)) ? res.data : res
@@ -87,16 +111,14 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
 
   const showAttrFilters = computed(() => !(state.entryType.value === 'manufacturer' && state.sel.categories.length === 0))
 
-  // --- de-dupe: skip if params key didn’t change
-  const lastFetchKey = ref<string>('')
+  // -------- in-flight guard (only the latest fetch may update state)
+  let fetchToken = 0
 
   async function fetchOnce() {
-    const currentKey = keyForSSR.value
-    if (currentKey === lastFetchKey.value) return
-    lastFetchKey.value = currentKey
-
+    const myToken = ++fetchToken
     pending.value = true
     errorMsg.value = ''
+
     const effectivePerPage = state.sel.perPage === 'all' ? CHUNK : state.sel.perPage
 
     try {
@@ -112,20 +134,23 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
         per_page:      effectivePerPage,
         include:       'table_price,categories',
         attr_facets:   showAttrFilters.value ? 1 : 0,
+        ...activeFlags.value,
       }
-      state.flagKeys.forEach((k) => {
-        if (Object.prototype.hasOwnProperty.call(route.query, k)) {
-          params[k] = (route.query as any)[k] === '' ? 1 : (route.query as any)[k]
-        }
-      })
 
       const res = await $customApi(`${API_BASE_URL}/catalog`, { method: 'GET', params })
-      const { items: list, meta: m, body } = unwrapApi(res)
+      if (myToken !== fetchToken) return // a newer fetch started, discard
 
+      const { items: list, meta: m, body } = unwrapApi(res)
       const mapped = list.map(mapApiProduct)
-      // append only when infinite + page>1; otherwise replace
-      if (isInfinite.value && Number(state.sel.page || 1) > 1) items.value = items.value.concat(mapped)
-      else items.value = mapped
+
+      // append only in infinite mode when page > 1; dedupe by id
+      if (isInfinite.value && Number(state.sel.page || 1) > 1) {
+        const seen = new Set(items.value.map(p => p.id))
+        const toAppend = mapped.filter(p => !seen.has(p.id))
+        items.value = items.value.concat(toAppend)
+      } else {
+        items.value = mapped
+      }
 
       meta.value = m
 
@@ -171,41 +196,49 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
 
       facets.value = baseFacets ? onlyNonEmpty(baseFacets) : null
     } catch (e: any) {
+      if (myToken !== fetchToken) return
       errorMsg.value = e?.data?.message || e?.message || 'Failed to load catalog'
     } finally {
-      pending.value = false
+      if (myToken === fetchToken) pending.value = false
     }
   }
 
-  // ===== Initial load (SSR on server; hydrated on client)
-  useAsyncData(keyForSSR, () => fetchOnce(), { server: true, immediate: true })
+  // ===== First fetch =====
+  // SSR: run before rendering
+  onServerPrefetch(async () => {
+    await fetchOnce()
+  })
+  // Client: run once after mount (ensures state.sel is hydrated for this instance)
+  onMounted(async () => {
+    items.value = []
+    meta.value = null
+    facets.value = null
+    await fetchOnce()
+  })
 
-  // ===== Route-driven refetch (keep old items when ONLY page++ in infinite mode)
-  const num = (v:any) => {
-    const n = Number(v)
-    return Number.isFinite(n) && n > 0 ? n : 1 // default to page 1 when missing/invalid
-  }
-  function equalExceptPage(a:Record<string,any> = {}, b:Record<string,any> = {}) {
-    const keys = new Set([...Object.keys(a), ...Object.keys(b)])
-    for (const k of keys) {
-      if (k === 'page') continue
-      if (a[k] !== b[k]) return false
-    }
-    return true
-  }
-
+  // ===== Route-driven refetch; normalize URL to page=1 when non-page params change =====
   watch(
-    () => [route.path, route.query],
+    () => route.fullPath,
     async (cur, prev) => {
-      const [curPath, curQ]   = cur
-      const [prevPath, prevQ] = prev || []
+      const curQ  = parseQ(cur)
+      const prevQ = parseQ(prev)
 
       const onlyPageIncrement =
         isInfinite.value &&
         !!prev &&
-        curPath === prevPath &&
-        equalExceptPage(curQ as any, prevQ as any) &&
-        num((curQ as any)?.page) === num((prevQ as any)?.page) + 1
+        equalExceptPage(curQ, prevQ) &&
+        num(curQ.page) === num(prevQ.page) + 1
+
+      // If anything other than page changed (category/brand/flags/sort/per_page/search…),
+      // rewrite URL to drop page (normalize to page 1) so state/URL/fetch stay aligned.
+      if (!equalExceptPage(curQ, prevQ)) {
+        if (curQ.page && curQ.page !== '1') {
+          const { page, ...newQ } = curQ
+          await router.replace({ path: route.path, query: newQ })
+          return // will re-enter watcher with normalized URL
+        }
+        state.sel.page = 1
+      }
 
       await nextTick()
 
@@ -214,9 +247,10 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
         meta.value = null
         facets.value = null
       }
+
       await fetchOnce()
     },
-    { deep: true, flush: 'post', immediate: false } // SSR already did the first fetch
+    { flush: 'post' }
   )
 
   const canLoadMore = computed(() => {
