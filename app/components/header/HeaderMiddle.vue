@@ -62,7 +62,9 @@
                       :src="p.image"
                       width="80"
                       height="80"
-                      class="rounded border object-cover shrink-0"
+                      class="rounded border object-cover shrink-0 pointer-events-auto"
+                      @click.prevent="router.push(productTo(p))"
+                      @contextmenu.stop
                     />
 
                     <div class="min-w-0 flex-1">

@@ -19,10 +19,7 @@ import BackToTop from './components/ui/BackToTop.vue'
 
 <style>
 /* keep viewport normal so sticky/positioned menus work */
-:root, html, body {
-  font-family: 'Proxima Nova', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif !important;
-  max-width: 100%;
-}
+
 
 /* fallback for browsers without overflow-clip */
 @supports not (overflow: clip) {
