@@ -2,7 +2,7 @@
 <template>
   <footer class="relative text-white bg-black/85 backdrop-blur">
     <!-- Top -->
-    <div class="mx-auto max-w-screen-2xl px-6 py-12">
+    <div class="mx-auto max-w-screen-2xl px-6 py-12" data-nosnippet>
       <div class="grid grid-cols-1 md:grid-cols-12 gap-10">
         <!-- Brand / about -->
         <section class="md:col-span-5">

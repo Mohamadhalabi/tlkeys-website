@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n, useRouter, useNuxtApp, definePageMeta, useSeoMeta, useHead, useRuntimeConfig } from '#imports'
+import { useAlertStore } from '~/stores/alert'
 
 definePageMeta({ ssr: false })
 
@@ -30,6 +31,13 @@ type Address = {
 }
 type ShippingKey = 'pick_up'|'domestic'|'dhl'|'fedex'|'aramex'|'ups'
 type ShippingOption = { key: ShippingKey; label: string; price: number; disabled?: boolean }
+type CouponResult = {
+  code: string
+  applied: boolean
+  reason?: string | null
+  message?: string | null
+  discount_value?: number
+}
 type Quote = {
   products: QuoteProduct[]
   addresses: Address[]
@@ -37,6 +45,7 @@ type Quote = {
   shipping: { options: ShippingOption[], selected: ShippingKey|null, price: number }
   summary: { sub_total:number; discount:number; sub_after_coupon:number; shipping:number; total:number }
   weights: { total_weight_kg:number; zone_id:number|null }
+  coupon?: CouponResult | null
 }
 type Country = {
   id: number
@@ -52,13 +61,10 @@ const { $customApi } = useNuxtApp()
 const { t, locale } = useI18n()
 const router = useRouter()
 const runtimeConfig = useRuntimeConfig()
+const alerts = useAlertStore()
 
-/** Put your WhatsApp number in .env as:
- *  NUXT_PUBLIC_WHATSAPP_NUMBER=9715XXXXXXXX (digits only, no + or spaces)
- *  Fallback below is used if not provided.
- */
+/** WhatsApp helper */
 const WHATSAPP_NUMBER = String((runtimeConfig as any)?.public?.whatsappNumber || '905376266092')
-
 const whatsappLink = computed(() => {
   const msg = t('common.whatsappPrefill') || 'Hello, I need help completing my order.'
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
@@ -69,7 +75,6 @@ const isString = (v: unknown): v is string => typeof v === 'string' && v.trim() 
 const money = (v: unknown): string => Number(v || 0).toFixed(2)
 const imgSrc = (v: unknown): string | null => (isString(v) ? v : null)
 
-/** Safely resolve country display name from string or JSON */
 function countryDisplayName(c: Country, loc: string): string {
   try {
     if (typeof c.name === 'string') {
@@ -82,16 +87,26 @@ function countryDisplayName(c: Country, loc: string): string {
     if (c.name && typeof c.name === 'object') {
       return (c.name[loc] || (c.name as any).en || (Object.values(c.name)[0] as string) || '') as string
     }
-  } catch { /* ignore */ }
+  } catch {}
   return String(c.name ?? '')
 }
 
 /* ---------------- State ---------------- */
 const quote = ref<Quote | null>(null)
 const loading = ref(false)
-const creatingOrder = ref(false) // 🔒 prevent double submits after click
+const creatingOrder = ref(false)
 
-const coupon = ref<string>('')
+/** Coupon:
+ *  - couponInput: text in the box (free typing)
+ *  - appliedCouponCode: the code we actually send to backend (only after clicking Apply)
+ */
+const couponInput = ref<string>('')
+const appliedCouponCode = ref<string | null>(null)
+
+/** Alert de-dup */
+const lastShownCouponKey = ref<string | null>(null)
+const makeCouponKey = (c?: CouponResult | null) =>
+  c ? `${(c.code||'').toUpperCase()}:${c.applied?'1':'0'}:${c.reason||''}:${Number(c.discount_value||0).toFixed(2)}` : null
 
 const addresses = ref<Address[]>([])
 const selectedAddressId = ref<number | null>(null)
@@ -141,81 +156,128 @@ const shippingOptions = computed<ShippingOption[]>(() => {
   return quote.value?.shipping?.options ?? []
 })
 
-/* ---------------- Address modal (Add/Edit + set default) ---------------- */
+/* ---------------- Address modal ---------------- */
 type AddressForm = Partial<Address> & { is_default?: boolean }
 const addressModalOpen = ref(false)
 const addressForm = ref<AddressForm>({})
 const isEditing = computed(() => !!addressForm.value.id)
 
 function openAddressForm(a?: Address) {
-  if (a) {
-    addressForm.value = { ...a }
-  } else {
-    addressForm.value = {
-      country_id: undefined as any,
-      city: '',
-      street: '',
-      address: '',
-      phone: '',
-      postal_code: '',
-      is_default: false
-    }
+  addressForm.value = a ? { ...a } : {
+    country_id: undefined as any,
+    city: '',
+    street: '',
+    address: '',
+    phone: '',
+    postal_code: '',
+    is_default: false
   }
   addressModalOpen.value = true
 }
-function closeAddressForm() {
-  addressModalOpen.value = false
+function closeAddressForm() { addressModalOpen.value = false }
+
+/* ---------------- Coupon UX ---------------- */
+function showCouponAlertOnce(c: CouponResult | null | undefined) {
+  const k = makeCouponKey(c)
+  if (!k || k === lastShownCouponKey.value) return
+  lastShownCouponKey.value = k
+
+  if (c?.applied) {
+    const saved = (c.discount_value ?? 0).toFixed(2)
+    alerts.showAlert({
+      type: 'success',
+      title: 'Coupon applied',
+      message: `${'You saved'} <b>${saved}$</b> ${'on the subtotal'}.`
+    })
+  } else {
+    alerts.showAlert({
+      type: 'error',
+      title: 'Coupon not applied',
+      message: c?.message || t('checkout.couponInvalid') || 'This coupon cannot be used for your order.'
+    })
+  }
 }
 
-/* ---------------- API calls (via customApi) ---------------- */
+/* ---------------- API calls ---------------- */
 async function fetchAddresses() {
   const res = await $customApi<Quote>('/checkout/quote')
   addresses.value = res?.addresses ?? []
   selectedAddressId.value = res?.selected_address_id ?? addresses.value[0]?.id ?? null
 }
 
-async function fetchQuote() {
+/** fetchQuote
+ *  - If you pass {couponOverride}, it will be used for this request only (used by Apply).
+ *  - Otherwise, we send appliedCouponCode (if any).
+ *  - showCouponAlert controls whether we pop a toast (only on Apply).
+ */
+async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAlert?: boolean }) {
   loading.value = true
   try {
     const params = new URLSearchParams()
     if (selectedAddressId.value) params.set('address_id', String(selectedAddressId.value))
     if (selectedShipping.value)  params.set('shipping_method', String(selectedShipping.value))
-    if (coupon.value)            params.set('coupon', coupon.value)
+
+    const couponToSend = (opts && 'couponOverride' in opts)
+      ? (opts.couponOverride || null)
+      : (appliedCouponCode.value || null)
+
+    if (couponToSend) params.set('coupon', couponToSend)
 
     const res = await $customApi<Quote>(`/checkout/quote?${params.toString()}`)
     quote.value = res
 
     if (!selectedAddressId.value) selectedAddressId.value = res.selected_address_id ?? null
-
     if (!selectedShipping.value && res.shipping?.selected) {
       selectedShipping.value = res.shipping.selected as ShippingKey
     }
-
     if (selectedAddress.value?.country_id === UAE_COUNTRY_ID && selectedShipping.value && !['pick_up','domestic'].includes(selectedShipping.value)) {
       selectedShipping.value = null
+    }
+
+    // If this fetch was triggered by clicking Apply, show alert once
+    if (opts?.showCouponAlert) {
+      showCouponAlertOnce(res.coupon)
+      // If it didn't apply, do NOT stick it in appliedCouponCode
+      if (!(res.coupon?.applied)) {
+        appliedCouponCode.value = null
+      }
     }
   } finally {
     loading.value = false
   }
 }
 
+/** Click handlers for coupon */
+async function applyCoupon() {
+  const code = (couponInput.value || '').trim()
+  if (!code) return
+  // Try once with this code, show an alert, and persist only if applied
+  await fetchQuote({ couponOverride: code, showCouponAlert: true })
+  if (quote.value?.coupon?.applied) {
+    appliedCouponCode.value = code
+  }
+}
+async function removeCoupon() {
+  appliedCouponCode.value = null
+  lastShownCouponKey.value = null // reset de-dup
+  await fetchQuote()
+  alerts.showAlert({ type: 'info', title: t('checkout.couponRemoved') || 'Coupon removed' })
+}
+
+/* ---------------- Save/Delete address ---------------- */
 async function saveAddress() {
   const body = { ...addressForm.value }
-
-  if (
-    !body.country_id ||
-    !String(body.city || '').trim() ||
-    !String(body.street || '').trim() ||
-    !String(body.address || '').trim() ||
-    !String(body.postal_code || '').trim() ||
-    !String(body.phone || '').trim()
-  ) {
-    alert(t('checkout.allAddressFieldsRequired') || 'Please fill in all address fields.')
+  if (!body.country_id || !String(body.city||'').trim() || !String(body.street||'').trim()
+      || !String(body.address||'').trim() || !String(body.postal_code||'').trim() || !String(body.phone||'').trim()) {
+    alerts.showAlert({
+      type: 'error',
+      title: t('checkout.missingFields') || 'Missing fields',
+      message: t('checkout.allAddressFieldsRequired') || 'Please fill in all address fields.'
+    })
     return
   }
 
   let savedId: number | null = null
-
   if (isEditing.value) {
     await $customApi(`/edit-addresses/${body.id}`, { method: 'POST', body })
     savedId = Number(body.id)
@@ -234,35 +296,33 @@ async function saveAddress() {
 
   addressModalOpen.value = false
   await fetchAddresses()
-  if (selectedAddress.value?.country_id === UAE_COUNTRY_ID) {
-    selectedShipping.value = null
-  }
+  if (selectedAddress.value?.country_id === UAE_COUNTRY_ID) selectedShipping.value = null
   await fetchQuote()
+  alerts.showAlert({ type: 'success', title: t('checkout.addressSaved') || 'Address saved' })
 }
 
 async function deleteAddress(a: Address) {
   if (!confirm(t('checkout.deleteAddressConfirm') || 'Delete this address?')) return
   await $customApi(`/delete-addresses/${a.id}`, { method: 'POST' })
   await fetchAddresses()
-  if (selectedAddressId.value === a.id) {
-    selectedAddressId.value = addresses.value[0]?.id ?? null
-  }
+  if (selectedAddressId.value === a.id) selectedAddressId.value = addresses.value[0]?.id ?? null
   await fetchQuote()
+  alerts.showAlert({ type: 'success', title: t('checkout.addressDeleted') || 'Address deleted' })
 }
 
+/* ---------------- Order creation ---------------- */
 async function createOrder() {
-  // guard basic requirements first
-  if (!selectedAddressId.value) return alert(t('checkout.selectAddressFirst') || 'Please select an address')
-  if (!selectedShipping.value)  return alert(t('checkout.selectShippingFirst') || 'Please choose a shipping method')
-  if (!paymentMethod.value)     return alert(t('checkout.selectPaymentFirst') || 'Please select a payment method')
-  if (!acceptTerms.value)       return alert(t('checkout.acceptTermsFirst') || 'Please accept Terms & Conditions')
+  if (!selectedAddressId.value) return alerts.showAlert({ type:'error', title: t('checkout.selectAddressFirst') || 'Please select an address' })
+  if (!selectedShipping.value)  return alerts.showAlert({ type:'error', title: t('checkout.selectShippingFirst') || 'Please choose a shipping method' })
+  if (!paymentMethod.value)     return alerts.showAlert({ type:'error', title: t('checkout.selectPaymentFirst') || 'Please select a payment method' })
+  if (!acceptTerms.value)       return alerts.showAlert({ type:'error', title: t('checkout.acceptTermsFirst') || 'Please accept Terms & Conditions' })
 
-  if (creatingOrder.value) return // already submitting
+  if (creatingOrder.value) return
   creatingOrder.value = true
 
   const paymentMap: Record<'card'|'paypal'|'transfer', string> = {
-    card: 'ccavenue',          // CCAvenue
-    paypal: 'paypal',          // PayPal
+    card: 'ccavenue',
+    paypal: 'paypal',
     transfer: 'transfer_online'
   }
 
@@ -270,56 +330,44 @@ async function createOrder() {
     address:         selectedAddressId.value,
     shipping_method: selectedShipping.value,
     payment_method:  paymentMap[paymentMethod.value],
-    coupon_code:     coupon.value || null,
+    coupon_code:     appliedCouponCode.value || null, // only the applied one
   }
 
   try {
-    // Auth: this route is under auth:api
     const res = await $customApi<any>('/user/orders/create', {
       method: 'POST',
       body,
-      headers: {
-        currency: 'USD',
-        'Accept-Language': 'en',
-      },
+      headers: { currency: 'USD', 'Accept-Language': 'en' },
     })
 
-    // ---- Unwrap your API envelope ----
     const payload = res?.data || res
     const order   = payload?.order
     const paypalUrl = (payload?.paypal_url || '').trim()
 
-    // PayPal: if a non-empty URL is present, go there
     if (paymentMethod.value === 'paypal' && paypalUrl) {
       window.location.href = paypalUrl
       return
     }
-
-    // Card (CCAvenue): add 3% to total and redirect
     if (paymentMethod.value === 'card' && order?.order_id) {
       const baseTotal = Number(order?.total?.value ?? order?.total ?? 0)
       const amount = (Math.round((baseTotal * 1.03 + Number.EPSILON) * 100) / 100).toFixed(2)
-      location.href =
-        `https://dev-srv.tlkeys.com/online-order?order_id=${encodeURIComponent(order.order_id)}&amount=${amount}`
+      location.href = `https://dev-srv.tlkeys.com/online-order?order_id=${encodeURIComponent(order.order_id)}&amount=${amount}`
       return
     }
-
-    // Transfer or any non-redirect flow
     if (order?.order_id) {
       router.push({ path: '/complete-order', query: { orderId: order.order_id } })
       return
     }
 
-    // Fallback
-    alert('Order created but missing order id in response.')
+    alerts.showAlert({ type:'info', title:'Order created', message:'Missing order id in response.' })
     creatingOrder.value = false
   } catch (e: any) {
-    alert(e?.message || 'Failed to create order')
-    creatingOrder.value = false // re-enable on error so user can retry
+    alerts.showAlert({ type:'error', title: 'Failed to create order', message: e?.message })
+    creatingOrder.value = false
   }
 }
 
-/* ---------------- Products list: show 5 then toggle ---------------- */
+/* ---------------- Products list toggle ---------------- */
 const COLLAPSE_COUNT = 5
 const showAllProducts = ref(false)
 const allProducts = computed(() => quote.value?.products ?? [])
@@ -352,8 +400,6 @@ useSeoMeta({
   ogType: 'website',
   twitterCard: 'summary'
 })
-
-// Keep checkout out of search results
 useHead({ meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
 
 /* ---------------- Effects ---------------- */
@@ -366,9 +412,10 @@ watch(selectedAddressId, async () => {
   selectedShipping.value = null
   await fetchQuote()
 })
-watch([selectedShipping, coupon], async () => {
+watch(selectedShipping, async () => {
   await fetchQuote()
 })
+// 🔕 NO watcher on couponInput — only apply on button/Enter.
 </script>
 
 <template>
@@ -390,17 +437,30 @@ watch([selectedShipping, coupon], async () => {
         <!-- Coupon -->
         <div class="rounded-2xl border p-4 bg-white shadow-sm">
           <p class="text-center text-gray-500 mb-2">{{ $t('checkout.IfYouHaveAcoupon') }}</p>
+
           <div class="flex flex-col sm:flex-row items-center gap-3 justify-center">
             <input
-              v-model="coupon"
+              v-model="couponInput"
               type="text"
               class="w-full sm:w-80 rounded-xl border px-3 py-2"
               :placeholder="$t('checkout.enterCouponCode')"
+              @keyup.enter="applyCoupon"
             />
-            <button class="rounded-xl border px-4 py-2 font-medium hover:bg-gray-50"
-                    :disabled="!coupon || creatingOrder"
-                    @click="fetchQuote">
+            <button
+              class="rounded-xl border px-4 py-2 font-medium hover:bg-gray-50"
+              :disabled="!couponInput || creatingOrder"
+              @click="applyCoupon"
+            >
               {{ $t('checkout.applyCoupon') }}
+            </button>
+
+            <button
+              v-if="appliedCouponCode"
+              class="rounded-xl border px-4 py-2 font-medium hover:bg-gray-50"
+              :disabled="creatingOrder"
+              @click="removeCoupon"
+            >
+              {{ 'Remove' }} ({{ appliedCouponCode }})
             </button>
           </div>
         </div>
@@ -414,7 +474,7 @@ watch([selectedShipping, coupon], async () => {
               </svg>
               {{ $t('checkout.addrress') }}
             </h3>
-            <button class="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50" @click="openAddressForm()" :disabled="creatingOrder">
+            <button class="rounded-2xl border px-3 py-2 text-sm hover:bg-gray-50" @click="openAddressForm()" :disabled="creatingOrder">
               + {{ $t('checkout.addAddress') }}
             </button>
           </div>
@@ -542,9 +602,7 @@ watch([selectedShipping, coupon], async () => {
 
           <!-- Help note + WhatsApp -->
           <div class="mb-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 flex items-start gap-3">
-            <!-- Icon (chat bubble + handset) -->
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                 class="w-6 h-6 shrink-0 text-emerald-600" fill="currentColor" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-6 h-6 shrink-0 text-emerald-600" fill="currentColor" aria-hidden="true">
               <path d="M2 5a3 3 0 013-3h14a3 3 0 013 3v8a3 3 0 01-3 3H9.41L5.7 19.71A1 1 0 014 19v-3H5a3 3 0 01-3-3V5z"/>
               <path d="M15.23 7.2a1 1 0 011.41.06l1.1 1.18a1 1 0 01-.05 1.41l-.68.64a2.5 2.5 0 01-2.14.62 7.8 7.8 0 01-3.82-1.94 7.8 7.8 0 01-1.94-3.82 2.5 2.5 0 01.62-2.14l.64-.68A1 1 0 0111.5 2.3l1.18 1.1a1 1 0 01.06 1.41l-.62.66a.5.5 0 000 .68l.43.43a5.8 5.8 0 002.06 1.23.5.5 0 00.62-.11l.66-.62z"/>
             </svg>
@@ -552,11 +610,9 @@ watch([selectedShipping, coupon], async () => {
               <p class="text-emerald-900">
                 {{ $t('common.helpNote') || 'If you face any problem during checkout, please contact us.' }}
               </p>
-              <a :href="whatsappLink"
-                 target="_blank" rel="noopener"
+              <a :href="whatsappLink" target="_blank" rel="noopener"
                  class="mt-2 inline-flex items-center gap-2 rounded-lg bg-emerald-600 text-white px-3 py-1.5 hover:bg-emerald-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                  aria-label="Contact us on WhatsApp">
-                <!-- WhatsApp mini mark -->
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" class="w-4 h-4" fill="currentColor" aria-hidden="true">
                   <path d="M128,24A104,104,0,0,0,44.24,194.34L36,224l29.66-8.24A104,104,0,1,0,128,24Zm0,184a80,80,0,0,1-41.05-11.39l-2.61-.17L66.1,200.9l4.46-16.22-.18-2.82A80,80,0,1,1,128,208Zm44.2-54.35c-2.58-1.31-15.28-7.53-17.63-8.39s-4.09-1.32-5.8,1.32-6.64,8.39-8.15,10.11-3,2-5.59.65a64.83,64.83,0,0,1-19.18-11.82,72.09,72.09,0,0,1-13.3-16.68c-1.39-2.42,0-3.74,1-5.14a47.88,47.88,0,0,0,3.51-4.84,4.55,4.55,0,0,0,.44-4.26c-.44-1.32-5.8-14.08-7.95-19.29s-4.22-4.43-5.79-4.5-3.2-.07-4.94-.07A9.47,9.47,0,0,0,83,93.4c-2.36,2.42-9,8.88-9,21.67s9.23,25.12,10.54,26.86,18.19,28,44.09,39.2c6.17,2.68,11,4.29,14.77,5.5a35.09,35.09,0,0,0,16.26,1,26.67,26.67,0,0,0,17.47-12,21.41,21.41,0,0,0,1.51-12.37C172.63,155.6,170.79,154,172.2,153.65Z"/>
                 </svg>
@@ -565,7 +621,7 @@ watch([selectedShipping, coupon], async () => {
             </div>
           </div>
 
-          <!-- Products (first 5 + full-width orange toggle) -->
+          <!-- Products list -->
           <ul class="divide-y">
             <li
               v-for="row in displayedProducts"
@@ -634,7 +690,7 @@ watch([selectedShipping, coupon], async () => {
           <!-- Place order -->
           <div class="mt-5 rounded-2xl border p-4 bg-emerald-50/60">
             <label class="flex items-start gap-2 text-sm text-emerald-900">
-              <input type="checkbox" v-model="acceptTerms" class="mt-1 accent-emerald-600" :disabled="creatingOrder" />
+              <input type="checkbox" v-model="acceptTerms" class="mt-1 accent-emerald-600" />
               <span>
                 {{ $t('checkout.iAgreeTo') }}
                 <NuxtLinkLocale to="/terms" class="underline decoration-emerald-600 text-emerald-700 hover:text-emerald-800">
@@ -652,8 +708,7 @@ watch([selectedShipping, coupon], async () => {
               <span v-if="creatingOrder" class="inline-flex items-center gap-2">
                 <svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                  <path class="opacity-75" fill="currentColor"
-                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
                 </svg>
                 {{ $t('checkout.creatingOrder') || 'Creating your order…' }}
               </span>
@@ -685,21 +740,11 @@ watch([selectedShipping, coupon], async () => {
             {{ isEditing ? $t('checkout.editAddress') : $t('checkout.newAddress') }}
           </h4>
           <form @submit.prevent="saveAddress" class="space-y-3">
-            <!-- Country SELECT -->
             <div>
               <label class="text-sm block mb-1">{{ $t('checkout.country') }}</label>
-              <select
-                v-model.number="addressForm.country_id"
-                class="w-full rounded-xl border px-3 py-2"
-                required
-                :disabled="creatingOrder"
-              >
+              <select v-model.number="addressForm.country_id" class="w-full rounded-xl border px-3 py-2" required>
                 <option value="">{{ $t('checkout.selectCountry') }}</option>
-                <option
-                  v-for="c in countries"
-                  :key="c.id"
-                  :value="c.id"
-                >
+                <option v-for="c in countries" :key="c.id" :value="c.id">
                   {{ countryDisplayName(c, String($i18n?.locale || locale)) }}
                 </option>
               </select>
@@ -709,37 +754,37 @@ watch([selectedShipping, coupon], async () => {
 
             <div>
               <label class="text-sm block mb-1">{{ $t('checkout.city') }}</label>
-              <input v-model="addressForm.city" type="text" class="w-full rounded-xl border px-3 py-2" required :disabled="creatingOrder" />
+              <input v-model="addressForm.city" type="text" class="w-full rounded-xl border px-3 py-2" required />
             </div>
 
             <div>
               <label class="text-sm block mb-1">{{ $t('checkout.street') }}</label>
-              <input v-model="addressForm.street" type="text" class="w-full rounded-xl border px-3 py-2" required :disabled="creatingOrder" />
+              <input v-model="addressForm.street" type="text" class="w-full rounded-xl border px-3 py-2" required />
             </div>
 
             <div>
               <label class="text-sm block mb-1">{{ $t('checkout.address') }}</label>
-              <textarea v-model="addressForm.address" rows="3" class="w-full rounded-xl border px-3 py-2" required :disabled="creatingOrder"></textarea>
+              <textarea v-model="addressForm.address" rows="3" class="w-full rounded-xl border px-3 py-2" required></textarea>
             </div>
 
             <div>
               <label class="text-sm block mb-1">{{ $t('checkout.postalCode') }}</label>
-              <input v-model="addressForm.postal_code" type="text" class="w-full rounded-xl border px-3 py-2" required :disabled="creatingOrder" />
+              <input v-model="addressForm.postal_code" type="text" class="w-full rounded-xl border px-3 py-2" required />
             </div>
 
             <div>
               <label class="text-sm block mb-1">{{ $t('checkout.phone') }}</label>
-              <input v-model="addressForm.phone" type="text" class="w-full rounded-xl border px-3 py-2" required :disabled="creatingOrder" />
+              <input v-model="addressForm.phone" type="text" class="w-full rounded-xl border px-3 py-2" required />
             </div>
 
             <label class="inline-flex items-center gap-2 mt-1">
-              <input type="checkbox" v-model="addressForm.is_default" class="accent-emerald-600" :disabled="creatingOrder" />
+              <input type="checkbox" v-model="addressForm.is_default" class="accent-emerald-600" />
               <span class="text-sm">{{ $t('checkout.setAsDefault') }}</span>
             </label>
 
             <div class="pt-2 flex justify-end gap-3">
-              <button type="button" class="px-4 py-2 rounded border hover:bg-gray-50" @click="closeAddressForm" :disabled="creatingOrder">{{ $t('cancel') }}</button>
-              <button type="submit" class="px-4 py-2 rounded bg-orange-500 text-white hover:bg-emerald-700" :disabled="creatingOrder">{{ $t('save') }}</button>
+              <button type="button" class="px-4 py-2 rounded border hover:bg-gray-50" @click="closeAddressForm">{{ $t('cancel') }}</button>
+              <button type="submit" class="px-4 py-2 rounded bg-orange-500 text-white hover:bg-emerald-700">{{ $t('save') }}</button>
             </div>
           </form>
         </div>

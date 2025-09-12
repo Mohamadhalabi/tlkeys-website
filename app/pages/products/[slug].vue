@@ -120,16 +120,13 @@ function waLinkForProduct(p?: Product | null) {
   let msg: string
   if (tpl.includes('{title}') || tpl.includes('{sku}')) {
     if (tpl.includes('{title}') && !tpl.includes('{sku}')) {
-      // only {title} → inject title + SKU into {title}
       msg = tpl.replace('{title}', titleWithSku)
     } else {
-      // has {sku} (and maybe {title})
       msg = tpl
         .replace('{title}', title)
         .replace('{sku}', sku ? ` (SKU: ${sku})` : '')
     }
   } else {
-    // no placeholders → append the label
     msg = titleWithSku ? `${tpl} ${titleWithSku}` : tpl
   }
 
@@ -231,7 +228,6 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
 
     const basePrice = toNum(data.price) ?? toNum(data.regular_price) ?? 0
 
-
     const faqRaw    = (data?.faq?.data ?? data?.faq) || []
     const videosRaw = (data?.videos?.data ?? data?.videos) || []
 
@@ -289,7 +285,6 @@ const product = computed<Product | null>(() => ssr.value)
 
 /* hide/show logic */
 const hidePrice = computed(() => Boolean(product.value?.hide_price))
-// Is this product in the "pin code offline" category?
 const isPinCodeOffline = computed(() =>
   (product.value?.categories || []).some(c =>
     String(c?.name || (c as any)?.title || '')
@@ -299,11 +294,13 @@ const isPinCodeOffline = computed(() =>
 )
 
 // What to show:
-const showPriceBlock   = computed(() => isPinCodeOffline.value || !hidePrice.value)     // show price for pin-code-offline even if hide_price
-const showQtyUI        = computed(() => !hidePrice.value && !isPinCodeOffline.value)    // never show qty for pin-code-offline
-const showAddToCartUI  = computed(() => !hidePrice.value && !isPinCodeOffline.value)    // never show Add-to-Cart for pin-code-offline
+const showPriceBlock   = computed(() => isPinCodeOffline.value || !hidePrice.value)
+const showQtyUI        = computed(() => !hidePrice.value && !isPinCodeOffline.value)
+const showAddToCartUI  = computed(() => !hidePrice.value && !isPinCodeOffline.value)
 /** When true we should NOT render Add to Cart */
 const hideCart = computed(() => hidePrice.value || isPinCodeOffline.value)
+/** NEW: wishlist follows Add-to-Cart visibility */
+const showWishlistUI = computed(() => showAddToCartUI.value)
 
 /* serial number */
 const requiresSerial = computed(() => Boolean(product.value?.requires_serial))
@@ -433,7 +430,7 @@ const inWish = computed(() => product.value ? wishlist.isInWishlist(String(produ
 
 async function onAddToCart() {
   if (!product.value) return
-  if (hideCart.value) return  // never add to cart when price hidden or pin-code-offline
+  if (hideCart.value) return
 
   if (requiresSerial.value && serial.value.trim() === '') {
     alerts.showAlert({
@@ -466,6 +463,8 @@ async function onAddToCart() {
 
 async function onToggleWishlist() {
   if (!product.value) return
+  if (!showWishlistUI.value) return
+
   try {
     wishing.value = true
     const p = product.value
@@ -631,25 +630,7 @@ useHead(() => {
       }
     : undefined
 
-  // const videosLd =
-  //   Array.isArray(p?.videos) && p!.videos!.length
-  //     ? p!.videos!
-  //         .filter(v => v && v.url)
-  //         .map(v => ({
-  //           '@type': 'VideoObject',
-  //           name: v.title || title,
-  //           description: desc || undefined,
-  //           thumbnailUrl: primaryImg ? [primaryImg] : undefined,
-  //           contentUrl: v.url,
-  //           embedUrl: v.url,
-  //           url: v.url
-  //         }))
-  //     : undefined
-
-  // const graph = [productLd, breadcrumbLd, faqLd, ...(Array.isArray(videosLd) ? videosLd : videosLd ? [videosLd] : [])].filter(Boolean)
-
   const graph = [productLd, breadcrumbLd, faqLd].filter(Boolean)
-
 
   return {
     title,
@@ -687,6 +668,7 @@ type GridProduct = {
   href?: string
   sku?: string | null
   category?: string | null
+  hide_price?: boolean | number | null
 }
 const relatedProducts = ref<GridProduct[]>([])
 const relatedLoading  = ref(false)
@@ -706,7 +688,18 @@ function normRelatedItem(x: any): GridProduct | null {
       : x.regular_price) ?? 0
   )
   const old = (x.regular_price && Number(x.regular_price) > price) ? Number(x.regular_price) : null
-  return { id, name, image: img, price, oldPrice: old, slug: x.slug , sku: x.sku }
+
+  // ✅ pass through hide_price from API so the carousel can respect it
+  return {
+    id,
+    name,
+    image: img,
+    price,
+    oldPrice: old,
+    slug: x.slug,
+    sku: x.sku,
+    hide_price: x.hide_price ?? null
+  }
 }
 
 async function fetchRelatedOnce() {
@@ -864,11 +857,10 @@ watch(() => product.value?.id, () => {
 
             <!-- Price / CTA card -->
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-              <!-- two-column when table exists; single-column when not -->
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- LEFT: price + qty + actions -->
                 <div :class="hasTablePrice ? '' : 'lg:col-span-2'">
-                  <!-- Price (show for pin code offline OR when not hide_price) -->
+                  <!-- Price -->
                   <div v-if="showPriceBlock" class="flex items-end gap-3">
                     <span class="text-[28px] md:text-4xl text-red-600 font-bold tracking-tight">
                       {{ formatMoney(displayPrice.current) }}
@@ -878,7 +870,7 @@ watch(() => product.value?.id, () => {
                     </span>
                   </div>
 
-                  <!-- WhatsApp CTA for hide_price OR pin code offline -->
+                  <!-- WhatsApp CTA -->
                   <a
                     v-if="hidePrice || isPinCodeOffline"
                     :href="waLinkForProduct(product)"
@@ -893,7 +885,7 @@ watch(() => product.value?.id, () => {
                     {{ _t('search.contactOnWhatsApp','Contact on WhatsApp') }}
                   </a>
 
-                  <!-- Qty (hidden for pin code offline and when hide_price) -->
+                  <!-- Qty -->
                   <div v-if="showQtyUI" class="mt-5 flex flex-wrap items-center gap-3" data-nosnippet>
                     <div class="inline-flex items-stretch rounded-xl border border-gray-300 bg-white overflow-hidden">
                       <button type="button" class="px-3 py-2 hover:bg-gray-50 disabled:opacity-40"
@@ -905,7 +897,7 @@ watch(() => product.value?.id, () => {
                     <span class="text-sm text-gray-500">{{ _t('product.min','Min:') }} {{ minQty }}</span>
                   </div>
 
-                  <!-- Serial number (only when we show qty UI) -->
+                  <!-- Serial -->
                   <div v-if="requiresSerial && showQtyUI" class="mt-3">
                     <label class="block text-sm font-medium text-gray-700 mb-1">{{ _t('product.serial','Serial Number') }}</label>
                     <input
@@ -931,6 +923,7 @@ watch(() => product.value?.id, () => {
                     </button>
 
                     <button
+                      v-if="showWishlistUI"
                       type="button"
                       class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-6 py-3 font-medium text-gray-800 shadow-sm hover:bg-gray-50 focus-visible:ring-4 focus-visible:ring-gray-200 disabled:opacity-60"
                       :disabled="wishing"
@@ -944,7 +937,7 @@ watch(() => product.value?.id, () => {
                   </div>
                 </div>
 
-                <!-- RIGHT: tier table (only when exists) -->
+                <!-- RIGHT: tier table -->
                 <div v-if="hasTablePrice" class="lg:pl-6 lg:border-l border-gray-100">
                   <ProductPriceTable
                     :rows="product!.table_price!"
@@ -1025,7 +1018,7 @@ watch(() => product.value?.id, () => {
           :rowsBase="1" :rowsSm="1" :rowsMd="1" :rowsLg="1" :rowsXl="1"
           :perRowBase="2" :perRowSm="2" :perRowMd="3" :perRowLg="4" :perRowXl="6"
           :showArrows="true" :showDots="true"
-          @add-to-cart="(p) => cart.add(p.id, 1, { title: p.name, image: p.image, slug: p.slug, price: p.price })"
+          @add-to-cart="(p) => { if (!p.hide_price) cart.add(p.id, 1, { title: p.name, image: p.image, slug: p.slug, price: p.price }) }"
         />
       </section>
     </div>
