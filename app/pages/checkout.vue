@@ -377,6 +377,20 @@ const displayedProducts = computed(() =>
 const hasMoreProducts = computed(() => allProducts.value.length > COLLAPSE_COUNT)
 const remainingCount = computed(() => Math.max(allProducts.value.length - COLLAPSE_COUNT, 0))
 
+/* ---------------- Step Note (progressive guidance) ---------------- */
+const stepNote = computed<null | { where: 'address'|'shipping'|'payment'; text: string }>(() => {
+  if (!selectedAddressId.value) {
+    return { where: 'address',  text: 'Please first select / add address' }
+  }
+  if (!selectedShipping.value) {
+    return { where: 'shipping', text: '2nd step choose your shipping method' }
+  }
+  if (!paymentMethod.value) {
+    return { where: 'payment',  text: '3rd step choose the payment method' }
+  }
+  return null
+})
+
 /* ---------------- SEO ---------------- */
 const pageTitle = computed(() => {
   const count = allProducts.value.length
@@ -465,6 +479,20 @@ watch(selectedShipping, async () => {
           </div>
         </div>
 
+        <!-- Step Note: Address -->
+        <div
+          v-if="stepNote && stepNote.where === 'address'"
+          class="rounded-2xl border p-4 bg-amber-50/70 text-amber-900 shadow-sm"
+          role="status"
+        >
+          <div class="flex items-start gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mt-0.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm.75 5a.75.75 0 10-1.5 0v6a.75.75 0 00.75.75H16a.75.75 0 000-1.5h-3.25V7z"/>
+            </svg>
+            <p class="text-sm font-medium">{{ stepNote.text }}</p>
+          </div>
+        </div>
+
         <!-- Step 1: Address -->
         <div class="rounded-2xl border p-4 bg-white shadow-sm">
           <div class="flex items-center justify-between mb-3">
@@ -519,6 +547,20 @@ watch(selectedShipping, async () => {
             {{ $t('checkout.shippingMethod') }}
           </h3>
 
+          <!-- Step Note: Shipping -->
+          <div
+            v-if="stepNote && stepNote.where === 'shipping'"
+            class="mb-3 rounded-2xl border p-3 bg-amber-50/70 text-amber-900 shadow-sm"
+            role="status"
+          >
+            <div class="flex items-start gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mt-0.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm.75 5a.75.75 0 10-1.5 0v6a.75.75 0 00.75.75H16a.75.75 0 000-1.5h-3.25V7z"/>
+              </svg>
+              <p class="text-sm font-medium">{{ stepNote.text }}</p>
+            </div>
+          </div>
+
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <label
               v-for="opt in shippingOptions"
@@ -554,6 +596,20 @@ watch(selectedShipping, async () => {
             </svg>
             {{ $t('checkout.paymentMethod') }}
           </h3>
+
+          <!-- Step Note: Payment -->
+          <div
+            v-if="stepNote && stepNote.where === 'payment'"
+            class="mb-3 rounded-2xl border p-3 bg-amber-50/70 text-amber-900 shadow-sm"
+            role="status"
+          >
+            <div class="flex items-start gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mt-0.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm.75 5a.75.75 0 10-1.5 0v6a.75.75 0 00.75.75H16a.75.75 0 000-1.5h-3.25V7z"/>
+              </svg>
+              <p class="text-sm font-medium">{{ stepNote.text }}</p>
+            </div>
+          </div>
 
           <div class="grid sm:grid-cols-3 gap-3">
             <label class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
