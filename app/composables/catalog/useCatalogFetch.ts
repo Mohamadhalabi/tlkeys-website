@@ -6,8 +6,8 @@ export type AttrFacet  = { slug: string; name: string; priority: number; items: 
 
 export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogState').useCatalogState>) {
   const { $customApi } = useNuxtApp()
-  const route = useRoute()
-  const router = useRouter()
+  const route   = useRoute()
+  const router  = useRouter()
   const { public: { API_BASE_URL } } = useRuntimeConfig()
 
   const items    = ref<any[]>([])
@@ -46,6 +46,7 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
     })
     return JSON.stringify(sorted)
   }
+  const hasKeys = (o:any) => o && typeof o === 'object' && Object.keys(o).length > 0
 
   // Include active boolean/flag query params (promotion, free-shipping, etc.)
   const activeFlags = computed(() => {
@@ -111,33 +112,65 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
 
   const showAttrFilters = computed(() => !(state.entryType.value === 'manufacturer' && state.sel.categories.length === 0))
 
-  // -------- in-flight guard (only the latest fetch may update state)
+  // -------- in-flight guard + abort (only the latest fetch may update state)
   let fetchToken = 0
+  let controller: AbortController | null = null
 
   async function fetchOnce() {
     const myToken = ++fetchToken
+    // abort any previous request to prevent "<no response> Failed to fetch"
+    try { controller?.abort() } catch {}
+    controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+
     pending.value = true
     errorMsg.value = ''
 
     const effectivePerPage = state.sel.perPage === 'all' ? CHUNK : state.sel.perPage
 
-    try {
-      const params: any = {
-        brands:        state.sel.brands,
-        categories:    state.sel.categories,
-        manufacturers: state.sel.manufacturers,
-        models:        state.sel.models,
-        attributes:    stableStringify(state.sel.attributes),
-        search:        state.sel.q,
-        sort:          state.sel.sort,
-        page:          state.sel.page,
-        per_page:      effectivePerPage,
-        include:       'table_price,categories',
-        attr_facets:   showAttrFilters.value ? 1 : 0,
-        ...activeFlags.value,
-      }
+    // build params
+    const baseParams: any = {
+      brands:        state.sel.brands,
+      categories:    state.sel.categories,
+      manufacturers: state.sel.manufacturers,
+      models:        state.sel.models,
+      // only send attributes if non-empty
+      ...(hasKeys(state.sel.attributes) ? { attributes: stableStringify(state.sel.attributes) } : {}),
+      search:        state.sel.q,
+      sort:          state.sel.sort,
+      page:          state.sel.page,
+      per_page:      effectivePerPage,
+      include:       'table_price,categories',
+      attr_facets:   showAttrFilters.value ? 1 : 0,
+      ...activeFlags.value,
+    }
 
-      const res = await $customApi(`${API_BASE_URL}/catalog`, { method: 'GET', params })
+    // small helper: retry once on transient failures
+    const attempt = async (retry=false) => {
+      const res = await $customApi(`${API_BASE_URL}/catalog`, {
+        method: 'GET',
+        params: baseParams,
+        // if your $customApi uses fetch under the hood, this will work;
+        // if it uses axios, it will be ignored safely.
+        signal: controller?.signal,
+      })
+      return res
+    }
+
+    try {
+      let res
+      try {
+        res = await attempt(false)
+      } catch (e:any) {
+        // ignore aborts silently
+        if (e?.name === 'AbortError') return
+        // retry once for transient network issues
+        if (/(Failed to fetch|NetworkError|ECONNRESET|ETIMEDOUT|Network Error)/i.test(String(e?.message || ''))) {
+          await new Promise(r => setTimeout(r, 300))
+          res = await attempt(true)
+        } else {
+          throw e
+        }
+      }
       if (myToken !== fetchToken) return // a newer fetch started, discard
 
       const { items: list, meta: m, body } = unwrapApi(res)
@@ -195,8 +228,10 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
       }
 
       facets.value = baseFacets ? onlyNonEmpty(baseFacets) : null
-    } catch (e: any) {
+    } catch (e:any) {
       if (myToken !== fetchToken) return
+      // swallow aborts
+      if (e?.name === 'AbortError') return
       errorMsg.value = e?.data?.message || e?.message || 'Failed to load catalog'
     } finally {
       if (myToken === fetchToken) pending.value = false
@@ -204,11 +239,9 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
   }
 
   // ===== First fetch =====
-  // SSR: run before rendering
   onServerPrefetch(async () => {
     await fetchOnce()
   })
-  // Client: run once after mount (ensures state.sel is hydrated for this instance)
   onMounted(async () => {
     items.value = []
     meta.value = null
@@ -229,13 +262,11 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
         equalExceptPage(curQ, prevQ) &&
         num(curQ.page) === num(prevQ.page) + 1
 
-      // If anything other than page changed (category/brand/flags/sort/per_page/search…),
-      // rewrite URL to drop page (normalize to page 1) so state/URL/fetch stay aligned.
       if (!equalExceptPage(curQ, prevQ)) {
         if (curQ.page && curQ.page !== '1') {
           const { page, ...newQ } = curQ
           await router.replace({ path: route.path, query: newQ })
-          return // will re-enter watcher with normalized URL
+          return
         }
         state.sel.page = 1
       }
