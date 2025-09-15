@@ -169,17 +169,17 @@ export default defineNuxtConfig({
       __dangerouslyDisableSanitizers: ['noscript']
     }
   },
-  image: {
-    domains: ['www.tlkeys.com', 'dev-srv.tlkeys.com'],
-    format: ['webp', 'avif'],
-    screens: {
-      sm: 320,
-      md: 640,
-      lg: 1024,
-      xl: 1280,
-      xxl: 1536
-    }
-  },
+  // image: {
+  //   domains: ['www.tlkeys.com', 'dev-srv.tlkeys.com'],
+  //   format: ['webp', 'avif'],
+  //   screens: {
+  //     sm: 320,
+  //     md: 640,
+  //     lg: 1024,
+  //     xl: 1280,
+  //     xxl: 1536
+  //   }
+  // },
 
   i18n: {
     locales: [
