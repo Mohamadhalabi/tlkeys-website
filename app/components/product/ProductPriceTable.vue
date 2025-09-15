@@ -39,12 +39,19 @@ function fmt(n: number) {
 
         <tbody class="divide-y divide-gray-100">
           <tr
-            v-for="row in rows"
+            v-for="(row, index) in rows"
             :key="row.min_qty + '-' + (row.max_qty ?? '∞')"
             class="text-gray-800"
           >
             <td class="px-4 py-3">{{ row.min_qty }}</td>
-            <td class="px-4 py-3">{{ row.max_qty ?? '∞' }}</td>
+            <td class="px-4 py-3">
+              <template v-if="index === rows.length - 1">
+                {{ row.min_qty }} & more
+              </template>
+              <template v-else>
+                {{ row.max_qty ?? '∞' }}
+              </template>
+            </td>
             <td class="px-4 py-3">
               <template v-if="toNum(row.sale_price) && toNum(row.sale_price)! > 0 && toNum(row.sale_price)! < (toNum(row.price) ?? Infinity)">
                 <span class="font-semibold text-gray-900">{{ fmt(toNum(row.sale_price)!) }}</span>
