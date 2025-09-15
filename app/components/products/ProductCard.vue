@@ -244,7 +244,7 @@ async function onAdd() {
       <div class="absolute left-3 top-3 flex flex-col gap-1">
         <span
           v-if="hasDiscount && !hidePrice"
-          class="inline-flex items-center rounded-full bg-red-600 text-white ring-1 ring-white/70 px-2.5 py-1 text-[10px] font-extrabold tracking-wide shadow-sm"
+          class="inline-flex items-center rounded-full bg-red-600 text-white ring-1 ring-white/20 px-2.5 py-1 text-[11px] font-semibold tracking-wide shadow-lg"
         >
           {{ formatMoney(Number(offAnim.toFixed(2))) }} {{ _t('common.off', 'OFF') }}
         </span>

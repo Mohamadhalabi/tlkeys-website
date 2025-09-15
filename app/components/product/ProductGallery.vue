@@ -194,7 +194,7 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
         <span
           v-if="hasOffPill"
           class="inline-flex items-center rounded-full bg-red-600 text-white ring-1 ring-white/70
-                 px-2.5 py-1 text-[10px] font-extrabold tracking-wide shadow-sm"
+                 px-2.5 py-1 text-[11px] font-semibold tracking-wide shadow-sm"
         >
           {{ offAnim.toFixed(2) }}$ OFF
         </span>
