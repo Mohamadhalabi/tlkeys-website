@@ -44,6 +44,7 @@ try {
 } catch { OPENING_HOURS = undefined }
 
 export default defineNuxtConfig({
+  ssr: true,
   srcDir: 'app',
   pages: true,
 
@@ -172,16 +173,18 @@ export default defineNuxtConfig({
   i18n: {
     locales: [
       { code: 'en', iso: 'en-US', name: 'English', dir: 'ltr', file: 'en.json' },
-      { code: 'ar', iso: 'ar',    name: 'العربية', dir: 'rtl', file: 'ar.json' },
+      { code: 'ar', iso: 'ar-SA', name: 'العربية', dir: 'rtl', file: 'ar.json' },
       { code: 'es', iso: 'es-ES', name: 'Español', dir: 'ltr', file: 'es.json' },
       { code: 'fr', iso: 'fr-FR', name: 'Français', dir: 'ltr', file: 'fr.json' },
-      { code: 'ru', iso: 'ru',    name: 'Русский', dir: 'ltr', file: 'ru.json' },
+      { code: 'ru', iso: 'ru-RU', name: 'Русский', dir: 'ltr', file: 'ru.json' },
       { code: 'de', iso: 'de-DE', name: 'Deutsch', dir: 'ltr', file: 'de.json' },
     ],
     defaultLocale: 'en',
     strategy: 'prefix_except_default',
     detectBrowserLanguage: { useCookie: true, cookieKey: 'i18n_redirected', redirectOn: 'root' },
     lazy: true,
+    seo: true,
+    baseUrl: 'https://www.tlkeys.com',
     langDir: resolve('app/locales'),
     vueI18n: resolve('i18n.config.ts'),
   },

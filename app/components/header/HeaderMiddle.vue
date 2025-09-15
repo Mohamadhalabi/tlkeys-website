@@ -128,10 +128,13 @@
           <span>{{ t('menu.logIn') }}</span>
         </NuxtLinkLocale>
 
+        <!-- replace this chunk in your header -->
         <NuxtLinkLocale v-else to="/account" class="flex items-center gap-1">
           <UserPlusIcon class="w-7 h-7" />
-          <span>{{ t('menu.account') }}</span>
+          <span v-if="displayName">Hello <span class="font-bold">{{ displayName }}</span></span>
+          <span v-else>Hello</span>
         </NuxtLinkLocale>
+
 
         <NuxtLinkLocale to="/wishlist" class="relative flex items-center gap-2">
           <span class="relative">
@@ -188,6 +191,14 @@ function waLink(p: any) {
   const msg = t('search.askAboutProduct', { title: p?.title || '' }) as string
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
 }
+
+const displayName = computed(() => {
+  const u = auth.user.value  // 👈 unwrap the ref here
+  if (!u) return null
+  if (u.name && String(u.name).trim()) return u.name
+  if (u.email) return u.email.split('@')[0]
+  return null
+})
 
 /* ---------- Typewriter placeholder ---------- */
 const phrases = computed(() => [ t('searchPlaceholder'), t('carRemotes'), t('keyCuttingMachines'), t('accessoriesTools') ])

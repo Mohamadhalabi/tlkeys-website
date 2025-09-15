@@ -31,16 +31,24 @@ export function useAuth() {
   const isAuthenticated = computed(() => Boolean(token.value))
 
   /** Load token/user from localStorage (call once on app start) */
-  function hydrate() {
+  async function hydrate() {
     if (!process.client) return
     try {
       const t = localStorage.getItem('auth_token')
       const u = localStorage.getItem('auth_user')
       token.value = t
-      user.value = u ? JSON.parse(u) : null
+      user.value  = u ? JSON.parse(u) : null
+
+      // ⬇️ if we have a token but no user, fetch it
+      if (t && !user.value) {
+        try {
+          const meUser = await me()          // me() already saves to state+storage
+          if (!meUser) user.value = null
+        } catch { /* ignore */ }
+      }
     } catch {
       token.value = null
-      user.value = null
+      user.value  = null
     }
   }
 
@@ -52,7 +60,6 @@ export function useAuth() {
         method: 'POST',
         body: payload
       })
-
       const t = res?.authorisation?.token || res?.token
       const u = res?.user || null
 
@@ -96,12 +103,14 @@ export function useAuth() {
     const { $apiV2 } = useNuxtApp()
     try {
       const res = await $apiV2('/auth/me', { method: 'GET' })
-      user.value = res
-      return res
+      user.value = res?.user ?? null
+      saveToStorage(token.value, user.value)
+      return res?.user ?? null
     } catch {
       return null
     }
   }
+
 
   return { token, user, isAuthenticated, busy, hydrate, login, register, logout, me }
 }
