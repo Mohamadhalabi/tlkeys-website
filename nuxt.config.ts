@@ -205,11 +205,7 @@ export default defineNuxtConfig({
     '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
     '/fonts/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
   },
-  nitro: {
-    compressPublicAssets: true,
-    prerender: { crawlLinks: true },
-    serveStatic: true,
-  },
+  nitro: { compressPublicAssets: true },
   experimental: { payloadExtraction: true, inlineSSRStyles: true },
   vite: {
     optimizeDeps: {
