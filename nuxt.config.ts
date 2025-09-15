@@ -169,6 +169,17 @@ export default defineNuxtConfig({
       __dangerouslyDisableSanitizers: ['noscript']
     }
   },
+  image: {
+    domains: ['www.tlkeys.com', 'dev-srv.tlkeys.com'],
+    format: ['webp', 'avif'],
+    screens: {
+      sm: 320,
+      md: 640,
+      lg: 1024,
+      xl: 1280,
+      xxl: 1536
+    }
+  },
 
   i18n: {
     locales: [
@@ -181,7 +192,7 @@ export default defineNuxtConfig({
     ],
     defaultLocale: 'en',
     strategy: 'prefix_except_default',
-    detectBrowserLanguage: { useCookie: true, cookieKey: 'i18n_redirected', redirectOn: 'root' },
+    detectBrowserLanguage: { enabled: false },
     lazy: true,
     seo: true,
     baseUrl: 'https://www.tlkeys.com',
@@ -194,8 +205,17 @@ export default defineNuxtConfig({
     '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
     '/fonts/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
   },
-  nitro: { compressPublicAssets: true },
+  nitro: {
+    compressPublicAssets: true,
+    prerender: { crawlLinks: true },
+    serveStatic: true,
+  },
   experimental: { payloadExtraction: true, inlineSSRStyles: true },
+  vite: {
+    optimizeDeps: {
+      include: ['swiper', 'lodash-es']
+    }
+  },
 
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },

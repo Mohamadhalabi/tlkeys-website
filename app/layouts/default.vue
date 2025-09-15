@@ -21,7 +21,29 @@
   </div>
 </template>
 
-<script setup>
-import Header from '~/components/Header.vue'
-import Footer from '~/components/Footer.vue'
+<script setup lang="ts">
+import { useHead, useRoute } from '#imports'
+import { useI18n } from 'vue-i18n'
+
+const route = useRoute()
+const { locale, locales, t } = useI18n()
+
+const baseUrl = 'https://www.tlkeys.com'
+
+useHead({
+  link: locales.value.map((loc: any) => {
+    const prefix = loc.code === 'en' ? '' : `/${loc.code}`
+    return {
+      rel: 'alternate',
+      hreflang: loc.iso || loc.code,
+      href: `${baseUrl}${prefix}${route.fullPath}`
+    }
+  }).concat([
+    {
+      rel: 'alternate',
+      hreflang: 'x-default',
+      href: `${baseUrl}${route.fullPath}`
+    }
+  ])
+})
 </script>

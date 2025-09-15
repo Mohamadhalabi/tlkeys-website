@@ -321,7 +321,7 @@ useHead({
 
 <template>
   <!-- Hero Slider -->
-  <section class="mt-3">
+  <section class="mt-3 hidden lg:block">
     <div class="relative left-1/2 right-1/2 -mx-[50vw] w-screen px-2 sm:px-3 md:px-4">
       <ProSlider
         v-if="itemsForSlider.length"
@@ -340,6 +340,7 @@ useHead({
       <div v-else :class="heightClasses" class="w-full animate-pulse bg-gray-200 dark:bg-gray-800 rounded-2xl" />
     </div>
   </section>
+
 
   <div
     v-if="slidersError"
