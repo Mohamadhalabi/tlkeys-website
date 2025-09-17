@@ -814,7 +814,9 @@ watch(() => product.value?.id, () => {
                 {{ product.title }}
               </h1>
               <p v-if="product.summary_name" class="mt-5 mb-2 text-base text-green-800 text-gray-600">
-                {{ product.summary_name }}
+                <span v-html="product.summary_name">
+
+                </span>
               </p>
               <hr />
               <div class="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-600">
