@@ -1,22 +1,44 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+
 type AttrItem  = { id: number | string; slug?: string; name?: string; label?: string; value: string }
 type AttrGroup = { id: number | string; slug?: string; name: string; items: AttrItem[] }
 
 const props = defineProps<{ groups: AttrGroup[]; title?: string }>()
+
+/** Build rows, grouping same labels and joining values with commas */
 const rows = computed(() => {
-  const out: { label: string; value: string }[] = []
+  const order: string[] = []                         // preserve first-seen order
+  const grouped = new Map<string, { label: string; values: string[] }>()
+
   for (const g of props.groups || []) {
     for (const it of g.items || []) {
-      const val = (it?.value ?? '').toString().trim()
-      if (!val) continue
+      const rawVal = (it?.value ?? '').toString().trim()
+      if (!rawVal) continue
+
       const label = (it?.label || it?.name || g.name || '').toString().trim()
       if (!label) continue
-      out.push({ label, value: val })
+
+      const key = label.toLowerCase()                // case-insensitive grouping
+
+      if (!grouped.has(key)) {
+        grouped.set(key, { label, values: [] })
+        order.push(key)
+      }
+
+      // avoid exact duplicates back-to-back
+      const bucket = grouped.get(key)!
+      if (!bucket.values.includes(rawVal)) bucket.values.push(rawVal)
     }
   }
-  return out
+
+  // flatten back to [{label, value}]
+  return order.map(k => {
+    const { label, values } = grouped.get(k)!
+    return { label, value: values.join(', ') }
+  })
 })
+
 const hasRows  = computed(() => rows.value.length > 0)
 const heading  = computed(() => props.title ?? 'Specifications')
 const mid      = computed(() => Math.ceil(rows.value.length / 2))
