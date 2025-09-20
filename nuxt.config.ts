@@ -206,7 +206,7 @@ export default defineNuxtConfig({
     '/fonts/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
   },
   nitro: { compressPublicAssets: true },
-  experimental: { payloadExtraction: true, inlineSSRStyles: true },
+  experimental: { payloadExtraction: false, inlineSSRStyles: true },
   vite: {
     optimizeDeps: {
       include: ['swiper', 'lodash-es']

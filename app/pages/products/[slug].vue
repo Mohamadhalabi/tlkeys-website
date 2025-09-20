@@ -18,8 +18,8 @@ import ProductTabContact from '~/components/product/tabs/ProductTabContact.vue'
 import ProductGallery from '~/components/product/ProductGallery.vue'
 import ProductPriceTable from '~/components/product/ProductPriceTable.vue'
 import ProductAttributesTable from '~/components/product/ProductAttributesTable.vue'
-import ProductRelatedGrid from '~/components/product/ProductRelatedGrid.vue'
 import ProductCompatibilityTable from '~/components/product/ProductCompatibilityTable.vue'
+import ProductRelatedGrid from '~/components/product/ProductRelatedGrid.vue'
 import ProductCarousel from '~/components/products/ProductCarousel.vue'
 
 /* ---------------- Types ---------------- */
@@ -101,40 +101,24 @@ const wishlist = useWishlist()
 const alerts = useAlertStore()
 const slug = computed(() => route.params.slug as string)
 
-// WhatsApp link helper (re-usable + i18n aware)
-const WHATSAPP_NUMBER: string =
-  (runtime.public.WHATSAPP_NUMBER as string) || '971504429045'
-
+/* WhatsApp helper */
+const WHATSAPP_NUMBER: string = (runtime.public.WHATSAPP_NUMBER as string) || '971504429045'
 function waLinkForProduct(p?: Product | null) {
   const title = (p?.title || '').trim()
   const sku = (p?.sku || '').toString().trim()
-
-  // i18n template with sensible fallback
-  const tpl = _t(
-    'search.askAboutProduct',
-    'Can I get more information and price for "{title}{sku}"?'
-  ) as string
-
+  const tpl = _t('search.askAboutProduct','Can I get more information and price for "{title}{sku}"?') as string
   const titleWithSku = sku ? `${title} (SKU: ${sku})` : title
-
   let msg: string
   if (tpl.includes('{title}') || tpl.includes('{sku}')) {
-    if (tpl.includes('{title}') && !tpl.includes('{sku}')) {
-      msg = tpl.replace('{title}', titleWithSku)
-    } else {
-      msg = tpl
-        .replace('{title}', title)
-        .replace('{sku}', sku ? ` (SKU: ${sku})` : '')
-    }
+    if (tpl.includes('{title}') && !tpl.includes('{sku}')) msg = tpl.replace('{title}', titleWithSku)
+    else msg = tpl.replace('{title}', title).replace('{sku}', sku ? ` (SKU: ${sku})` : '')
   } else {
     msg = titleWithSku ? `${tpl} ${titleWithSku}` : tpl
   }
-
-  return `https://api.whatsapp.com/send?phone=${encodeURIComponent(
-    WHATSAPP_NUMBER
-  )}&text=${encodeURIComponent(msg)}`
+  return `https://api.whatsapp.com/send?phone=${encodeURIComponent(WHATSAPP_NUMBER)}&text=${encodeURIComponent(msg)}`
 }
-/* ---------------- helpers ---------------- */
+
+/* helpers */
 const normAlt = (alt: any, title: string) => {
   if (!alt) return title || ''
   if (typeof alt === 'string') {
@@ -153,10 +137,7 @@ const normAlt = (alt: any, title: string) => {
   }
   return title || ''
 }
-const toNum = (v: unknown): number | null => {
-  const n = Number(v)
-  return Number.isFinite(n) ? n : null
-}
+const toNum = (v: unknown): number | null => { const n = Number(v); return Number.isFinite(n) ? n : null }
 const isPercentOrFixed = (t: any): t is 'percent' | 'fixed' => t === 'percent' || t === 'fixed'
 const nameToPath = (s?: string | null) => {
   if (!s) return '/'
@@ -166,15 +147,10 @@ const nameToPath = (s?: string | null) => {
 
 /* urgency + discount helpers */
 const now = ref(Date.now())
-const isUrgent = computed(() => {
-  if (!discountEndsIn.value) return false
-  return !String(discountEndsIn.value).includes('d')
-})
+const isUrgent = computed(() => { if (!discountEndsIn.value) return false; return !String(discountEndsIn.value).includes('d') })
 const discountRange = computed(() => {
-  const start = product.value?.discount_active && product.value?.discount_start
-    ? Date.parse(product.value.discount_start) : NaN
-  const end   = product.value?.discount_active && product.value?.discount_end
-    ? Date.parse(product.value.discount_end)   : NaN
+  const start = product.value?.discount_active && product.value?.discount_start ? Date.parse(product.value.discount_start) : NaN
+  const end   = product.value?.discount_active && product.value?.discount_end   ? Date.parse(product.value.discount_end)   : NaN
   return { start, end }
 })
 const discountProgress = computed(() => {
@@ -188,9 +164,7 @@ const discountProgress = computed(() => {
 const discountTooltip = computed(() => {
   const endISO = product.value?.discount_end
   if (!endISO) return ''
-  try {
-    return new Date(endISO).toLocaleString()
-  } catch { return String(endISO) }
+  try { return new Date(endISO).toLocaleString() } catch { return String(endISO) }
 })
 
 /* ---------------- SSR fetch & normalize ---------------- */
@@ -284,15 +258,23 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
       const message =
         err?.response?._data?.message ||
         err?.message ||
-        (status === 404 ? 'Not Found' : 'Error')
-
-      // Nuxt will set the HTTP status from this error on SSR
+        (status === 404 ? 'Product not found' : status === 410 ? 'This product is no longer available.' : 'Error')
+      // Nuxt will use this on SSR *if we rethrow after useAsyncData*
       throw createError({ statusCode: status, statusMessage: message, fatal: true })
     }
-
   },
   { server: true, default: () => null, watch: [() => slug.value] }
 )
+
+/**
+ * ⬇️ CRITICAL: On SSR, rethrow the error so Nuxt sets the HTTP status
+ * (404 for missing slug, 410 for disabled/soft-deleted).
+ */
+if (process.server && error.value) {
+  const statusCode    = (error.value as any)?.statusCode ?? (error.value as any)?.status ?? 500
+  const statusMessage = (error.value as any)?.statusMessage ?? (error.value as any)?.message ?? 'Error'
+  throw createError({ statusCode, statusMessage })
+}
 
 const product = computed<Product | null>(() => ssr.value)
 
@@ -300,20 +282,14 @@ const product = computed<Product | null>(() => ssr.value)
 const hidePrice = computed(() => Boolean(product.value?.hide_price))
 const isPinCodeOffline = computed(() =>
   (product.value?.categories || []).some(c =>
-    String(c?.name || (c as any)?.title || '')
-      .trim()
-      .toLowerCase() === 'pin code offline'
+    String(c?.name || (c as any)?.title || '').trim().toLowerCase() === 'pin code offline'
   )
 )
-
-// What to show:
 const showPriceBlock   = computed(() => isPinCodeOffline.value || !hidePrice.value)
 const showQtyUI        = computed(() => !hidePrice.value && !isPinCodeOffline.value)
 const showAddToCartUI  = computed(() => !hidePrice.value && !isPinCodeOffline.value)
-/** When true we should NOT render Add to Cart */
-const hideCart = computed(() => hidePrice.value || isPinCodeOffline.value)
-/** NEW: wishlist follows Add-to-Cart visibility */
-const showWishlistUI = computed(() => showAddToCartUI.value)
+const hideCart         = computed(() => hidePrice.value || isPinCodeOffline.value)
+const showWishlistUI   = computed(() => showAddToCartUI.value)
 
 /* serial number */
 const requiresSerial = computed(() => Boolean(product.value?.requires_serial))
@@ -342,9 +318,9 @@ function makeLinks<T>(src: T[] | undefined | null, labelOf: (x: T) => string | u
   }
   return out
 }
-const categoryLinks = computed(() => makeLinks(product.value?.categories, c => c?.name || c?.title))
+const categoryLinks     = computed(() => makeLinks(product.value?.categories, c => c?.name || c?.title))
 const manufacturerLinks = computed(() => makeLinks(product.value?.manufacturers, m => m?.title || m?.name))
-const brandLinks = computed(() => makeLinks(product.value?.brands, b => b?.name || (b as any)?.title))
+const brandLinks        = computed(() => makeLinks(product.value?.brands, b => b?.name || (b as any)?.title))
 
 /* qty */
 const qty = ref(1)
@@ -408,12 +384,9 @@ const displayPrice = computed(() => {
   const old = current < unitWithoutDiscount.value ? unitWithoutDiscount.value : null
   return { current, old }
 })
-const hasDiscountNow = computed(() => !!displayPrice.value.old && displayPrice.value.old > displayPrice.value.current)
+const hasDiscountNow    = computed(() => !!displayPrice.value.old && displayPrice.value.old > displayPrice.value.current)
 const discountAmountNow = computed(() => hasDiscountNow.value ? (displayPrice.value.old! - displayPrice.value.current) : 0)
-
-const hasTablePrice = computed(
-  () => Array.isArray(product.value?.table_price) && product.value!.table_price!.length > 0
-)
+const hasTablePrice     = computed(() => Array.isArray(product.value?.table_price) && product.value!.table_price!.length > 0)
 
 /* countdown */
 let timer: any = null
@@ -503,7 +476,7 @@ async function onToggleWishlist() {
   }
 }
 
-/* tabs (translated) */
+/* tabs */
 const tabs = [
   { key: 'desc',    label: t('tabs.description','Description') },
   { key: 'reviews', label: t('tabs.reviews','Reviews') },
@@ -563,8 +536,7 @@ useHead(() => {
 
   const cur = currency.value || 'USD'
   const qtyNum = Number(p?.quantity ?? 0)
-  const availability =
-    qtyNum > 0 ? 'http://schema.org/InStock' : 'http://schema.org/OutOfStock'
+  const availability = qtyNum > 0 ? 'http://schema.org/InStock' : 'http://schema.org/OutOfStock'
 
   const priceNumber = p
     ? Number(
@@ -628,21 +600,11 @@ useHead(() => {
         .map(f => ({
           '@type': 'Question',
           name: stripHtml(f.q || ''),
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: stripHtml(f.a || '')
-          }
+          acceptedAnswer: { '@type': 'Answer', text: stripHtml(f.a || '') }
         }))
     : []
 
-  const faqLd = faqs.length
-    ? {
-        '@type': 'FAQPage',
-        '@id': absUrl.value + '#faq',
-        mainEntity: faqs
-      }
-    : undefined
-
+  const faqLd = faqs.length ? { '@type': 'FAQPage', '@id': absUrl.value + '#faq', mainEntity: faqs } : undefined
   const graph = [productLd, breadcrumbLd, faqLd].filter(Boolean)
 
   return {
@@ -683,11 +645,11 @@ type GridProduct = {
   category?: string | null
   hide_price?: boolean | number | null
 }
-const relatedProducts = ref<GridProduct[]>([])
-const relatedLoading  = ref(false)
-const relatedError    = ref<string | null>(null)
-const relatedTriggered = ref(false)
-const relatedSentinel = ref<HTMLElement | null>(null)
+const relatedProducts   = ref<GridProduct[]>([])
+const relatedLoading    = ref(false)
+const relatedError      = ref<string | null>(null)
+const relatedTriggered  = ref(false)
+const relatedSentinel   = ref<HTMLElement | null>(null)
 let relatedIO: IntersectionObserver | null = null
 
 function normRelatedItem(x: any): GridProduct | null {
@@ -702,17 +664,7 @@ function normRelatedItem(x: any): GridProduct | null {
   )
   const old = (x.regular_price && Number(x.regular_price) > price) ? Number(x.regular_price) : null
 
-  // ✅ pass through hide_price from API so the carousel can respect it
-  return {
-    id,
-    name,
-    image: img,
-    price,
-    oldPrice: old,
-    slug: x.slug,
-    sku: x.sku,
-    hide_price: x.hide_price ?? null
-  }
+  return { id, name, image: img, price, oldPrice: old, slug: x.slug, sku: x.sku, hide_price: x.hide_price ?? null }
 }
 
 async function fetchRelatedOnce() {
@@ -731,14 +683,7 @@ async function fetchRelatedOnce() {
       return
     }
 
-    const body = {
-      exclude_id: product.value.id,
-      categories: catIds,
-      manufacturers: manuIds,
-      brands: brandIds,
-      limit: 24
-    }
-
+    const body = { exclude_id: product.value.id, categories: catIds, manufacturers: manuIds, brands: brandIds, limit: 24 }
     const res = await $customApi(`${API_BASE_URL}/products/related`, { method: 'POST', body })
     const rows: any[] = (res?.data ?? res ?? []) as any[]
     relatedProducts.value = rows.map(normRelatedItem).filter(Boolean) as GridProduct[]
@@ -757,11 +702,7 @@ onMounted(() => {
   if (relatedSentinel.value) relatedIO.observe(relatedSentinel.value)
 })
 
-onUnmounted(() => {
-  relatedIO?.disconnect()
-  relatedIO = null
-})
-
+onUnmounted(() => { relatedIO?.disconnect(); relatedIO = null })
 watch(() => product.value?.id, () => {
   relatedProducts.value = []
   relatedError.value = null
@@ -786,7 +727,7 @@ watch(() => product.value?.id, () => {
       </ol>
     </nav>
 
-    <!-- Loading / Error -->
+    <!-- Loading -->
     <div v-if="loading" class="animate-pulse space-y-6">
       <div class="h-7 w-2/3 bg-gray-200 rounded"></div>
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
@@ -799,10 +740,7 @@ watch(() => product.value?.id, () => {
       </div>
     </div>
 
-    <div v-else-if="error" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
-      {{ (error as any)?.message || error }}
-    </div>
-
+    <!-- Product -->
     <div v-else-if="product" class="space-y-8">
       <!-- Two column layout -->
       <section class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
@@ -827,9 +765,7 @@ watch(() => product.value?.id, () => {
                 {{ product.title }}
               </h1>
               <p v-if="product.summary_name" class="mt-5 mb-2 text-base text-green-800 text-gray-600">
-                <span v-html="product.summary_name">
-
-                </span>
+                <span v-html="product.summary_name"></span>
               </p>
               <hr />
               <div class="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-600">
@@ -903,11 +839,9 @@ watch(() => product.value?.id, () => {
                   <!-- Qty -->
                   <div v-if="showQtyUI" class="mt-5 flex flex-wrap items-center gap-3" data-nosnippet>
                     <div class="inline-flex items-stretch rounded-xl border border-gray-300 bg-white overflow-hidden">
-                      <button type="button" class="px-3 py-2 hover:bg-gray-50 disabled:opacity-40"
-                              :disabled="!canDecrement" @click="dec" aria-label="Decrease quantity">−</button>
+                      <button type="button" class="px-3 py-2 hover:bg-gray-50 disabled:opacity-40" :disabled="!canDecrement" @click="dec" aria-label="Decrease quantity">−</button>
                       <input class="w-16 text-center py-2 outline-none" type="number" :min="minQty" v-model.number="qty" inputmode="numeric" aria-label="Quantity" />
-                      <button type="button" class="px-3 py-2 hover:bg-gray-50"
-                              @click="inc" aria-label="Increase quantity">+</button>
+                      <button type="button" class="px-3 py-2 hover:bg-gray-50" @click="inc" aria-label="Increase quantity">+</button>
                     </div>
                     <span class="text-sm text-gray-500">{{ _t('product.min','Min:') }} {{ minQty }}</span>
                   </div>
@@ -1036,6 +970,15 @@ watch(() => product.value?.id, () => {
           @add-to-cart="(p) => { if (!p.hide_price) cart.add(p.id, 1, { title: p.name, image: p.image, slug: p.slug, price: p.price }) }"
         />
       </section>
+    </div>
+
+    <!-- Client-only error fallback (for CSR navigations). SSR errors are rethrown above. -->
+    <div v-else>
+      <ClientOnly>
+        <div v-if="error" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
+          {{ (error as any)?.message || 'Error' }}
+        </div>
+      </ClientOnly>
     </div>
   </div>
 </template>
