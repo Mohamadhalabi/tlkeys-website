@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useI18n, useHead, useRoute, useRuntimeConfig, useNuxtApp, useRequestURL } from '#imports'
+import { useI18n, useHead, useRoute, useRuntimeConfig, useNuxtApp, useRequestURL, createError } from '#imports'
 import { computeUnitPrice } from '~/utils/pricing'
 
 /* composables */
@@ -200,83 +200,96 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
     const endpoint =
       `${API_BASE_URL}/products/slug/${encodeURIComponent(slug.value)}` +
       `?include=images,table_price,description,reviews,categories,manufacturers,brands,meta_title,meta_description,discount,accessories,bundles,attributes,faq,videos,compatibility`
-    const res = await $customApi(endpoint)
-    const data = (res?.data ?? res) as any
 
-    let gallery: ProductImage[] =
-      Array.isArray(data.images) && data.images.length
-        ? data.images
-        : (data.image ? [{ src: data.image, alt: data.title || 'image' }] : [])
+    try {
+      const res = await $customApi(endpoint)
+      const data = (res?.data ?? res) as any
 
-    gallery = gallery.map((img: any) => ({
-      src: img.src,
-      alt: normAlt(img.alt, data.title),
-      id: img.id ?? undefined,
-      w: img.w ? Number(img.w) : undefined,
-      h: img.h ? Number(img.h) : undefined
-    }))
+      let gallery: ProductImage[] =
+        Array.isArray(data.images) && data.images.length
+          ? data.images
+          : (data.image ? [{ src: data.image, alt: data.title || 'image' }] : [])
 
-    const rawDisc   = data?.discount?.data ?? data?.discount ?? {}
-    const discType  = isPercentOrFixed(rawDisc?.type) ? rawDisc.type : null
-    const discValue = toNum(rawDisc?.value)
-    const startISO  = rawDisc?.start_date ?? null
-    const endISO    = rawDisc?.end_date ?? null
-    const nowMs     = Date.now()
-    const startOk   = startISO ? nowMs >= Date.parse(startISO) : true
-    const endOk     = endISO   ? nowMs <= Date.parse(endISO)   : true
-    const active    = Boolean(rawDisc?.active) && discType && discValue !== null && startOk && endOk
+      gallery = gallery.map((img: any) => ({
+        src: img.src,
+        alt: normAlt(img.alt, data.title),
+        id: img.id ?? undefined,
+        w: img.w ? Number(img.w) : undefined,
+        h: img.h ? Number(img.h) : undefined
+      }))
 
-    const basePrice = toNum(data.price) ?? toNum(data.regular_price) ?? 0
+      const rawDisc   = data?.discount?.data ?? data?.discount ?? {}
+      const discType  = isPercentOrFixed(rawDisc?.type) ? rawDisc.type : null
+      const discValue = toNum(rawDisc?.value)
+      const startISO  = rawDisc?.start_date ?? null
+      const endISO    = rawDisc?.end_date ?? null
+      const nowMs     = Date.now()
+      const startOk   = startISO ? nowMs >= Date.parse(startISO) : true
+      const endOk     = endISO   ? nowMs <= Date.parse(endISO)   : true
+      const active    = Boolean(rawDisc?.active) && discType && discValue !== null && startOk && endOk
 
-    const faqRaw    = (data?.faq?.data ?? data?.faq) || []
-    const videosRaw = (data?.videos?.data ?? data?.videos) || []
+      const basePrice = toNum(data.price) ?? toNum(data.regular_price) ?? 0
 
-    const product: Product = {
-      id: data.id,
-      slug: data.slug,
-      title: data.title ?? data.name ?? '',
-      summary_name: data.summary_name ?? null,
-      short_title: data.short_title ?? null,
-      image: data.image ?? null,
-      description: data.description ?? '',
-      meta_title: data.meta_title ?? '',
-      meta_description: data.meta_description ?? '',
-      price: basePrice,
-      hide_price: Number(data.hide_price ?? 0) === 1,
-      requires_serial: Boolean(data.requires_serial ?? false),
-      regular_price: toNum(data.regular_price),
-      sale_price: toNum(data.sale_price),
-      images: gallery.length ? gallery : [{ src: '/images/placeholder.webp', alt: data.title || 'image' }],
-      table_price: Array.isArray(data.table_price) ? data.table_price : [],
-      reviews: (Array.isArray(data.reviews) ? data.reviews : []).filter(
-        (r: any) => r && (r.rating || r.content || r.author_name)
-      ),
-      categories: Array.isArray(data.categories) ? data.categories : [],
-      manufacturers: Array.isArray(data.manufacturers) ? data.manufacturers : [],
-      brands: Array.isArray(data.brands) ? data.brands : [],
-      sku: data.sku ?? null,
-      min_purchase_qty: Number(data.min_purchase_qty ?? 1),
-      quantity: data.quantity ?? null,
+      const faqRaw    = (data?.faq?.data ?? data?.faq) || []
+      const videosRaw = (data?.videos?.data ?? data?.videos) || []
 
-      discount_type:  active ? discType : null,
-      discount_value: active ? discValue : null,
-      discount_start: startISO,
-      discount_end:   endISO,
-      discount_active: active,
+      const product: Product = {
+        id: data.id,
+        slug: data.slug,
+        title: data.title ?? data.name ?? '',
+        summary_name: data.summary_name ?? null,
+        short_title: data.short_title ?? null,
+        image: data.image ?? null,
+        description: data.description ?? '',
+        meta_title: data.meta_title ?? '',
+        meta_description: data.meta_description ?? '',
+        price: basePrice,
+        hide_price: Number(data.hide_price ?? 0) === 1,
+        requires_serial: Boolean(data.requires_serial ?? false),
+        regular_price: toNum(data.regular_price),
+        sale_price: toNum(data.sale_price),
+        images: gallery.length ? gallery : [{ src: '/images/placeholder.webp', alt: data.title || 'image' }],
+        table_price: Array.isArray(data.table_price) ? data.table_price : [],
+        reviews: (Array.isArray(data.reviews) ? data.reviews : []).filter(
+          (r: any) => r && (r.rating || r.content || r.author_name)
+        ),
+        categories: Array.isArray(data.categories) ? data.categories : [],
+        manufacturers: Array.isArray(data.manufacturers) ? data.manufacturers : [],
+        brands: Array.isArray(data.brands) ? data.brands : [],
+        sku: data.sku ?? null,
+        min_purchase_qty: Number(data.min_purchase_qty ?? 1),
+        quantity: data.quantity ?? null,
 
-      accessories: Array.isArray(data.accessories) ? data.accessories : [],
-      bundles: Array.isArray(data.bundles) ? data.bundles : [],
-      attributes: Array.isArray(data.attributes) ? data.attributes : [],
-      compatibility: Array.isArray(data.compatibility) ? data.compatibility : [],
-      faq: Array.isArray(faqRaw)
-        ? faqRaw.map((x: any) => ({ q: String(x.q ?? x.question ?? ''), a: String(x.a ?? x.answer ?? '') }))
-        : [],
-      videos: Array.isArray(videosRaw)
-        ? videosRaw.map((x: any) => ({ title: x.title ?? null, url: String(x.url ?? x.link ?? '') }))
-        : []
+        discount_type:  active ? discType : null,
+        discount_value: active ? discValue : null,
+        discount_start: startISO,
+        discount_end:   endISO,
+        discount_active: active,
+
+        accessories: Array.isArray(data.accessories) ? data.accessories : [],
+        bundles: Array.isArray(data.bundles) ? data.bundles : [],
+        attributes: Array.isArray(data.attributes) ? data.attributes : [],
+        compatibility: Array.isArray(data.compatibility) ? data.compatibility : [],
+        faq: Array.isArray(faqRaw)
+          ? faqRaw.map((x: any) => ({ q: String(x.q ?? x.question ?? ''), a: String(x.a ?? x.answer ?? '') }))
+          : [],
+        videos: Array.isArray(videosRaw)
+          ? videosRaw.map((x: any) => ({ title: x.title ?? null, url: String(x.url ?? x.link ?? '') }))
+          : []
+      }
+
+      return product
+    } catch (err: any) {
+      const status  = err?.response?.status ?? err?.status ?? 500
+      const message =
+        err?.response?._data?.message ||
+        err?.message ||
+        (status === 404 ? 'Not Found' : 'Error')
+
+      // Nuxt will set the HTTP status from this error on SSR
+      throw createError({ statusCode: status, statusMessage: message, fatal: true })
     }
 
-    return product
   },
   { server: true, default: () => null, watch: [() => slug.value] }
 )
