@@ -44,6 +44,10 @@ try {
 } catch { OPENING_HOURS = undefined }
 
 export default defineNuxtConfig({
+    devServer: {
+    host: '127.0.0.1',
+    port: 4000,
+  },
   ssr: true,
   srcDir: 'app',
   pages: true,
