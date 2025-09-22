@@ -29,22 +29,50 @@ const { locales } = useI18n()
 const switchLocalePath = useSwitchLocalePath()
 
 const baseUrl = 'https://www.tlkeys.com'
-const defaultLocale = 'en' // you want x-default to always be English
+const defaultLocale = 'en' // your default
+
+// Exactly how you want each hreflang rendered:
+const desiredHreflang: Record<string, string> = {
+  en: 'en',     // language-only
+  ar: 'ar',     // language-only
+  es: 'es-ES',
+  fr: 'fr-FR',
+  tr: 'tr-TR',
+  ru: 'ru-RU',
+  it: 'it-IT',
+  de: 'de-DE',
+}
+
+// join base + path with NO trailing slash (except we remove it even for root)
+function joinClean(base: string, path: string) {
+  // `switchLocalePath('en')` returns "/" for default; make it empty
+  const cleaned =
+    path === '/'
+      ? ''
+      : path.replace(/\/+$/, '') // strip trailing slash for non-root
+  return `${base}${cleaned}`
+}
 
 useHead({
   link: [
-    // One <link rel="alternate"> per locale
-    ...locales.value.map((loc: any) => ({
-      rel: 'alternate',
-      hreflang: loc.iso || loc.code,               // e.g. en-US, fr-FR, ar-SA...
-      href: `${baseUrl}${switchLocalePath(loc.code)}`, // correct path for that locale
-    })),
-    // x-default should point to EN
+    // one <link rel="alternate"> per locale in your desired format
+    ...locales.value.map((loc: any) => {
+      const code = String(loc.code)
+      const hreflang = desiredHreflang[code] || loc.iso || code
+      const href = joinClean(baseUrl, switchLocalePath(code))
+      return {
+        rel: 'alternate',
+        hreflang,
+        href,
+      }
+    }),
+    // x-default should mirror EN (no trailing slash)
     {
       rel: 'alternate',
       hreflang: 'x-default',
-      href: `${baseUrl}${switchLocalePath(defaultLocale)}`
-    }
-  ]
+      href: joinClean(baseUrl, switchLocalePath(defaultLocale)),
+    },
+  ],
 })
 </script>
+

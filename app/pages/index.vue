@@ -308,8 +308,8 @@ const webPageLd = computed(() => ({
 useHead({
   link: [
     { rel: 'canonical', href: canonical.value },
-    ...availableLocales.map((lang: string) => ({ rel: 'alternate', hreflang: lang, href: localizedHref(lang) })),
-    { rel: 'alternate', hreflang: 'x-default', href: localizedHref(defaultLocale) }
+    // ...availableLocales.map((lang: string) => ({ rel: 'alternate', hreflang: lang, href: localizedHref(lang) })),
+    // { rel: 'alternate', hreflang: 'x-default', href: localizedHref(defaultLocale) }
   ],
   script: [
     { key: 'ld-website',  type: 'application/ld+json', innerHTML: JSON.stringify(websiteLd.value) },

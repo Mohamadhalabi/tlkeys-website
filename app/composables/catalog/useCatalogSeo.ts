@@ -113,7 +113,7 @@ export function useCatalogSeo(opts: {
       }
     }
     // x-default points to current path without query (usually default locale routing)
-    links.push({ hreflang: 'x-default', href: `${origin}${currentPath.value}` })
+    // links.push({ hreflang: 'x-default', href: `${origin}${currentPath.value}` })
     return links
   })
 
@@ -145,9 +145,9 @@ export function useCatalogSeo(opts: {
     if (canonicalUrl.value) link.push({ rel: 'canonical', href: canonicalUrl.value }) // ✅ canonical
 
     // ✅ hreflang alternates (all locales + x-default)
-    for (const a of altLinks.value) {
-      link.push({ rel: 'alternate', hreflang: a.hreflang, href: a.href })
-    }
+    // for (const a of altLinks.value) {
+    //   link.push({ rel: 'alternate', hreflang: a.hreflang, href: a.href })
+    // }
 
     const meta: any[] = [
       { name: 'robots', content: shouldNoindex.value ? 'noindex,follow' : 'index,follow' },
