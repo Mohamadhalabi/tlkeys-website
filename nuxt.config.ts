@@ -4,13 +4,11 @@ import { createResolver } from '@nuxt/kit'
 
 const { resolve } = createResolver(import.meta.url)
 
-// 🔧 Build-time constants used by JSON-LD
 const siteUrl  = ('https://www.tlkeys.com').replace(/\/+$/, '')
 const siteName = 'tlkeys'
 const logoUrl  = `${siteUrl}/images/logo/techno-lock-desktop-logo.webp`
 const searchTarget = `${siteUrl}/shop?q={search_term_string}`
 
-// ✅ Optional business metadata via env (leave empty if unknown)
 const SAME_AS = [
   process.env.SOCIAL_FACEBOOK,
   process.env.SOCIAL_INSTAGRAM,
@@ -34,20 +32,17 @@ const ADDRESS =
       }
     : undefined
 
-// If you want opening hours, set OPENING_HOURS_JSON to a JSON array of objects
-// e.g. [{"dayOfWeek":["Monday","Tuesday"],"opens":"09:00","closes":"18:00"}]
 let OPENING_HOURS
 try {
   OPENING_HOURS = process.env.OPENING_HOURS_JSON
     ? JSON.parse(process.env.OPENING_HOURS_JSON)
     : undefined
-} catch { OPENING_HOURS = undefined }
+} catch {
+  OPENING_HOURS = undefined
+}
 
 export default defineNuxtConfig({
-    devServer: {
-    host: '127.0.0.1',
-    port: 4000,
-  },
+  devServer: { host: '127.0.0.1', port: 4000 },
   ssr: true,
   srcDir: 'app',
   pages: true,
@@ -69,7 +64,6 @@ export default defineNuxtConfig({
   app: {
     head: {
       htmlAttrs: { lang: 'en' },
-
       link: [
         { rel: 'preconnect', href: 'https://www.google-analytics.com', crossorigin: 'anonymous' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -81,7 +75,6 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/icons/favicon-16x16.png' },
         { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
       ],
-
       meta: [
         { name: 'theme-color', content: '#ffffff' },
         { name: 'msapplication-TileColor', content: '#ffffff' },
@@ -94,8 +87,6 @@ export default defineNuxtConfig({
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:image', content: 'https://www.tlkeys.com/images/og-image.jpg' }
       ],
-
-      // ✅ Global JSON-LD schema
       script: [
         {
           key: 'ld-org',
@@ -103,11 +94,10 @@ export default defineNuxtConfig({
           innerHTML: JSON.stringify({
             '@context': 'https://schema.org',
             '@type': 'Organization',
-            '@id': `${siteUrl}`,
+            '@id': siteUrl,
             name: siteName,
             url: siteUrl,
-            logo: logoUrl,
-            // sameAs: ['https://www.facebook.com/...']
+            logo: logoUrl
           })
         },
         {
@@ -118,7 +108,7 @@ export default defineNuxtConfig({
             '@type': 'WebSite',
             name: siteName,
             url: siteUrl,
-            publisher: { '@id': `${siteUrl}` },
+            publisher: { '@id': siteUrl },
             inLanguage: ['en-US','ar-AR','es-ES','fr-FR','ru-RU','de-DE'],
             potentialAction: {
               '@type': 'SearchAction',
@@ -127,27 +117,21 @@ export default defineNuxtConfig({
             }
           })
         },
-        // ➕ LocalBusiness / AutoPartsStore
         {
           key: 'ld-local',
           type: 'application/ld+json',
           innerHTML: JSON.stringify({
             '@context': 'https://schema.org',
-            '@type': 'AutoPartsStore',               // fits your niche better than generic LocalBusiness
-            '@id': `${siteUrl}`,
+            '@type': 'AutoPartsStore',
+            '@id': siteUrl,
             url: siteUrl,
             name: 'Techno Lock Keys',
             image: logoUrl,
             logo: logoUrl,
-            // reference your org node
-            parentOrganization: { '@id': `${siteUrl}` },
-
-            // Optional but helpful signals:
+            parentOrganization: { '@id': siteUrl },
             priceRange: '$$',
             currenciesAccepted: 'USD, EUR, TRY, AED, GBP',
             areaServed: 'Worldwide',
-
-            // Will only appear if envs are provided (undefined is dropped by JSON.stringify)
             telephone: process.env.BUSINESS_PHONE || undefined,
             email: process.env.BUSINESS_EMAIL || undefined,
             address: ADDRESS,
@@ -156,34 +140,22 @@ export default defineNuxtConfig({
           })
         }
       ],
-
       noscript: [
         {
           innerHTML:
             `<iframe src="https://www.googletagmanager.com/ns.html?id=${process.env.NUXT_PUBLIC_GTM_ID || 'GTM-XXXXXXX'}"
                height="0" width="0" style="display:none;visibility:hidden"></iframe>`
         }
-      ],
-      __dangerouslyDisableSanitizersByTagID: {
-        'ld-org': ['innerHTML'],
-        'ld-website': ['innerHTML'],
-        'ld-local': ['innerHTML'],     // ⬅️ add this
-        'ld-json': ['innerHTML']
-      },
-      __dangerouslyDisableSanitizers: ['noscript']
+      ]
+      // No __dangerouslyDisableSanitizers* needed in Nuxt 3/4
     }
   },
-  // image: {
-  //   domains: ['www.tlkeys.com', 'dev-srv.tlkeys.com'],
-  //   format: ['webp', 'avif'],
-  //   screens: {
-  //     sm: 320,
-  //     md: 640,
-  //     lg: 1024,
-  //     xl: 1280,
-  //     xxl: 1536
-  //   }
-  // },
+
+  image: {
+    domains: ['www.tlkeys.com', 'dev-srv.tlkeys.com'],
+    format: ['webp', 'avif'],
+    quality: 70
+  },
 
   i18n: {
     locales: [
@@ -196,9 +168,7 @@ export default defineNuxtConfig({
     ],
     defaultLocale: 'en',
     strategy: 'prefix_except_default',
-    detectBrowserLanguage: { enabled: false },
-    lazy: true,
-    seo: true,
+    detectBrowserLanguage: false, // correct shape in v8
     baseUrl: 'https://www.tlkeys.com',
     langDir: resolve('app/locales'),
     vueI18n: resolve('i18n.config.ts'),
@@ -206,19 +176,25 @@ export default defineNuxtConfig({
 
   routeRules: {
     '/products/**': { isr: 60 * 60, headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
-    '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    '/fonts/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    '/_nuxt/**':    { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    '/fonts/**':    { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    '/_ipx/**':     { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    '/images/**':   { headers: { 'cache-control': 'public, max-age=31536000, immutable' } }
   },
+
   nitro: { compressPublicAssets: true },
-  experimental: { payloadExtraction: false, inlineSSRStyles: true },
+
+  experimental: { payloadExtraction: false }, // keep; removes legacy payload extraction
+
   vite: {
-    optimizeDeps: {
-      include: ['swiper', 'lodash-es']
+    optimizeDeps: { include: ['swiper', 'lodash-es'] },
+    build: {
+      cssCodeSplit: false // bundle CSS → fewer blocking requests
     }
   },
 
-  compatibilityDate: '2025-07-15',
-  devtools: { enabled: true },
+  compatibilityDate: '2025-09-22',
+  devtools: { enabled: false },
 
   runtimeConfig: {
     public: {

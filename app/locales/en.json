@@ -59,6 +59,7 @@
   },
   "auth": {
     "loginRegister": "Login / Register",
+    "logout" : "Logout",
     "login": {
       "title": "Login",
       "emailPlaceholder": "Your Email",
@@ -413,6 +414,7 @@
       "pageTitle": "My Account"
     },
     "dashboard": {
+      "signOut": "Sign Out",
       "total": "{n} total",
       "available": "{n} available",
       "saved": "{n} saved",

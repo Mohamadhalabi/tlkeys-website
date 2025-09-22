@@ -4,6 +4,7 @@ definePageMeta({ middleware: ['auth-account'] })
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter, useNuxtApp } from '#app'
 import { useI18n } from 'vue-i18n'
+import { useAuth } from '~/composables/useAuth'
 
 // Tabs/components
 import ProfileTab from '~/components/account/ProfileTab.vue'
@@ -13,23 +14,24 @@ import AddressesTab from '~/components/account/AddressesTab.vue'
 // Icons
 import {
   ClipboardDocumentListIcon as OrdersIcon,
-  WalletIcon,
   TicketIcon,
   MapPinIcon,
   UserCircleIcon,
   ShoppingCartIcon,
+  ArrowLeftOnRectangleIcon as LogoutIcon
 } from '@heroicons/vue/24/outline'
 
 const route = useRoute()
 const router = useRouter()
 const { $customApi } = useNuxtApp()
 const { t, locale } = useI18n()
+const { logout } = useAuth()
 
-/** Active tab via query (?tab=) with dashboard default */
+/** Active tab via query (?tab=) with dashboard default (wallet removed) */
 const active = computed<string>(() => {
   const k = String(route.query.tab || '')
   return [
-    'dashboard','profile','password','orders','wallet','coupons',
+    'dashboard','profile','password','orders','coupons',
     'addresses','reviews','cart','whatsnew'
   ].includes(k) ? k : 'dashboard'
 })
@@ -37,9 +39,9 @@ function setTab(key: string) {
   router.replace({ query: { ...route.query, tab: key } })
 }
 
-/** Optional stats for badges/tiles */
-const stats = ref<{ orders?: number; coupons?: number; cart?: number; addresses?: number; wallet?: number }>(
-  { orders: 0, coupons: 0, cart: 0, addresses: 0, wallet: 0 }
+/** Optional stats for badges/tiles (wallet removed) */
+const stats = ref<{ orders?: number; coupons?: number; cart?: number; addresses?: number }>(
+  { orders: 0, coupons: 0, cart: 0, addresses: 0 }
 )
 const loadingStats = ref(false)
 onMounted(async () => {
@@ -51,39 +53,33 @@ onMounted(async () => {
       orders: Number(d.orders ?? 0),
       coupons: Number(d.coupons ?? 0),
       cart: Number(d.cart ?? 0),
-      addresses: Number(d.addresses ?? 0),
-      wallet: Number(d.wallet ?? 0),
+      addresses: Number(d.addresses ?? 0)
     }
   } catch { /* ignore */ }
   finally { loadingStats.value = false }
 })
 
-/** Sidebar items (reactive to locale) */
+/** Sidebar items (wallet removed; no logout here) */
 const side = computed(() => {
-  // touch locale for reactivity when language changes
   const _ = locale.value
   return [
     { key: 'dashboard',  label: t('account.tabs.dashboard') },
-
     { key: 'profile',    label: t('account.tabs.accountDetails') },
-
     { key: 'orders',     label: t('account.tabs.myOrders'),     badge: stats.value.orders },
-    { key: 'wallet',     label: t('account.tabs.myWallet') },
     { key: 'coupons',    label: t('account.tabs.myCoupons'),    badge: stats.value.coupons },
     // { key: 'addresses',  label: t('account.tabs.myAddresses'),  badge: stats.value.addresses },
     { key: 'reviews',    label: t('account.tabs.myReview') },
-    { key: 'whatsnew',   label: t('account.tabs.whatsNew'),     badge: 0 },
+    { key: 'whatsnew',   label: t('account.tabs.whatsNew'),     badge: 0 }
   ]
 })
 
-/** Heading above the content area (reactive to locale) */
+/** Heading above the content area (wallet removed) */
 const tabHeading = computed(() => {
   const _ = locale.value
   switch (active.value) {
     case 'profile':   return t('account.tabs.accountDetails')
     case 'password':  return t('account.tabs.editPassword')
     case 'orders':    return t('account.tabs.myOrders')
-    case 'wallet':    return t('account.tabs.myWallet')
     case 'coupons':   return t('account.tabs.myCoupons')
     case 'addresses': return t('account.tabs.myAddresses')
     case 'reviews':   return t('account.tabs.myReview')
@@ -92,6 +88,15 @@ const tabHeading = computed(() => {
     default:          return t('account.tabs.dashboard')
   }
 })
+
+/** Logout handler */
+async function handleLogout() {
+  try {
+    await logout()
+  } finally {
+    router.push('/') // back to home after logout
+  }
+}
 </script>
 
 <template>
@@ -147,14 +152,6 @@ const tabHeading = computed(() => {
               </div>
             </NuxtLinkLocale>
 
-            <NuxtLinkLocale :to="{ query: { tab: 'wallet' } }" class="tile group">
-              <WalletIcon class="h-8 w-8" />
-              <div class="tile-label">{{ $t('account.tabs.myWallet') }}</div>
-              <div v-if="!loadingStats" class="tile-sub">
-                {{ (stats.wallet ?? 0).toLocaleString() }}
-              </div>
-            </NuxtLinkLocale>
-
             <NuxtLinkLocale :to="{ query: { tab: 'coupons' } }" class="tile group">
               <TicketIcon class="h-8 w-8" />
               <div class="tile-label">{{ $t('account.tabs.myCoupons') }}</div>
@@ -184,6 +181,18 @@ const tabHeading = computed(() => {
                 {{ $t('account.dashboard.items', { n: stats.cart || 0 }) }}
               </div>
             </NuxtLinkLocale>
+
+            <!-- NEW: Logout tile -->
+            <button
+              type="button"
+              class="tile group text-red-700 hover:text-red-800"
+              @click="handleLogout"
+              aria-label="Logout"
+            >
+              <LogoutIcon class="h-8 w-8" />
+              <div class="tile-label">{{ $t('auth.logout') || 'Logout' }}</div>
+              <div class="tile-sub">{{ $t('account.dashboard.signOut') || 'Sign out of your account' }}</div>
+            </button>
           </div>
 
           <!-- ACCOUNT DETAILS -->

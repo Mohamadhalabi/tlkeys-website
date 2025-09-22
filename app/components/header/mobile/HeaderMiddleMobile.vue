@@ -23,7 +23,8 @@
         <NuxtLinkLocale to="/" class="flex items-center">
           <NuxtImg
             src="/images/logo/techno-lock-desktop-logo.webp"
-            alt="Logo"
+            alt="Techno Lock Keys Trading"
+            height="64"
             class="h-16 object-contain"
           />
         </NuxtLinkLocale>

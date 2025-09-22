@@ -6,7 +6,7 @@ import FloatingCoupon from './components/ui/FloatingCoupon.vue'
 
 <template>
   <NuxtLayout>
-    <NuxtLoadingIndicator color="orange" height="10" />
+    <NuxtLoadingIndicator color="orange" :height="10" />
 
     <div id="page-wrap" class="min-h-dvh overflow-x-clip">
       <NuxtPage />

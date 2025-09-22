@@ -56,7 +56,7 @@ export default defineNuxtPlugin(() => {
 
   function build(options: any) {
     const lang = pickLocale()
-    const cur  = currency.value || 'USD'
+    const cur  = (currency.value || 'USD').toUpperCase()
 
     // headers (lower-case to be absolutely sure they override)
     const headers: Record<string, string> = {
@@ -64,7 +64,7 @@ export default defineNuxtPlugin(() => {
       ...(options.headers as Record<string, string>),
       accept: 'application/json',
       'accept-language': lang,
-      'X-Currency': cur,
+      'X-Currency': cur, // 👈 backend varies on this header
       'api-key': config.public.API_KEY,
       'secret-key': config.public.SECRET_KEY,
     }
@@ -83,10 +83,10 @@ export default defineNuxtPlugin(() => {
       headers['content-type'] = headers['content-type'] || 'application/json'
     }
 
-    // query: ensure currency and **lang** are present
+    // query: ensure currency and lang are present (mirrors headers)
     const q = (options.query || {}) as Record<string, any>
     if (!q.currency) q.currency = cur
-    if (!q.lang)     q.lang     = lang            // <— query param
+    if (!q.lang)     q.lang     = lang
     options.query = q
 
     options.headers = headers
