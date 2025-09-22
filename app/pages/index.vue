@@ -349,6 +349,10 @@ useHead({
     {{ slidersError }}
   </div>
 
+  <h1 class="text-center font-bold text-base text-xs text-transparent">
+    Techno Lock Keys Trading – Car Keys, Remotes, Emergency Keys, Key Cutting & Programming Machines
+  </h1>
+
   <!-- Categories -->
   <CategoriesGrid
     :title="t('home.browseCategories') || 'Browse Categories'"

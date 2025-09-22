@@ -238,7 +238,7 @@ function loadMore(){
     <Breadcrumbs :items="breadcrumbs" class="col-span-12 -mt-2" />
 
     <!-- Mobile chips + launchers -->
-    <div class="min-[993px]:hidden col-span-12">
+    <div data-nosnippet class="min-[993px]:hidden col-span-12">
       <div class="flex items-center justify-between mb-2">
         <div class="text-sm text-gray-600">
           <span v-if="data.meta?.value?.total">{{ data.meta.value.total }}</span>
@@ -279,7 +279,7 @@ function loadMore(){
     </div>
 
     <!-- Sidebar (desktop) -->
-    <aside class="hidden min-[993px]:block col-span-12 min-[993px]:col-span-3" :class="isRTL ? 'min-[993px]:order-2' : 'min-[993px]:order-1'">
+    <aside data-nosnippet class="hidden min-[993px]:block col-span-12 min-[993px]:col-span-3" :class="isRTL ? 'min-[993px]:order-2' : 'min-[993px]:order-1'">
       <div class="space-y-4">
         <div class="rounded-2xl border bg-white/80 backdrop-blur p-3 shadow-sm" v-if="selectedChips.length">
           <div class="mb-2 text-sm font-semibold text-gray-700">{{ t('filters.active') }}</div>
