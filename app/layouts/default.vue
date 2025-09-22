@@ -22,28 +22,29 @@
 </template>
 
 <script setup lang="ts">
-import { useHead, useRoute } from '#imports'
-import { useI18n } from 'vue-i18n'
+import { useHead } from '#imports'
+import { useI18n, useSwitchLocalePath } from '#imports'
 
-const route = useRoute()
-const { locale, locales, t } = useI18n()
+const { locales } = useI18n()
+const switchLocalePath = useSwitchLocalePath()
 
 const baseUrl = 'https://www.tlkeys.com'
+const defaultLocale = 'en' // you want x-default to always be English
 
 useHead({
-  link: locales.value.map((loc: any) => {
-    const prefix = loc.code === 'en' ? '' : `/${loc.code}`
-    return {
+  link: [
+    // One <link rel="alternate"> per locale
+    ...locales.value.map((loc: any) => ({
       rel: 'alternate',
-      hreflang: loc.iso || loc.code,
-      href: `${baseUrl}${prefix}${route.fullPath}`
-    }
-  }).concat([
+      hreflang: loc.iso || loc.code,               // e.g. en-US, fr-FR, ar-SA...
+      href: `${baseUrl}${switchLocalePath(loc.code)}`, // correct path for that locale
+    })),
+    // x-default should point to EN
     {
       rel: 'alternate',
       hreflang: 'x-default',
-      href: `${baseUrl}${route.fullPath}`
+      href: `${baseUrl}${switchLocalePath(defaultLocale)}`
     }
-  ])
+  ]
 })
 </script>
