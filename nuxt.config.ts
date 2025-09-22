@@ -151,11 +151,11 @@ export default defineNuxtConfig({
     }
   },
 
-  image: {
-    domains: ['www.tlkeys.com', 'dev-srv.tlkeys.com'],
-    format: ['webp', 'avif'],
-    quality: 70
-  },
+  // image: {
+  //   domains: ['www.tlkeys.com', 'dev-srv.tlkeys.com'],
+  //   format: ['webp', 'avif'],
+  //   quality: 70
+  // },
 
   i18n: {
     locales: [
