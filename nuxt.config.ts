@@ -3,7 +3,8 @@ import { fileURLToPath } from 'url'
 import { createResolver } from '@nuxt/kit'
 const { resolve } = createResolver(import.meta.url)
 
-const siteUrl  = (process.env.SITE_URL || 'https://www.tlkeys.com').replace(/\/+$/, '')
+const isProd  = process.env.NODE_ENV === 'production'
+const siteUrl = (process.env.SITE_URL || 'https://www.tlkeys.com').replace(/\/+$/, '')
 const siteName = 'tlkeys'
 const logoUrl  = `${siteUrl}/images/logo/techno-lock-desktop-logo.webp`
 const searchTarget = `${siteUrl}/shop?q={search_term_string}`
@@ -40,6 +41,17 @@ try {
   OPENING_HOURS = undefined
 }
 
+// Prod-only security headers (kept light so they don’t break things)
+const securityHeaders = isProd
+  ? {
+      'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'SAMEORIGIN',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+    }
+  : {}
+
 export default defineNuxtConfig({
   devServer: { host: '127.0.0.1', port: 4000 },
   ssr: true,
@@ -60,7 +72,7 @@ export default defineNuxtConfig({
     fileURLToPath(new URL('./app/assets/css/layout-header.css', import.meta.url)),
   ],
 
-  // Let i18n/app code control <html lang/dir> and alternates
+  // Global head (i18n will handle <html lang/dir> and alternates)
   app: {
     head: {
       link: [
@@ -108,7 +120,6 @@ export default defineNuxtConfig({
             name: siteName,
             url: siteUrl,
             publisher: { '@id': siteUrl },
-            // Use correct BCP-47 tags
             inLanguage: ['en-US', 'ar-SA', 'es-ES', 'fr-FR', 'ru-RU', 'de-DE'],
             potentialAction: {
               '@type': 'SearchAction',
@@ -150,8 +161,16 @@ export default defineNuxtConfig({
     }
   },
 
-  // Helps modules build absolute URLs (also used by @nuxtjs/i18n when baseUrl is set)
+  // Make absolute URLs for i18n & meta
   site: { url: siteUrl },
+
+  // Nuxt Image (IPX) – convert/optimize at edge, smaller payloads
+  image: {
+    domains: ['www.tlkeys.com', 'dev-srv.tlkeys.com'],
+    format: ['avif', 'webp'],
+    quality: 70,
+    // You can tweak screens/sizes here if you want even better LCP
+  },
 
   i18n: {
     locales: [
@@ -171,21 +190,50 @@ export default defineNuxtConfig({
     vueI18n: resolve('i18n.config.ts'),
   },
 
+  // Cache + headers + ISR
   routeRules: {
-    '/products/**': { isr: 60 * 60, headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
-    '/_nuxt/**':    { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    '/fonts/**':    { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    '/_ipx/**':     { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    '/images/**':   { headers: { 'cache-control': 'public, max-age=31536000, immutable' } }
+    // Product pages (revalidate hourly; good for SEO + fresh prices)
+    '/products/**': {
+      isr: 60 * 60,
+      headers: {
+        'cache-control': 'public, max-age=300, s-maxage=3600',
+        ...securityHeaders
+      }
+    },
+
+    // Static assets (immutable + long TTL)
+    '/_nuxt/**':  { headers: { 'cache-control': 'public, max-age=31536000, immutable', ...securityHeaders } },
+    '/fonts/**':  { headers: { 'cache-control': 'public, max-age=31536000, immutable', ...securityHeaders } },
+    '/_ipx/**':   { headers: { 'cache-control': 'public, max-age=31536000, immutable', ...securityHeaders } },
+    '/images/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable', ...securityHeaders } },
+
+    // Everything else gets basic security headers in prod
+    '/**': { headers: { ...securityHeaders } },
   },
 
-  nitro: { compressPublicAssets: true },
+  nitro: {
+    // Pre-compress static assets (gz + br) so your server/CDN can serve them
+    compressPublicAssets: true,
+    prerender: {
+      crawlLinks: true, // helpful if you run `nuxi generate` / hybrid
+    },
+  },
 
-  experimental: { payloadExtraction: false },
+  experimental: {
+    payloadExtraction: false, // keep: avoids legacy extraction path
+  },
 
   vite: {
     optimizeDeps: { include: ['swiper', 'lodash-es'] },
-    build: { cssCodeSplit: false }
+    build: {
+      cssCodeSplit: false,            // fewer blocking CSS requests
+      // Drop console/debugger in prod to shrink payloads a bit
+      minify: 'esbuild',
+      rollupOptions: {},
+    },
+    esbuild: {
+      drop: isProd ? ['console', 'debugger'] : [],
+    },
   },
 
   compatibilityDate: '2025-09-22',
