@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useI18n, useHead, useRoute, useRuntimeConfig, useNuxtApp, useRequestURL, createError } from '#imports'
+import { useI18n, useHead, useRoute, useRuntimeConfig, useNuxtApp, createError } from '#imports'
 import { computeUnitPrice } from '~/utils/pricing'
 
 /* composables */
@@ -91,9 +91,13 @@ const dir = computed(() => localeProperties.value.dir || 'ltr')
 
 const runtime = useRuntimeConfig()
 const API_BASE_URL = runtime.public.API_BASE_URL as string
-const SITE_URL = (runtime.public.SITE_URL as string) || ''
+
+// IMPORTANT: Use SITE_URL for all absolute URLs (canonical, og:url, JSON-LD, breadcrumbs)
+const PUBLIC_BASE = (runtime.public.SITE_URL as string) || 'https://www.tlkeys.com'
+const baseSiteUrl = computed(() => PUBLIC_BASE.replace(/\/+$/, '')) // no trailing slash
+const absUrl = computed(() => baseSiteUrl.value + route.path)       // clean path, no query/hash
+
 const { $customApi } = useNuxtApp()
-const requestURL = useRequestURL()
 
 const { currency, formatMoney } = useCurrency()
 const cart = useCart()
@@ -489,12 +493,6 @@ const activeTab = ref<TabKey>('desc')
 function setTab(k: TabKey) { activeTab.value = k }
 
 /* head/meta */
-const absUrl = computed(() => {
-  const origin = (requestURL && requestURL.origin) ? requestURL.origin : SITE_URL
-  const pathname = requestURL?.pathname || ''
-  return String(origin).replace(/\/+$/, '') + pathname
-})
-
 useHead(() => {
   const p = product.value
   const stripHtml = (html?: string | null) =>
@@ -589,7 +587,7 @@ useHead(() => {
             '@type': 'ListItem',
             position: i + 1,
             name: b.label,
-            item: b.to ? (absUrl.value.replace(requestURL.pathname, '') + b.to) : absUrl.value
+            item: b.to ? (baseSiteUrl.value + b.to) : absUrl.value
           }))
         }
       : undefined
@@ -969,6 +967,7 @@ watch(() => product.value?.id, () => {
           :showArrows="true" :showDots="true"
           @add-to-cart="(p) => { if (!p.hide_price) cart.add(p.id, 1, { title: p.name, image: p.image, slug: p.slug, price: p.price }) }"
         />
+
       </section>
     </div>
 
