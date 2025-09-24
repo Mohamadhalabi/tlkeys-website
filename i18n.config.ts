@@ -1,4 +1,6 @@
 export default defineI18nConfig(() => ({
-  legacy: false,          // use composition API instead of legacy
-  fallbackLocale: 'en',   // default fallback language
+  legacy: false,
+  locale: 'en',
+  fallbackLocale: 'en',
+  // Do NOT set `messages` here when using lazy + langDir.
 }))

@@ -1,7 +1,5 @@
 // nuxt.config.ts
 import { fileURLToPath } from 'url'
-import { createResolver } from '@nuxt/kit'
-const { resolve } = createResolver(import.meta.url)
 
 const siteUrl  = (process.env.SITE_URL || 'https://www.tlkeys.com').replace(/\/+$/, '')
 const siteName = 'tlkeys'
@@ -12,7 +10,7 @@ const SAME_AS = [
   process.env.SOCIAL_FACEBOOK,
   process.env.SOCIAL_INSTAGRAM,
   process.env.SOCIAL_YOUTUBE,
-  process.env.SOCIAL_TIKTOK,
+  process.env.SOCIAL_TIKTOK
 ].filter(Boolean)
 
 const ADDRESS =
@@ -31,13 +29,31 @@ const ADDRESS =
       }
     : undefined
 
-let OPENING_HOURS
+let OPENING_HOURS: any
 try {
-  OPENING_HOURS = process.env.OPENING_HOURS_JSON
-    ? JSON.parse(process.env.OPENING_HOURS_JSON)
-    : undefined
-} catch {
-  OPENING_HOURS = undefined
+  OPENING_HOURS = process.env.OPENING_HOURS_JSON ? JSON.parse(process.env.OPENING_HOURS_JSON) : undefined
+} catch { OPENING_HOURS = undefined }
+
+// --- i18n (inline on module!) ---
+const i18nOptions = {
+  locales: [
+    { code: 'en', iso: 'en-US', dir: 'ltr', file: 'en.json', name: 'English' },
+    { code: 'ar', iso: 'ar-SA', dir: 'rtl', file: 'ar.json', name: 'العربية' },
+    { code: 'es', iso: 'es-ES', dir: 'ltr', file: 'es.json', name: 'Español' },
+    { code: 'fr', iso: 'fr-FR', dir: 'ltr', file: 'fr.json', name: 'Français' },
+    { code: 'ru', iso: 'ru-RU', dir: 'ltr', file: 'ru.json', name: 'Русский' },
+    { code: 'de', iso: 'de-DE', dir: 'ltr', file: 'de.json', name: 'Deutsch' }
+  ],
+  defaultLocale: 'en',
+  strategy: 'prefix_except_default',
+  detectBrowserLanguage: false,
+  baseUrl: siteUrl,
+  seo: true,
+  lazy: true,
+  // Must be RELATIVE to srcDir ("app")
+  langDir: 'locales',
+  // Minimal file (don’t import messages here when using lazy+langDir)
+  vueI18n: 'i18n.config.ts'
 }
 
 export default defineNuxtConfig({
@@ -48,19 +64,18 @@ export default defineNuxtConfig({
 
   modules: [
     '@nuxtjs/tailwindcss',
-    '@nuxtjs/i18n',
+    ['@nuxtjs/i18n', i18nOptions], // ← single source of truth
     '@nuxt/image',
-    '@pinia/nuxt',
+    '@pinia/nuxt'
   ],
 
   css: [
     fileURLToPath(new URL('./app/assets/css/main.css', import.meta.url)),
     fileURLToPath(new URL('./app/assets/css/common.css', import.meta.url)),
     fileURLToPath(new URL('./app/assets/css/layout-default.css', import.meta.url)),
-    fileURLToPath(new URL('./app/assets/css/layout-header.css', import.meta.url)),
+    fileURLToPath(new URL('./app/assets/css/layout-header.css', import.meta.url))
   ],
 
-  // Let i18n/app code control <html lang/dir> and alternates
   app: {
     head: {
       link: [
@@ -68,17 +83,15 @@ export default defineNuxtConfig({
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'dns-prefetch', href: '//fonts.gstatic.com' },
         { rel: 'preconnect', href: 'https://dev-srv.tlkeys.com', crossorigin: 'anonymous' },
-
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
         { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/icons/favicon-32x32.png' },
         { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/icons/favicon-16x16.png' },
-        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' }
       ],
       meta: [
         { name: 'theme-color', content: '#ffffff' },
         { name: 'msapplication-TileColor', content: '#ffffff' },
         { name: 'format-detection', content: 'telephone=no' },
-
         { name: 'description', content: 'Automotive locksmith tools, remotes, shells, and key programming devices.' },
         { property: 'og:type', content: 'website' },
         { property: 'og:site_name', content: 'Techno Lock Keys' },
@@ -108,11 +121,10 @@ export default defineNuxtConfig({
             name: siteName,
             url: siteUrl,
             publisher: { '@id': siteUrl },
-            // Use correct BCP-47 tags
             inLanguage: ['en-US', 'ar-SA', 'es-ES', 'fr-FR', 'ru-RU', 'de-DE'],
             potentialAction: {
               '@type': 'SearchAction',
-              target: searchTarget,
+              target: `${siteUrl}/shop?q={search_term_string}`,
               'query-input': 'required name=search_term_string'
             }
           })
@@ -143,43 +155,32 @@ export default defineNuxtConfig({
       noscript: [
         {
           innerHTML:
-            `<iframe src="https://www.googletagmanager.com/ns.html?id=${process.env.NUXT_PUBLIC_GTM_ID || 'GTM-XXXXXXX'}"
-               height="0" width="0" style="display:none;visibility:hidden"></iframe>`
+            `<iframe src="https://www.googletagmanager.com/ns.html?id=${process.env.NUXT_PUBLIC_GTM_ID || 'GTM-XXXXXXX'}" height="0" width="0" style="display:none;visibility:hidden"></iframe>`
         }
       ]
     }
   },
 
-  // Helps modules build absolute URLs (also used by @nuxtjs/i18n when baseUrl is set)
   site: { url: siteUrl },
 
-  i18n: {
-    locales: [
-      { code: 'en', iso: 'en-US', language: 'en', name: 'English',  dir: 'ltr', file: 'en.json' },
-      { code: 'ar', iso: 'ar-SA', language: 'ar', name: 'العربية',  dir: 'rtl', file: 'ar.json' },
-      { code: 'es', iso: 'es-ES', language: 'es', name: 'Español',  dir: 'ltr', file: 'es.json' },
-      { code: 'fr', iso: 'fr-FR', language: 'fr', name: 'Français', dir: 'ltr', file: 'fr.json' },
-      { code: 'ru', iso: 'ru-RU', language: 'ru', name: 'Русский',  dir: 'ltr', file: 'ru.json' },
-      { code: 'de', iso: 'de-DE', language: 'de', name: 'Deutsch',  dir: 'ltr', file: 'de.json' },
-    ],
-    defaultLocale: 'en',
-    strategy: 'prefix_except_default',
-    detectBrowserLanguage: false,
-    baseUrl: siteUrl,
-    seo: true,
-    langDir: resolve('app/locales'),
-    vueI18n: resolve('i18n.config.ts'),
-  },
+  // image: {
+  //   domains: ['www.tlkeys.com', 'dev-srv.tlkeys.com'],
+  //   format: ['avif', 'webp'],
+  //   quality: 70
+  // },
 
   routeRules: {
-    '/products/**': { isr: 60 * 60, headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
+    '/products/**': { headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
     '/_nuxt/**':    { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
     '/fonts/**':    { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
     '/_ipx/**':     { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
     '/images/**':   { headers: { 'cache-control': 'public, max-age=31536000, immutable' } }
   },
 
-  nitro: { compressPublicAssets: true },
+  nitro: {
+    compressPublicAssets: true,
+    prerender: { crawlLinks: false, routes: [] }
+  },
 
   experimental: { payloadExtraction: false },
 
