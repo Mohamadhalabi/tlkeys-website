@@ -1,10 +1,9 @@
 // nuxt.config.ts
 import { fileURLToPath } from 'url'
 import { createResolver } from '@nuxt/kit'
-
 const { resolve } = createResolver(import.meta.url)
 
-const siteUrl  = ('https://www.tlkeys.com').replace(/\/+$/, '')
+const siteUrl  = (process.env.SITE_URL || 'https://www.tlkeys.com').replace(/\/+$/, '')
 const siteName = 'tlkeys'
 const logoUrl  = `${siteUrl}/images/logo/techno-lock-desktop-logo.webp`
 const searchTarget = `${siteUrl}/shop?q={search_term_string}`
@@ -61,9 +60,9 @@ export default defineNuxtConfig({
     fileURLToPath(new URL('./app/assets/css/layout-header.css', import.meta.url)),
   ],
 
+  // Let i18n/app code control <html lang/dir> and alternates
   app: {
     head: {
-      htmlAttrs: { lang: 'en' },
       link: [
         { rel: 'preconnect', href: 'https://www.google-analytics.com', crossorigin: 'anonymous' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -83,9 +82,9 @@ export default defineNuxtConfig({
         { name: 'description', content: 'Automotive locksmith tools, remotes, shells, and key programming devices.' },
         { property: 'og:type', content: 'website' },
         { property: 'og:site_name', content: 'Techno Lock Keys' },
-        { property: 'og:image', content: 'https://www.tlkeys.com/images/og-image.jpg' },
+        { property: 'og:image', content: `${siteUrl}/images/og-image.jpg` },
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:image', content: 'https://www.tlkeys.com/images/og-image.jpg' }
+        { name: 'twitter:image', content: `${siteUrl}/images/og-image.jpg` }
       ],
       script: [
         {
@@ -109,7 +108,8 @@ export default defineNuxtConfig({
             name: siteName,
             url: siteUrl,
             publisher: { '@id': siteUrl },
-            inLanguage: ['en-US','ar-AR','es-ES','fr-FR','ru-RU','de-DE'],
+            // Use correct BCP-47 tags
+            inLanguage: ['en-US', 'ar-SA', 'es-ES', 'fr-FR', 'ru-RU', 'de-DE'],
             potentialAction: {
               '@type': 'SearchAction',
               target: searchTarget,
@@ -147,29 +147,26 @@ export default defineNuxtConfig({
                height="0" width="0" style="display:none;visibility:hidden"></iframe>`
         }
       ]
-      // No __dangerouslyDisableSanitizers* needed in Nuxt 3/4
     }
   },
 
-  // image: {
-  //   domains: ['www.tlkeys.com', 'dev-srv.tlkeys.com'],
-  //   format: ['webp', 'avif'],
-  //   quality: 70
-  // },
+  // Helps modules build absolute URLs (also used by @nuxtjs/i18n when baseUrl is set)
+  site: { url: siteUrl },
 
   i18n: {
     locales: [
-      { code: 'en', iso: 'en-US', name: 'English', dir: 'ltr', file: 'en.json' },
-      { code: 'ar', iso: 'ar-SA', name: 'العربية', dir: 'rtl', file: 'ar.json' },
-      { code: 'es', iso: 'es-ES', name: 'Español', dir: 'ltr', file: 'es.json' },
-      { code: 'fr', iso: 'fr-FR', name: 'Français', dir: 'ltr', file: 'fr.json' },
-      { code: 'ru', iso: 'ru-RU', name: 'Русский', dir: 'ltr', file: 'ru.json' },
-      { code: 'de', iso: 'de-DE', name: 'Deutsch', dir: 'ltr', file: 'de.json' },
+      { code: 'en', iso: 'en-US', language: 'en', name: 'English',  dir: 'ltr', file: 'en.json' },
+      { code: 'ar', iso: 'ar-SA', language: 'ar', name: 'العربية',  dir: 'rtl', file: 'ar.json' },
+      { code: 'es', iso: 'es-ES', language: 'es', name: 'Español',  dir: 'ltr', file: 'es.json' },
+      { code: 'fr', iso: 'fr-FR', language: 'fr', name: 'Français', dir: 'ltr', file: 'fr.json' },
+      { code: 'ru', iso: 'ru-RU', language: 'ru', name: 'Русский',  dir: 'ltr', file: 'ru.json' },
+      { code: 'de', iso: 'de-DE', language: 'de', name: 'Deutsch',  dir: 'ltr', file: 'de.json' },
     ],
     defaultLocale: 'en',
     strategy: 'prefix_except_default',
-    detectBrowserLanguage: false, // correct shape in v8
-    baseUrl: 'https://www.tlkeys.com',
+    detectBrowserLanguage: false,
+    baseUrl: siteUrl,
+    seo: true,
     langDir: resolve('app/locales'),
     vueI18n: resolve('i18n.config.ts'),
   },
@@ -184,13 +181,11 @@ export default defineNuxtConfig({
 
   nitro: { compressPublicAssets: true },
 
-  experimental: { payloadExtraction: false }, // keep; removes legacy payload extraction
+  experimental: { payloadExtraction: false },
 
   vite: {
     optimizeDeps: { include: ['swiper', 'lodash-es'] },
-    build: {
-      cssCodeSplit: false // bundle CSS → fewer blocking requests
-    }
+    build: { cssCodeSplit: false }
   },
 
   compatibilityDate: '2025-09-22',
@@ -199,8 +194,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       siteName: 'Techno Lock Keys',
-      siteUrl: process.env.SITE_URL || 'https://www.tlkeys.com',
-      defaultOgImage: 'https://www.tlkeys.com/images/og-image.jpg',
+      siteUrl,
+      defaultOgImage: `${siteUrl}/images/og-image.jpg`,
       defaultDescription: 'Automotive locksmith tools, remotes, shells, and key programming devices.',
       gtmId: process.env.NUXT_PUBLIC_GTM_ID || 'GTM-PWSSMVC7',
 
