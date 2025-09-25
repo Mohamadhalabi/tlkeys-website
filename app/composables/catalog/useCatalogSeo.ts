@@ -35,13 +35,14 @@ export function useCatalogSeo(opts: {
     reqURL?.search || (typeof window !== 'undefined' ? new URL(window.location.href).search : '')
   )
 
-  // ---- Canonical + robots (strip query params from canonical, noindex when query exists)
+  // ---- Canonical + robots
   const hasQuery = computed(() => (currentSearch.value || '').replace('?', '').length > 0)
-  const shouldNoindex = hasQuery
+  const isShopRoot = computed(() => currentPath.value === '/shop')           // ✅ /shop root
+  const shouldNoindex = computed(() => hasQuery.value || isShopRoot.value)   // ✅ /shop and /shop?... => noindex
 
   const canonicalUrl = computed(() => {
     if (!origin) return undefined
-    // If there are query params, canonicalize to clean path (no query)
+    // If query params exist, canonicalize to clean path (no query)
     return `${origin}${currentPath.value}${hasQuery.value ? '' : currentSearch.value}`
   })
 
@@ -87,7 +88,6 @@ export function useCatalogSeo(opts: {
   })
 
   // ---- hreflang for ALL locales (+ x-default)
-  // Expect each locale to have { code, iso? } in @nuxtjs/i18n config
   const allLocales = computed(() => {
     const arr = Array.isArray(locales.value) ? locales.value : []
     return arr
@@ -104,16 +104,13 @@ export function useCatalogSeo(opts: {
         // Build the localized path that mirrors the CURRENT route in each locale
         localizedPath = switchLocalePath(l.code) || currentPath.value
       }
-      const href = `${origin}${localizedPath}` // canonicalized path (no query)
+      const href = `${origin}${localizedPath}`
       const hreflang = (l.iso || l.code).toString()
       links.push({ hreflang, href })
-      // If your iso has underscores, convert to hyphen (e.g., en_US -> en-US)
       if (hreflang.includes('_')) {
         links.push({ hreflang: hreflang.replace('_', '-'), href })
       }
     }
-    // x-default points to current path without query (usually default locale routing)
-    // links.push({ hreflang: 'x-default', href: `${origin}${currentPath.value}` })
     return links
   })
 
@@ -144,15 +141,12 @@ export function useCatalogSeo(opts: {
     const link: any[] = []
     if (canonicalUrl.value) link.push({ rel: 'canonical', href: canonicalUrl.value }) // ✅ canonical
 
-    // ✅ hreflang alternates (all locales + x-default)
-    // for (const a of altLinks.value) {
-    //   link.push({ rel: 'alternate', hreflang: a.hreflang, href: a.href })
-    // }
+    // (Optional) hreflang alternates — keep commented if you manage hreflang elsewhere
+    // for (const a of altLinks.value) link.push({ rel: 'alternate', hreflang: a.hreflang, href: a.href })
 
     const meta: any[] = [
-      { name: 'robots', content: shouldNoindex.value ? 'noindex,follow' : 'index,follow' },
-      { 'http-equiv': 'X-Robots-Tag', content: shouldNoindex.value ? 'noindex, follow' : 'index, follow' },
-      // Open Graph locale tags
+      { name: 'robots', content: shouldNoindex.value ? 'noindex,follow' : 'index,follow' },              // ✅ robots
+      { 'http-equiv': 'X-Robots-Tag', content: shouldNoindex.value ? 'noindex, follow' : 'index, follow' }, // ✅ header-equivalent
       { property: 'og:locale', content: ogLocale.value },
       ...ogLocaleAlternates.value.map(l => ({ property: 'og:locale:alternate', content: l })),
     ]
