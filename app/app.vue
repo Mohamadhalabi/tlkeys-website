@@ -3,7 +3,6 @@
 import { useHead, useLocaleHead } from '#imports'
 import AlertContainer from '../app/components/common/AlertContainer.vue'
 import BackToTop from './components/ui/BackToTop.vue'
-import FloatingCoupon from './components/ui/FloatingCoupon.vue'
 
 const i18nHead = useLocaleHead({
   addDirAttribute: true,   // ✅ <html dir="ltr/rtl">
@@ -25,7 +24,6 @@ useHead(() => ({
     <div id="page-wrap" class="min-h-dvh overflow-x-clip">
       <NuxtPage />
     </div>
-    <FloatingCoupon />
     <BackToTop />
     <AlertContainer />
   </NuxtLayout>

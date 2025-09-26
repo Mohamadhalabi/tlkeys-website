@@ -4,6 +4,7 @@
     <main class="flex-1">
       <slot />
     </main>
+        <FloatingCoupon />
     <Footer :links="[
       { label: 'About Us', to: '/about' },
       { label: 'Contact Us', to: '/contact' },
@@ -19,7 +20,7 @@
 import { computed } from 'vue'
 import { useHead, useRuntimeConfig, useRoute } from '#imports'
 import { useI18n, useSwitchLocalePath } from '#imports'
-
+import FloatingCoupon from '~/components/ui/FloatingCoupon.vue'
 const route = useRoute()
 const { locales, locale, localeProperties } = useI18n()
 const switchLocalePath = useSwitchLocalePath()
