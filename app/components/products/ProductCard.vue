@@ -225,6 +225,7 @@ async function onAdd() {
 
 <template>
   <div
+    data-nosnippet
     ref="cardEl"
     class="group h-full rounded-xl bg-white ring-1 ring-black/5 shadow-sm hover:shadow-[0_35px_35px_rgba(0,0,0,0.15)] transition overflow-hidden flex flex-col"
   >
