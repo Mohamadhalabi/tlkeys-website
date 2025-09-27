@@ -629,7 +629,7 @@
     "close": "إغلاق",
     "openCoupon": "فتح الكوبون"
   },
-      "tabs": {
+   "tabs": {
       "dashboard": "لوحة التحكم",
       "accountDetails": "تفاصيل الحساب",
       "editPassword": "تعديل كلمة المرور",

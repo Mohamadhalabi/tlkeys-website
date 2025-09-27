@@ -629,7 +629,7 @@
     "close": "Закрыть",
     "openCoupon": "Открыть купон"
   },
-    "tabs": {
+      "tabs": {
       "dashboard": "Панель",
       "accountDetails": "Данные аккаунта",
       "editPassword": "Изменить пароль",

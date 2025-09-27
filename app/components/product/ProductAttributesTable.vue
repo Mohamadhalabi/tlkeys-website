@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from '#imports'
 
 type AttrItem  = { id: number | string; slug?: string; name?: string; label?: string; value: string }
 type AttrGroup = { id: number | string; slug?: string; name: string; items: AttrItem[] }
 
 const props = defineProps<{ groups: AttrGroup[]; title?: string }>()
 
-/** Build rows, grouping same labels and joining values with commas */
+const { t, locale } = useI18n()
+
+/** Build rows, grouping same labels and joining values with a locale-aware list formatter */
 const rows = computed(() => {
   const order: string[] = []                         // preserve first-seen order
   const grouped = new Map<string, { label: string; values: string[] }>()
+  const lf = new Intl.ListFormat(locale.value || 'en', { style: 'long', type: 'conjunction' })
 
   for (const g of props.groups || []) {
     for (const it of g.items || []) {
@@ -26,24 +30,23 @@ const rows = computed(() => {
         order.push(key)
       }
 
-      // avoid exact duplicates back-to-back
       const bucket = grouped.get(key)!
       if (!bucket.values.includes(rawVal)) bucket.values.push(rawVal)
     }
   }
 
-  // flatten back to [{label, value}]
+  // flatten back to [{label, value}] with localized joining
   return order.map(k => {
     const { label, values } = grouped.get(k)!
-    return { label, value: values.join(', ') }
+    return { label, value: values.length > 1 ? lf.format(values) : (values[0] || '') }
   })
 })
 
-const hasRows  = computed(() => rows.value.length > 0)
-const heading  = computed(() => props.title ?? 'Specifications')
-const mid      = computed(() => Math.ceil(rows.value.length / 2))
-const leftRows = computed(() => rows.value.slice(0, mid.value))
-const rightRows= computed(() => rows.value.slice(mid.value))
+const hasRows   = computed(() => rows.value.length > 0)
+const heading   = computed(() => props.title ?? t('product.specifications', 'Specifications'))
+const mid       = computed(() => Math.ceil(rows.value.length / 2))
+const leftRows  = computed(() => rows.value.slice(0, mid.value))
+const rightRows = computed(() => rows.value.slice(mid.value))
 </script>
 
 <template>

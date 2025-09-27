@@ -299,11 +299,13 @@
 
 <script setup>
 import { onMounted, onBeforeUnmount, ref, computed } from 'vue'
+import { useLocalePath } from '#imports' // ✅ locale-aware navigation
 
 const { public: { API_BASE_URL } } = useRuntimeConfig()
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
+const localePath = useLocalePath() // ✅
 
 /* ---------- sticky + scroll shadow ---------- */
 const scrolled = ref(false)
@@ -502,9 +504,9 @@ async function fetchSoftwareTokens() {
   try {
     const { $customApi } = useNuxtApp()
     const res = await $customApi(`${API_BASE_URL}/get_softwares_and_tokens`, { method: 'GET' })
-    const { softwares: s, tokens: t } = extractSoftwareTokens(res)
+    const { softwares: s, tokens: tk } = extractSoftwareTokens(res)
     softwares.value = s
-    tokens.value = t
+    tokens.value = tk
   } catch (err) {
     errorSoftTok.value = err?.data?.message || err?.message || t('error') || 'Error loading software & tokens.'
   } finally { loadingSoftTok.value = false }
@@ -515,13 +517,16 @@ function goToBrand(slug, category) {
   closeAll()
   if (!slug) return
 
+  // normalize to a path (no domain, no locale), then let nuxt-i18n add the current locale (/es, /ar, /tr, ...)
   const path = slug.startsWith('/') ? slug : `/${slug}`
   const to = category
     ? { path, query: { categories: category } }
     : { path }
 
-  router.push(to)
+  // ✅ locale-aware push
+  router.push(localePath(to))
 }
+
 function onDocClick(e) {
   if (!containerRef.value) return
   if (!containerRef.value.contains(e.target)) closeAll()

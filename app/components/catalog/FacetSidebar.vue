@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import FacetGroup from './FacetGroup.vue'
-
-import AttrFacetGroup from './AttrFacetGroup.vue';
+import AttrFacetGroup from './AttrFacetGroup.vue'
+import { useI18n } from '#imports'
 
 const props = defineProps<{
   facets: { brands?:any[]; models?:any[]; categories?:any[]; manufacturers?:any[]; attributes?:any[] } | null
@@ -10,6 +10,7 @@ const props = defineProps<{
   uiSearch: Record<string, string>
   sel: { brands:string[]; models:string[]; categories:string[]; manufacturers:string[]; attributes:Record<string,string[]> }
 }>()
+
 const emit = defineEmits<{
   (e:'toggleOpen', key:string): void
   (e:'clearGroup', key:'brands'|'models'|'categories'|'manufacturers'): void
@@ -18,6 +19,18 @@ const emit = defineEmits<{
   (e:'clearAttr', key:string): void
   (e:'pickAttr', payload:{ attr:string; slug:string }): void
 }>()
+
+/* i18n for group labels */
+const { t } = useI18n()
+const groupLabel = (k: 'brands'|'models'|'categories'|'manufacturers') => {
+  switch (k) {
+    case 'brands':        return t('filters.brands',        'Brands')
+    case 'models':        return t('filters.models',        'Models')
+    case 'categories':    return t('filters.categories',    'Categories')
+    case 'manufacturers': return t('filters.manufacturers', 'Manufacturers')
+    default:              return k
+  }
+}
 </script>
 
 <template>
@@ -25,7 +38,7 @@ const emit = defineEmits<{
     <FacetGroup
       v-for="k in order"
       :key="k"
-      :label="k"
+      :label="groupLabel(k)"
       :keyName="k"
       :items="facets[k] || []"
       :selected="sel[k]"

@@ -139,7 +139,7 @@ async function fetchCountries() {
     const list: any[] = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : [])
     countries.value = (list || []) as Country[]
   } catch (e: any) {
-    countriesError.value = e?.message || 'Failed to load countries'
+    countriesError.value = t('errors.failedToLoadCountries') || 'Failed to load countries'
   } finally {
     countriesLoading.value = false
   }
@@ -149,8 +149,8 @@ async function fetchCountries() {
 const shippingOptions = computed<ShippingOption[]>(() => {
   if (selectedAddress.value?.country_id === UAE_COUNTRY_ID) {
     return [
-      { key: 'pick_up', label: t('checkout.pickup') || 'Pickup', price: 0 },
-      { key: 'domestic',  label: t('checkout.localShipping') || 'Local shipping', price: 10 },
+      { key: 'pick_up',  label: t('checkout.pickup') || 'Pickup',          price: 0 },
+      { key: 'domestic', label: t('checkout.localShipping') || 'Local shipping', price: 10 },
     ]
   }
   return quote.value?.shipping?.options ?? []
@@ -186,13 +186,14 @@ function showCouponAlertOnce(c: CouponResult | null | undefined) {
     const saved = (c.discount_value ?? 0).toFixed(2)
     alerts.showAlert({
       type: 'success',
-      title: 'Coupon applied',
-      message: `${'You saved'} <b>${saved}$</b> ${'on the subtotal'}.`
+      title: t('checkout.couponAppliedTitle') || 'Coupon applied',
+      message: (t('checkout.couponAppliedMsg', { amount: saved }) as string)
+        || `You saved <b>${saved}$</b> on the subtotal.`
     })
   } else {
     alerts.showAlert({
       type: 'error',
-      title: 'Coupon not applied',
+      title: t('checkout.couponNotAppliedTitle') || 'Coupon not applied',
       message: c?.message || t('checkout.couponInvalid') || 'This coupon cannot be used for your order.'
     })
   }
@@ -234,10 +235,8 @@ async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAle
       selectedShipping.value = null
     }
 
-    // If this fetch was triggered by clicking Apply, show alert once
     if (opts?.showCouponAlert) {
       showCouponAlertOnce(res.coupon)
-      // If it didn't apply, do NOT stick it in appliedCouponCode
       if (!(res.coupon?.applied)) {
         appliedCouponCode.value = null
       }
@@ -251,7 +250,6 @@ async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAle
 async function applyCoupon() {
   const code = (couponInput.value || '').trim()
   if (!code) return
-  // Try once with this code, show an alert, and persist only if applied
   await fetchQuote({ couponOverride: code, showCouponAlert: true })
   if (quote.value?.coupon?.applied) {
     appliedCouponCode.value = code
@@ -259,9 +257,9 @@ async function applyCoupon() {
 }
 async function removeCoupon() {
   appliedCouponCode.value = null
-  lastShownCouponKey.value = null // reset de-dup
+  lastShownCouponKey.value = null
   await fetchQuote()
-  alerts.showAlert({ type: 'info', title: t('checkout.couponRemoved') || 'Coupon removed' })
+  alerts.showAlert({ type: 'info', title: (t('checkout.couponRemoved') || 'Coupon removed') as string })
 }
 
 /* ---------------- Save/Delete address ---------------- */
@@ -330,7 +328,7 @@ async function createOrder() {
     address:         selectedAddressId.value,
     shipping_method: selectedShipping.value,
     payment_method:  paymentMap[paymentMethod.value],
-    coupon_code:     appliedCouponCode.value || null, // only the applied one
+    coupon_code:     appliedCouponCode.value || null,
   }
 
   try {
@@ -359,10 +357,18 @@ async function createOrder() {
       return
     }
 
-    alerts.showAlert({ type:'info', title:'Order created', message:'Missing order id in response.' })
+    alerts.showAlert({
+      type:'info',
+      title: t('checkout.orderCreated') || 'Order created',
+      message: t('checkout.missingOrderId') || 'Missing order id in response.'
+    })
     creatingOrder.value = false
   } catch (e: any) {
-    alerts.showAlert({ type:'error', title: 'Failed to create order', message: e?.message })
+    alerts.showAlert({
+      type:'error',
+      title: t('checkout.failedCreateOrder') || 'Failed to create order',
+      message: e?.message
+    })
     creatingOrder.value = false
   }
 }
@@ -380,13 +386,13 @@ const remainingCount = computed(() => Math.max(allProducts.value.length - COLLAP
 /* ---------------- Step Note (progressive guidance) ---------------- */
 const stepNote = computed<null | { where: 'address'|'shipping'|'payment'; text: string }>(() => {
   if (!selectedAddressId.value) {
-    return { where: 'address',  text: 'Please first select / add address' }
+    return { where: 'address',  text: t('checkout.stepAddress') || 'Please first select / add address' }
   }
   if (!selectedShipping.value) {
-    return { where: 'shipping', text: '2nd step choose your shipping method' }
+    return { where: 'shipping', text: t('checkout.stepShipping') || '2nd step choose your shipping method' }
   }
   if (!paymentMethod.value) {
-    return { where: 'payment',  text: '3rd step choose the payment method' }
+    return { where: 'payment',  text: t('checkout.stepPayment') || '3rd step choose the payment method' }
   }
   return null
 })
@@ -395,7 +401,8 @@ const stepNote = computed<null | { where: 'address'|'shipping'|'payment'; text: 
 const pageTitle = computed(() => {
   const count = allProducts.value.length
   const base = t('dashboard.checkout') || 'Checkout'
-  return `${base} — ${count} ${count === 1 ? 'item' : 'items'}`
+  const itemWord = count === 1 ? (t('common.item') || 'item') : (t('common.items') || 'items')
+  return `${base} — ${count} ${itemWord}`
 })
 
 const pageDescription = computed(() => {
@@ -403,7 +410,7 @@ const pageDescription = computed(() => {
   const shipLabel = selectedShipping.value
     ? (t('checkout.shippingMethod') || 'Shipping') + ': ' + String(selectedShipping.value).toUpperCase()
     : (t('checkout.shippingMethod') || 'Shipping')
-  return `${t('checkout.reviewAndPlace') || 'Review your cart and place your order.'} Subtotal: ${subtotal}. ${shipLabel}.`
+  return `${t('checkout.reviewAndPlace') || 'Review your cart and place your order.'} ${t('checkout.subtotal') || 'Subtotal'}: ${subtotal}. ${shipLabel}.`
 })
 
 useSeoMeta({
@@ -435,7 +442,7 @@ watch(selectedShipping, async () => {
 <template>
   <main class="container mx-auto px-3 md:px-4 lg:px-6 py-6">
     <!-- Breadcrumbs -->
-    <nav class="text-sm mb-4">
+    <nav class="text-sm mb-4" aria-label="Breadcrumb">
       <ol class="flex gap-2 text-gray-500">
         <li><NuxtLinkLocale to="/">{{ $t('shop.home') }}</NuxtLinkLocale></li>
         <li>/</li>
@@ -459,6 +466,7 @@ watch(selectedShipping, async () => {
               class="w-full sm:w-80 rounded-xl border px-3 py-2"
               :placeholder="$t('checkout.enterCouponCode')"
               @keyup.enter="applyCoupon"
+              :aria-label="$t('checkout.couponCode') || 'Coupon code'"
             />
             <button
               class="rounded-xl border px-4 py-2 font-medium hover:bg-gray-50"
@@ -474,7 +482,7 @@ watch(selectedShipping, async () => {
               :disabled="creatingOrder"
               @click="removeCoupon"
             >
-              {{ 'Remove' }} ({{ appliedCouponCode }})
+              {{ $t('common.remove') || 'Remove' }} ({{ appliedCouponCode }})
             </button>
           </div>
         </div>
@@ -497,7 +505,7 @@ watch(selectedShipping, async () => {
         <div class="rounded-2xl border p-4 bg-white shadow-sm">
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-lg font-semibold flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M12 12a5 5 0 100-10 5 5 0 000 10z"/><path fill-rule="evenodd" d="M2 20a8 8 0 1116 0v1H2v-1z" clip-rule="evenodd"/>
               </svg>
               {{ $t('checkout.addrress') }}
@@ -540,7 +548,7 @@ watch(selectedShipping, async () => {
         <!-- Step 2: Shipping -->
         <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="(shippingDisabled || creatingOrder) ? 'opacity-50 pointer-events-none' : ''">
           <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M2 6a2 2 0 012-2h10a2 2 0 012 2v8h-1.18a3 3 0 10-5.64 0H8.82a3 3 0 10-5.64 0H2V6z"/>
               <path d="M20 8h-2v6h.82a3 3 0 015.64 0H24V12l-2-4z"/>
             </svg>
@@ -590,7 +598,7 @@ watch(selectedShipping, async () => {
         <!-- Step 3: Payment -->
         <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="(paymentDisabled || creatingOrder) ? 'opacity-50 pointer-events-none' : ''">
           <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M2 6a2 2 0 012-2h16a2 2 0 012 2v2H2V6z"/>
               <path d="M2 10h20v8a2 2 0 01-2 2H4a2 2 0 01-2-2v-8zm3 5h6v2H5v-2z"/>
             </svg>
@@ -616,7 +624,7 @@ watch(selectedShipping, async () => {
                    :class="paymentMethod === 'card' ? 'ring-2 ring-emerald-500' : ''">
               <input class="sr-only" type="radio" value="card" v-model="paymentMethod" />
               <div class="flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6a2 2 0 012-2h14a2 2 0 012 2v2H3V6z"/><path d="M3 10h18v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8zm2 5h6v2H5v-2z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6a2 2 0 012-2h14a2 2 0 012 2v2H3V6z"/><path d="M3 10h18v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8zm2 5h6v2H5v-2z"/></svg>
                 <span class="font-medium">{{ $t('checkout.payCard') }}</span>
               </div>
             </label>
@@ -634,7 +642,7 @@ watch(selectedShipping, async () => {
                    :class="paymentMethod === 'transfer' ? 'ring-2 ring-emerald-500' : ''">
               <input class="sr-only" type="radio" value="transfer" v-model="paymentMethod" />
               <div class="flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 6v2H3V9l9-6z"/><path d="M4 13h16v6H4v-6z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l9 6v2H3V9l9-6z"/><path d="M4 13h16v6H4v-6z"/></svg>
                 <span class="font-medium">{{ $t('checkout.bankTransfer') }}</span>
               </div>
             </label>
@@ -642,10 +650,10 @@ watch(selectedShipping, async () => {
 
           <div v-if="paymentMethod === 'transfer'" class="mt-3 text-sm">
             <div class="rounded-xl border p-3 bg-gray-50">
-              <div class="font-medium">ADCB</div>
-              <div>Account: 699321041001</div>
-              <div>IBAN: AE470030000699321041001</div>
-              <div>BIC: ADCBAEAA</div>
+              <div class="font-medium">{{ $t('bank.name') || 'ADCB' }}</div>
+              <div>{{ $t('bank.account') || 'Account' }}: 699321041001</div>
+              <div>{{ $t('bank.iban') || 'IBAN' }}: AE470030000699321041001</div>
+              <div>{{ $t('bank.bic') || 'BIC' }}: ADCBAEAA</div>
             </div>
           </div>
         </div>
@@ -668,7 +676,7 @@ watch(selectedShipping, async () => {
               </p>
               <a :href="whatsappLink" target="_blank" rel="noopener"
                  class="mt-2 inline-flex items-center gap-2 rounded-lg bg-emerald-600 text-white px-3 py-1.5 hover:bg-emerald-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                 aria-label="Contact us on WhatsApp">
+                 :aria-label="$t('common.contactOnWhatsApp') || 'Contact us on WhatsApp'">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" class="w-4 h-4" fill="currentColor" aria-hidden="true">
                   <path d="M128,24A104,104,0,0,0,44.24,194.34L36,224l29.66-8.24A104,104,0,1,0,128,24Zm0,184a80,80,0,0,1-41.05-11.39l-2.61-.17L66.1,200.9l4.46-16.22-.18-2.82A80,80,0,1,1,128,208Zm44.2-54.35c-2.58-1.31-15.28-7.53-17.63-8.39s-4.09-1.32-5.8,1.32-6.64,8.39-8.15,10.11-3,2-5.59.65a64.83,64.83,0,0,1-19.18-11.82,72.09,72.09,0,0,1-13.3-16.68c-1.39-2.42,0-3.74,1-5.14a47.88,47.88,0,0,0,3.51-4.84,4.55,4.55,0,0,0,.44-4.26c-.44-1.32-5.8-14.08-7.95-19.29s-4.22-4.43-5.79-4.5-3.2-.07-4.94-.07A9.47,9.47,0,0,0,83,93.4c-2.36,2.42-9,8.88-9,21.67s9.23,25.12,10.54,26.86,18.19,28,44.09,39.2c6.17,2.68,11,4.29,14.77,5.5a35.09,35.09,0,0,0,16.26,1,26.67,26.67,0,0,0,17.47-12,21.41,21.41,0,0,0,1.51-12.37C172.63,155.6,170.79,154,172.2,153.65Z"/>
                 </svg>
@@ -690,13 +698,14 @@ watch(selectedShipping, async () => {
                   :src="imgSrc(row.image)!"
                   width="64" height="64"
                   class="rounded-lg object-cover border shrink-0"
+                  :alt="$t('common.productImageAlt') || 'Product image'"
                 />
                 <div v-else class="w-[64px] h-[64px] rounded-lg border flex items-center justify-center shrink-0 text-xs text-gray-400">
-                  IMG
+                  {{ $t('common.img') || 'IMG' }}
                 </div>
                 <div class="text-sm">
                   <div class="font-medium line-clamp-2">{{ row.title }}</div>
-                  <div v-if="row.sku" class="text-green-600 font-bold">SKU: {{ row.sku }}</div>
+                  <div v-if="row.sku" class="text-green-600 font-bold">{{ $t('labels.sku') || 'SKU' }}: {{ row.sku }}</div>
                   <div class="text-gray-500">{{ row.quantity }} × {{ money(row.unit) }}</div>
                 </div>
               </div>
@@ -713,10 +722,10 @@ watch(selectedShipping, async () => {
               @click="showAllProducts = !showAllProducts"
             >
               <template v-if="showAllProducts">
-                {{ $t('show Less') || 'Show less' }}
+                {{ $t('common.showLess') || 'Show less' }}
               </template>
               <template v-else>
-                {{ ($t('show More') || 'Show more') + ' (' + remainingCount + ')' }}
+                {{ ($t('common.showMore') || 'Show more') + ' (' + remainingCount + ')' }}
               </template>
             </button>
           </div>
@@ -791,7 +800,7 @@ watch(selectedShipping, async () => {
         class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-3"
         @click.self="closeAddressForm"
       >
-        <div class="bg-white w-full sm:max-w-md rounded-xl p-4 sm:p-5 max-h-[85vh] overflow-y-auto shadow-xl">
+        <div class="bg-white w-full sm:max-w-md rounded-xl p-4 sm:p-5 max-h-[85vh] overflow-y-auto shadow-xl" role="dialog" aria-modal="true">
           <h4 class="text-lg font-semibold mb-3">
             {{ isEditing ? $t('checkout.editAddress') : $t('checkout.newAddress') }}
           </h4>
@@ -804,8 +813,8 @@ watch(selectedShipping, async () => {
                   {{ countryDisplayName(c, String($i18n?.locale || locale)) }}
                 </option>
               </select>
-              <p v-if="countriesLoading" class="text-xs text-gray-500 mt-1">{{ $t('loading') }}…</p>
-              <p v-if="countriesError" class="text-xs text-red-600 mt-1">{{ $t('countriesError') || countriesError }}</p>
+              <p v-if="countriesLoading" class="text-xs text-gray-500 mt-1">{{ $t('loading') || 'Loading' }}…</p>
+              <p v-if="countriesError" class="text-xs text-red-600 mt-1">{{ $t('errors.failedToLoadCountries') || countriesError }}</p>
             </div>
 
             <div>

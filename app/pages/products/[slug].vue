@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useI18n, useHead, useRoute, useRuntimeConfig, useNuxtApp, createError } from '#imports'
+import { useI18n, useHead, useRoute, useRuntimeConfig, useNuxtApp, createError, navigateTo } from '#imports'
 import { computeUnitPrice } from '~/utils/pricing'
 
 /* composables */
@@ -122,7 +122,42 @@ function waLinkForProduct(p?: Product | null) {
   return `https://api.whatsapp.com/send?phone=${encodeURIComponent(WHATSAPP_NUMBER)}&text=${encodeURIComponent(msg)}`
 }
 
+// Show Buy Now only when the normal Add-to-Cart flow is available
+const showBuyNow = computed(() => showAddToCartUI.value)
+const buying = ref(false)
+
+// in your product page <script setup> (onBuyNow)
+async function onBuyNow() {
+  if (!product.value || !showBuyNow.value) return
+  if (requiresSerial.value && serial.value.trim() === '') {
+    alerts.showAlert({
+      type: 'error',
+      title: t('product.serialRequiredTitle','Serial number required'),
+      message: t('product.serialRequiredMsg','Please enter a valid serial number before continuing.')
+    })
+    return
+  }
+
+  const p = product.value
+  const query: Record<string, string> = {
+    mode: 'buy-now',
+    pid: String(p.id),                 // keep id for convenience
+    pslug: String(p.slug || ''),       // ✅ pass slug too (this is what your API supports)
+    qty: String(Math.max(1, Number(qty.value || 1))),
+  }
+  if (requiresSerial.value) query.serial = serial.value.trim()
+
+  await navigateTo({ path: '/custom-checkout', query })
+}
+
 /* helpers */
+// Prefer API slugs, keep them unlocalized; NuxtLinkLocale will add the locale prefix.
+const slugToPath = (s?: string | null) => {
+  if (!s) return '/'
+  const cleaned = String(s).trim().replace(/^\/+/, '')
+  return `/${encodeURIComponent(cleaned)}`
+}
+
 const normAlt = (alt: any, title: string) => {
   if (!alt) return title || ''
   if (typeof alt === 'string') {
@@ -262,8 +297,11 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
       const message =
         err?.response?._data?.message ||
         err?.message ||
-        (status === 404 ? 'Product not found' : status === 410 ? 'This product is no longer available.' : 'Error')
-      // Nuxt will use this on SSR *if we rethrow after useAsyncData*
+        (status === 404
+          ? t('errors.productNotFound','Product not found')
+          : status === 410
+          ? t('errors.productGone','This product is no longer available.')
+          : t('errors.generic','Error'))
       throw createError({ statusCode: status, statusMessage: message, fatal: true })
     }
   },
@@ -276,7 +314,7 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
  */
 if (process.server && error.value) {
   const statusCode    = (error.value as any)?.statusCode ?? (error.value as any)?.status ?? 500
-  const statusMessage = (error.value as any)?.statusMessage ?? (error.value as any)?.message ?? 'Error'
+  const statusMessage = (error.value as any)?.statusMessage ?? (error.value as any)?.message ?? t('errors.generic','Error')
   throw createError({ statusCode, statusMessage })
 }
 
@@ -304,27 +342,36 @@ const canAddToCart = computed(() => !requiresSerial.value || serial.value.trim()
 const primaryCategory = computed(() => (product.value?.categories || [])[0])
 const breadcrumb = computed(() => {
   const items: { label: string; to?: string }[] = [{ label: t('breadcrumbs.home','Home'), to: '/' }]
-  const catLabel = primaryCategory.value?.name || primaryCategory.value?.title
-  if (catLabel) items.push({ label: catLabel, to: nameToPath(catLabel || '') })
+  const cat     = primaryCategory.value
+  const catLabel = (cat?.name || (cat as any)?.title || '') as string
+  if (catLabel) {
+    const catTo = cat?.slug ? slugToPath(cat.slug as string) : nameToPath(catLabel || '')
+    items.push({ label: catLabel, to: catTo })
+  }
   items.push({ label: product.value?.short_title || product.value?.title || t('product.product','Product') })
   return items
 })
-function makeLinks<T>(src: T[] | undefined | null, labelOf: (x: T) => string | undefined | null) {
+
+function makeLinks<T extends { slug?: string; name?: string; title?: string }>(
+  src: T[] | undefined | null
+) {
   const out: { label: string; to: string }[] = []
   const seen = new Set<string>()
+
   for (const row of src || []) {
-    const label = (labelOf(row) || '').trim()
+    const label = (row.name ?? (row as any)?.title ?? '').trim()
     if (!label) continue
-    const norm = label.toLowerCase().replace(/\s+/g, ' ')
-    if (seen.has(norm)) continue
-    seen.add(norm)
-    out.push({ label, to: nameToPath(label) })
+    const to = row.slug ? slugToPath(row.slug) : nameToPath(label)
+    const key = to.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({ label, to })
   }
   return out
 }
-const categoryLinks     = computed(() => makeLinks(product.value?.categories, c => c?.name || c?.title))
-const manufacturerLinks = computed(() => makeLinks(product.value?.manufacturers, m => m?.title || m?.name))
-const brandLinks        = computed(() => makeLinks(product.value?.brands, b => b?.name || (b as any)?.title))
+const categoryLinks     = computed(() => makeLinks(product.value?.categories))
+const manufacturerLinks = computed(() => makeLinks(product.value?.manufacturers))
+const brandLinks        = computed(() => makeLinks(product.value?.brands))
 
 /* qty */
 const qty = ref(1)
@@ -481,16 +528,24 @@ async function onToggleWishlist() {
 }
 
 /* tabs */
-const tabs = [
-  { key: 'desc',    label: t('tabs.description','Description') },
-  { key: 'reviews', label: t('tabs.reviews','Reviews') },
-  { key: 'faq',     label: t('tabs.faq','FAQ') },
-  { key: 'videos',  label: t('tabs.videos','Videos') },
-  { key: 'contact', label: t('tabs.contact','Contact Us') }
+const TAB_DEFS = [
+  { key: 'desc',    k: 'tabs.description', fb: 'Description' },
+  { key: 'reviews', k: 'tabs.reviews',     fb: 'Reviews' },
+  { key: 'faq',     k: 'tabs.faq',         fb: 'FAQ' },
+  { key: 'videos',  k: 'tabs.videos',      fb: 'Videos' },
+  { key: 'contact', k: 'tabs.contact',     fb: 'Contact' }
 ] as const
-type TabKey = typeof tabs[number]['key']
+
+type TabKey = typeof TAB_DEFS[number]['key']
+
+// labels react to locale changes + safe fallback text
+const tabs = computed(() =>
+  TAB_DEFS.map(d => ({ key: d.key, label: t(d.k, d.fb) }))
+)
+
 const activeTab = ref<TabKey>('desc')
 function setTab(k: TabKey) { activeTab.value = k }
+
 
 /* head/meta */
 useHead(() => {
@@ -686,7 +741,7 @@ async function fetchRelatedOnce() {
     const rows: any[] = (res?.data ?? res ?? []) as any[]
     relatedProducts.value = rows.map(normRelatedItem).filter(Boolean) as GridProduct[]
   } catch (e: any) {
-    relatedError.value = e?.message || 'Failed to load related products'
+    relatedError.value = t('product.failedToLoadRelated','Failed to load related products')
   } finally {
     relatedLoading.value = false
   }
@@ -837,9 +892,29 @@ watch(() => product.value?.id, () => {
                   <!-- Qty -->
                   <div v-if="showQtyUI" class="mt-5 flex flex-wrap items-center gap-3" data-nosnippet>
                     <div class="inline-flex items-stretch rounded-xl border border-gray-300 bg-white overflow-hidden">
-                      <button type="button" class="px-3 py-2 hover:bg-gray-50 disabled:opacity-40" :disabled="!canDecrement" @click="dec" aria-label="Decrease quantity">−</button>
-                      <input class="w-16 text-center py-2 outline-none" type="number" :min="minQty" v-model.number="qty" inputmode="numeric" aria-label="Quantity" />
-                      <button type="button" class="px-3 py-2 hover:bg-gray-50" @click="inc" aria-label="Increase quantity">+</button>
+                      <button
+                        type="button"
+                        class="px-3 py-2 hover:bg-gray-50 disabled:opacity-40"
+                        :disabled="!canDecrement"
+                        @click="dec"
+                        :aria-label="_t('a11y.decreaseQty','Decrease quantity')"
+                      >−</button>
+
+                      <input
+                        class="w-16 text-center py-2 outline-none"
+                        type="number"
+                        :min="minQty"
+                        v-model.number="qty"
+                        inputmode="numeric"
+                        :aria-label="_t('a11y.quantity','Quantity')"
+                      />
+
+                      <button
+                        type="button"
+                        class="px-3 py-2 hover:bg-gray-50"
+                        @click="inc"
+                        :aria-label="_t('a11y.increaseQty','Increase quantity')"
+                      >+</button>
                     </div>
                     <span class="text-sm text-gray-500">{{ _t('product.min','Min:') }} {{ minQty }}</span>
                   </div>
@@ -868,6 +943,17 @@ watch(() => product.value?.id, () => {
                       <span v-if="!adding">{{ _t('product.addToCart','Add to Cart') }}</span>
                       <span v-else>{{ _t('product.adding','Adding…') }}</span>
                     </button>
+
+                    <!-- <button
+                      v-if="showBuyNow"
+                      type="button"
+                      class="inline-flex items-center justify-center gap-2 rounded-xl border border-orange-500 bg-white px-6 py-3 font-semibold text-orange-600 shadow-sm hover:bg-orange-50 focus-visible:ring-4 focus-visible:ring-orange-200 disabled:opacity-60"
+                      :disabled="buying || !canAddToCart"
+                      @click="onBuyNow"
+                    >
+                      <span v-if="!buying">{{ _t('product.buyNow','Buy now') }}</span>
+                      <span v-else>{{ _t('product.processing','Processing…') }}</span>
+                    </button> -->
 
                     <button
                       v-if="showWishlistUI"
@@ -934,8 +1020,11 @@ watch(() => product.value?.id, () => {
             <ProductTabFAQ         v-else-if="activeTab === 'faq'" :key="'faq'" :items="product.faq || []" />
             <ProductTabVideos      v-else-if="activeTab === 'videos'" :key="'videos'" :videos="product.videos || []" />
             <ProductTabContact     v-else :key="'contact'"
-              :api-base-url="API_BASE_URL" :product-id="product.id" :product-slug="product.slug" :sku="product.sku"
-              :whatsapp="`https://wa.me/971504429045?text=${encodeURIComponent('Hello, I want to inquire about the product with SKU: ' + (product.sku ?? ''))}`"
+              :api-base-url="API_BASE_URL"
+              :product-id="product.id"
+              :product-slug="product.slug"
+              :sku="product.sku"
+              :whatsapp="`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(_t('contact.whatsappPrefill','Hello, I want to inquire about the product with SKU: {sku}').replace('{sku}', product.sku ?? ''))}`"
               data-nosnippet
             />
           </div>
@@ -967,7 +1056,6 @@ watch(() => product.value?.id, () => {
           :showArrows="true" :showDots="true"
           @add-to-cart="(p) => { if (!p.hide_price) cart.add(p.id, 1, { title: p.name, image: p.image, slug: p.slug, price: p.price }) }"
         />
-
       </section>
     </div>
 
@@ -975,7 +1063,7 @@ watch(() => product.value?.id, () => {
     <div v-else>
       <ClientOnly>
         <div v-if="error" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
-          {{ (error as any)?.message || 'Error' }}
+          {{ (error as any)?.message || t('errors.generic','Error') }}
         </div>
       </ClientOnly>
     </div>

@@ -8,17 +8,17 @@
     <div class="container mx-auto px-3">
       <ul class="flex items-center justify-center gap-4 md:gap-6 py-1.5">
         <li v-for="item in items" :key="item.key">
-            <NuxtLinkLocale
-              :to="item.to"
-              :aria-current="isActive(item.key) ? 'page' : undefined"
-              class="group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-md
-                    text-[15px] md:text-[16px] font-semibold hover:text-gray-900
-                    transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
-              :class="[
-                isActive(item.key) ? 'text-orange-700' : '',
-                item.key === 'new-arrival' ? 'text-orange-700 hover:text-orange-800' : 'text-gray-700'
-              ]"
-            >
+          <NuxtLinkLocale
+            :to="item.to"
+            :aria-current="isActive(item.key) ? 'page' : undefined"
+            class="group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-md
+                   text-[15px] md:text-[16px] font-semibold hover:text-gray-900
+                   transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+            :class="[
+              isActive(item.key) ? 'text-orange-700' : '',
+              item.key === 'new-arrival' ? 'text-orange-700 hover:text-orange-800' : 'text-gray-700'
+            ]"
+          >
             <!-- SVG icon -->
             <Icon :name="item.key" class="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
             <span class="whitespace-nowrap">{{ item.label }}</span>
@@ -38,20 +38,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, h, defineComponent } from 'vue'
-const route = useRoute()
+import { ref, onMounted, onBeforeUnmount, h, defineComponent, computed } from 'vue'
+import { useI18n, useRoute, useLocalePath } from '#imports'
 
-/* ----------------- Links (no unlock/online services) ----------------- */
-const items = [
-  { key: 'offers',        label: 'Offers',        to: '/shop?offers' },
-  { key: 'promotion',     label: 'Promotion',     to: '/shop?promotion' },
-  { key: 'free-shipping', label: 'Free Shipping', to: '/shop?free-shipping' },
-  { key: 'bundled',       label: 'Bundles',       to: '/shop?bundled' },
-  { key: 'new-arrival',   label: 'New Arrival',   to: '/shop?new-arrival' },
-]
+const route = useRoute()
+const { t } = useI18n()
+const localePath = useLocalePath()
+
+/* ----------------- Links (translated labels, same slugs) ------------- */
+// use a computed so labels react to locale changes
+const items = computed(() => ([
+  { key: 'offers',        label: t('subnav.offers',        'Offers'),        to: '/shop?offers' },
+  { key: 'promotion',     label: t('subnav.promotion',     'Promotion'),     to: '/shop?promotion' },
+  { key: 'free-shipping', label: t('subnav.freeShipping',  'Free Shipping'), to: '/shop?free-shipping' },
+  { key: 'bundled',       label: t('subnav.bundles',       'Bundles'),       to: '/shop?bundled' },
+  { key: 'new-arrival',   label: t('subnav.newArrival',    'New Arrival'),   to: '/shop?new-arrival' },
+]))
 
 /* ----------------- Active when on /shop and flag exists -------------- */
-const isActive = (slug: string) => route.path === '/shop' && (slug in route.query)
+// compare against the locale-aware /shop so it works on /es/shop as well
+const isActive = (slug: string) =>
+  route.path === localePath('/shop') && (slug in route.query)
 
 /* ----------------- Scroll state (subtle bg/shadow) ------------------- */
 const scrolled = ref(false)

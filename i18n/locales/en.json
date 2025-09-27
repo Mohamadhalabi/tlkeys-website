@@ -630,5 +630,22 @@
   "aria": {
     "close": "Close",
     "openCoupon": "Open coupon"
-  }
+  },
+      "tabs": {
+      "dashboard": "Dashboard",
+      "accountDetails": "Account Details",
+      "editPassword": "Edit My Password",
+      "myOrders": "My Orders",
+      "myWallet": "My Wallet",
+      "myCoupons": "My Coupons",
+      "myAddresses": "My Addresses",
+      "myReview": "My Review",
+      "whatsNew": "What New",
+      "cart": "Cart",
+      "description": "Description",
+      "reviews": "Reviews",
+      "faq": "FAQ",
+      "videos": "Videos",
+      "contact": "Contact Us"
+    }
 }
