@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter, useRoute } from '#imports'
+import { useRoute } from '#imports'
 
 const i18nApi = (useI18n?.() as any) || null
 const t = i18nApi?.t ?? ((s: string) => s)
 
 const { $customApi } = useNuxtApp()
-const router = useRouter()
 const route = useRoute()
 
 const email = ref<string>((route.query.email as string) || '')
