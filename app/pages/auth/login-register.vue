@@ -134,7 +134,7 @@ async function doRegister() {
             <input v-model="lRemember" type="checkbox" class="rounded border-gray-300" />
             {{ t('auth.login.remember') }}
           </label>
-          <NuxtLinkLocale to="/auth/forgot-password" class="text-sm text-gray-600 hover:underline">
+          <NuxtLinkLocale to="/auth/forgotpassword" class="text-sm text-gray-600 hover:underline">
             {{ t('auth.login.forgot') }}
           </NuxtLinkLocale>
         </div>
