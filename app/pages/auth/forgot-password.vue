@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRoute } from '#imports'
+import { useRoute, useI18n, useNuxtApp } from '#imports' // ← make sure this is here
 
-const i18nApi = (useI18n?.() as any) || null
-const t = i18nApi?.t ?? ((s: string) => s)
+// Safe i18n: real t if i18n is installed, otherwise a no-op fallback.
+let t: (key: string, fallback?: string) => string = (_k, f) => f ?? ''
+try {
+  const i18n = useI18n()
+  t = i18n.t
+} catch {
+  // i18n not available during SSR/build – keep fallback t
+}
 
 const { $customApi } = useNuxtApp()
 const route = useRoute()
@@ -20,25 +26,32 @@ async function submit() {
       method: 'POST',
       body: { email: email.value.trim() }
     })
-    notice.value = { type: 'success', text: t('forgot.success', 'Your password reset link has been sent to your email.') }
+    notice.value = {
+      type: 'success',
+      text: t('forgot.success', 'Your password reset link has been sent to your email.')
+    }
   } catch (e: any) {
-    const msg = e?.data?.message || e?.message || t('forgot.error', 'Unable to send reset email. Please try again.')
+    const msg =
+      e?.data?.message ||
+      e?.message ||
+      t('forgot.error', 'Unable to send reset email. Please try again.')
     notice.value = { type: 'error', text: msg }
-  } finally { loading.value = false }
+  } finally {
+    loading.value = false
+  }
 }
 
 function contactWhatsApp() {
   const text = encodeURIComponent('I have a problem with resetting my password')
+  // This only runs on client, so window usage is fine.
   window.open(`https://api.whatsapp.com/send?phone=971504429045&text=${text}`, '_blank')
 }
 </script>
 
 <template>
   <div class="container mx-auto px-4 py-10">
-    <!-- Top helper (EN only) -->
     <div class="max-w-2xl mx-auto">
-      <div class="rounded-2xl shadow border border-gray-300"
-           style="border-top-width:4px; border-top-color:#ff832d">
+      <div class="rounded-2xl shadow border border-gray-300" style="border-top-width:4px; border-top-color:#ff832d">
         <div class="p-6">
           <form @submit.prevent="submit" class="space-y-5">
             <p class="text-gray-800">
@@ -61,9 +74,7 @@ function contactWhatsApp() {
             </div>
 
             <div class="flex items-center justify-between">
-              <NuxtLinkLocale
-                to="/auth/login-register"
-                class="text-sm text-gray-700 hover:underline">
+              <NuxtLinkLocale to="/auth/login-register" class="text-sm text-gray-700 hover:underline">
                 {{ t('forgot.clickHere', 'Click here to login') }}
               </NuxtLinkLocale>
 
