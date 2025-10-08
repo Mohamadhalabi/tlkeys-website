@@ -15,6 +15,8 @@ const props = defineProps<{
   /** numeric amount to animate, e.g. 20 => "20.00$ OFF" */
   discountAmount?: number | null
   sku?: string | null
+  /** absolute URL for the hero image (same as og:image / JSON-LD image[0]) */
+  heroCanonical?: string | null
 }>()
 
 /* ==========================
@@ -53,21 +55,19 @@ const lightboxH = 1000
 const sizesAttrLightbox = '(max-width: 1200px) 90vw, 1000px'
 
 /* ==========================
-   LCP Preload (priority hints) — SAFE
+   URL helpers & preload
    ========================== */
 const $img = useImage()
 const { protocol, host } = useRequestURL()
 const baseOrigin = `${protocol}//${host}`
 
-// helper: ensure absolute URL string
+// ensure absolute URL string
 function toAbsolute(href: string): string {
   if (!href) return href
   if (href.startsWith('http://') || href.startsWith('https://')) return href
-  // treat anything else as same-origin path
   return baseOrigin + (href.startsWith('/') ? href : `/${href}`)
 }
-
-// helper: try get origin, but only for absolute URLs
+// origin for preconnect
 function originOf(href: string): string | null {
   try {
     if (!href.startsWith('http')) return null
@@ -77,7 +77,7 @@ function originOf(href: string): string | null {
 
 const hero = computed(() => props.images?.[0] || null)
 
-// Build the same responsive url/srcset NuxtImg will use for the LCP image
+// Build the same responsive url/srcset NuxtImg would use (kept for potential future use)
 const heroResolved = computed(() => {
   if (!hero.value) return null
   return $img.getSizes(hero.value.src, {
@@ -87,31 +87,46 @@ const heroResolved = computed(() => {
   }) // -> { src, srcset, sizes }
 })
 
+/* ==========================
+   Preload EXACT hero URL (canonical)
+   ========================== */
 useHead(() => {
-  const hr = heroResolved.value
-  if (!hr) return {}
-
-  // preload href can be relative; normalize for preconnect only
-  const absHref = toAbsolute(hr.src)
-  const preconnectOrigin = originOf(absHref) // null if same-origin IPX path
-
-  const links: any[] = [
-    {
-      rel: 'preload',
-      as: 'image',
-      href: hr.src,                 // keep as-is (relative OK)
-      imagesrcset: hr.srcset,
-      imagesizes: hr.sizes,
-      fetchpriority: 'high',
-      crossorigin: ''
-    }
-  ]
-  if (preconnectOrigin) {
-    links.unshift({ rel: 'preconnect', href: preconnectOrigin, crossorigin: '' })
-  }
-
+  const href = (props.heroCanonical && props.heroCanonical.trim()) || (activeImage.value?.src ? toAbsolute(activeImage.value.src) : '')
+  if (!href) return {}
+  const preconnectOrigin = originOf(href)
+  const links: any[] = [{ rel: 'preload', as: 'image', href, fetchpriority: 'high' }]
+  if (preconnectOrigin) links.unshift({ rel: 'preconnect', href: preconnectOrigin, crossorigin: '' })
   return { link: links }
 })
+
+/* ==========================
+   Accessibility label helpers
+   ========================== */
+function fileBaseFromSrc(src?: string): string {
+  if (!src) return ''
+  try {
+    const u = new URL(src, baseOrigin) // handles relative too
+    const last = decodeURIComponent(u.pathname.split('/').pop() || '')
+    return last.split(/[?#]/)[0]
+  } catch {
+    const last = decodeURIComponent((src || '').split('/').pop() || '')
+    return last.split(/[?#]/)[0]
+  }
+}
+function normalizeLabel(raw?: string, fallbackSrc?: string) {
+  let s = (raw || '').trim()
+  if (!s) s = fileBaseFromSrc(fallbackSrc)
+  s = s
+    .replace(/\.[a-z0-9]{1,5}$/i, '')   // remove extension
+    .replace(/[-_]+/g, ' ')              // dashes/underscores -> spaces
+    .replace(/\s{2,}/g, ' ')            // collapse spaces
+    .trim()
+  // Capitalize first letter (nice touch)
+  if (s) s = s.charAt(0).toUpperCase() + s.slice(1)
+  return s || 'Image'
+}
+const labelFor = (img?: Img | null) => normalizeLabel(img?.alt, img?.src)
+const heroLabel = computed(() => labelFor(activeImage.value))
 
 /* ==========================
    Lightbox
@@ -269,28 +284,25 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
         </span>
       </div>
 
-      <!-- LCP MAIN IMAGE -->
-      <NuxtImg
-        :src="activeImage?.src"
-        :alt="activeImage?.alt || 'image'"
+      <!-- LCP MAIN IMAGE — plain <img> with canonical URL; exact match with og:image/JSON-LD -->
+      <img
+        :src="props.heroCanonical || toAbsolute(activeImage?.src || '')"
+        :alt="heroLabel"
+        :title="heroLabel"
         :width="mainW"
         :height="mainH"
         :sizes="sizesAttrMain"
-        fit="inside"
-        format="avif,webp"
-        quality="70"
-        class="h-full w-full select-none object-contain"
         loading="eager"
         fetchpriority="high"
-        preload
+        decoding="sync"
+        class="h-full w-full select-none object-contain"
       />
 
       <!-- top-left badges -->
       <div class="absolute left-3 top-3 flex flex-col gap-1">
         <span
           v-if="hasOffPill"
-          class="inline-flex items-center rounded-full bg-red-600 text-white ring-1 ring-white/70
-                 px-2.5 py-1 text-[11px] font-semibold tracking-wide shadow-sm"
+          class="inline-flex items-center rounded-full bg-red-600 text-white ring-1 ring-white/70 px-2.5 py-1 text-[11px] font-semibold tracking-wide shadow-sm"
         >
           {{ offAnim.toFixed(2) }}$ OFF
         </span>
@@ -299,8 +311,7 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
       <!-- bottom overlay timer -->
       <div
         v-if="hasTimer"
-        class="absolute inset-x-0 bottom-0 px-3 py-2 sm:py-3 text-white text-center
-               bg-gradient-to-t from-slate-900/80 to-slate-900/10 backdrop-blur-[1px]"
+        class="absolute inset-x-0 bottom-0 px-3 py-2 sm:py-3 text-white text-center bg-gradient-to-t from-slate-900/80 to-slate-900/10 backdrop-blur-[1px]"
       >
         <div class="text-[11px] sm:text-xs font-semibold tracking-wide opacity-95">
           {{ countdownTop }}
@@ -352,7 +363,8 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
           >
             <NuxtImg
               :src="img.src"
-              :alt="img.alt || 'thumb'"
+              :alt="labelFor(img)"
+              :title="labelFor(img)"
               :width="thumbW"
               :height="thumbH"
               sizes="80px"
@@ -389,7 +401,8 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
         <div class="max-h-[90vh] max-w-[95vw]">
           <NuxtImg
             :src="activeImage?.src"
-            :alt="activeImage?.alt || 'image'"
+            :alt="heroLabel"
+            :title="heroLabel"
             :width="lightboxW"
             :height="lightboxH"
             :sizes="sizesAttrLightbox"

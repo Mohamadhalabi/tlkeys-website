@@ -122,6 +122,22 @@ function waLinkForProduct(p?: Product | null) {
   return `https://api.whatsapp.com/send?phone=${encodeURIComponent(WHATSAPP_NUMBER)}&text=${encodeURIComponent(msg)}`
 }
 
+
+// make absolute using SITE_URL base (same as canonical/og:url)
+const abs = (u?: string | null) => {
+  if (!u) return ''
+  if (/^https?:\/\//i.test(u)) return u
+  const clean = u.startsWith('/') ? u : `/${u}`
+  return `${baseSiteUrl.value}${clean}`
+}
+
+// Canonical hero image URL (first gallery image or fallback)
+const primaryImageAbs = computed(() => {
+  const p = product.value
+  const rawImgs = (p?.images || []).map(i => i?.src).filter(Boolean) as string[]
+  return abs(rawImgs[0] || p?.image || '')
+})
+
 // Show Buy Now only when the normal Add-to-Cart flow is available
 const showBuyNow = computed(() => showAddToCartUI.value)
 const buying = ref(false)
@@ -556,9 +572,16 @@ useHead(() => {
   const title = p?.meta_title || (p?.title || '')
   const desc  = p?.meta_description || stripHtml(p?.description || '')
 
-  const imgList = (p?.images || []).map(i => i?.src).filter(Boolean) as string[]
-  const primaryImg = imgList[0] || p?.image || ''
+  // Use the canonical hero URL everywhere
+  const primary = primaryImageAbs.value || ''
+  const gallery = primary
+    ? [primary, ...((p?.images || []).slice(1).map(i => abs(i.src)))]
+    : []
 
+  const primaryW = p?.images?.[0]?.w || 1200
+  const primaryH = p?.images?.[0]?.h || 1200
+
+  // Reviews / rating (unchanged)
   let aggregateRating: any = null
   const reviewsLd =
     Array.isArray(p?.reviews) && p!.reviews!.length
@@ -579,17 +602,13 @@ useHead(() => {
     const rated = p!.reviews!.map(r => Number(r?.rating)).filter(n => Number.isFinite(n))
     if (rated.length) {
       const avg = rated.reduce((a, b) => a + b, 0) / rated.length
-      aggregateRating = {
-        '@type': 'AggregateRating',
-        ratingValue: Number(avg.toFixed(2)),
-        reviewCount: rated.length
-      }
+      aggregateRating = { '@type': 'AggregateRating', ratingValue: Number(avg.toFixed(2)), reviewCount: rated.length }
     }
   }
 
   const cur = currency.value || 'USD'
   const qtyNum = Number(p?.quantity ?? 0)
-  const availability = qtyNum > 0 ? 'http://schema.org/InStock' : 'http://schema.org/OutOfStock'
+  const availability = qtyNum > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock'
 
   const priceNumber = p
     ? Number(
@@ -623,7 +642,7 @@ useHead(() => {
     '@id': absUrl.value + '#product',
     name: title,
     description: desc,
-    image: imgList.length ? imgList : (primaryImg ? [primaryImg] : undefined),
+    image: gallery.length ? gallery : undefined, // preferred image FIRST
     sku: p.sku || undefined,
     brand: brandName ? { '@type': 'Brand', name: brandName } : undefined,
     category:
@@ -648,13 +667,11 @@ useHead(() => {
       : undefined
 
   const faqs = Array.isArray(p?.faq)
-    ? p!.faq!
-        .filter(f => f && (f.q || f.a))
-        .map(f => ({
-          '@type': 'Question',
-          name: stripHtml(f.q || ''),
-          acceptedAnswer: { '@type': 'Answer', text: stripHtml(f.a || '') }
-        }))
+    ? p!.faq!.filter(f => f && (f.q || f.a)).map(f => ({
+        '@type': 'Question',
+        name: stripHtml(f.q || ''),
+        acceptedAnswer: { '@type': 'Answer', text: stripHtml(f.a || '') }
+      }))
     : []
 
   const faqLd = faqs.length ? { '@type': 'FAQPage', '@id': absUrl.value + '#faq', mainEntity: faqs } : undefined
@@ -664,17 +681,29 @@ useHead(() => {
     title,
     meta: [
       { name: 'description', content: desc },
+
+      // Open Graph
       { property: 'og:type', content: 'product' },
       { property: 'og:title', content: title },
       { property: 'og:description', content: desc },
-      ...(primaryImg ? [{ property: 'og:image', content: primaryImg }] : []),
+      ...(primary ? [{ property: 'og:image', content: primary }] : []),
+      ...(primary ? [{ property: 'og:image:width', content: String(primaryW) }] : []),
+      ...(primary ? [{ property: 'og:image:height', content: String(primaryH) }] : []),
+      { property: 'og:url', content: absUrl.value },
+
+      // Twitter
       { name: 'twitter:card', content: 'summary_large_image' },
-      { name: 'og:url', content: absUrl.value },
       { name: 'twitter:title', content: title },
       { name: 'twitter:description', content: desc },
-      ...(primaryImg ? [{ name: 'twitter:image', content: primaryImg }] : [])
+      ...(primary ? [{ name: 'twitter:image', content: primary }] : []),
+
+      // Hints
+      { name: 'robots', content: 'index,follow,max-image-preview:large' }
     ],
-    link: [{ rel: 'canonical', href: absUrl.value }],
+    link: [
+      { rel: 'canonical', href: absUrl.value },
+      ...(primary ? [{ rel: 'preload', as: 'image', href: primary, fetchpriority: 'high' } as any] : [])
+    ],
     script: graph.length
       ? [{
           id: 'ld-json',
@@ -806,6 +835,7 @@ watch(() => product.value?.id, () => {
             :sku="product.sku"
             :discount-ends-at="product.discount_active ? product.discount_end : null"
             :discount-amount="hasDiscountNow ? discountAmountNow : 0"
+            :hero-canonical="primaryImageAbs"
           />
         </div>
 
