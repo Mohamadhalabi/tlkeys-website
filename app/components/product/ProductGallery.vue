@@ -2,96 +2,75 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useHead, useImage, useRequestURL } from '#imports'
 
-// ---- Types ----
 type Img = { src: string; alt?: string; id?: number; w?: number; h?: number }
 
-// ---- Props ----
 const props = defineProps<{
   images: Img[]
   maxWidth?: number
   maxHeight?: number
-  /** ISO string; if provided we show the countdown overlay */
   discountEndsAt?: string | null
-  /** numeric amount to animate, e.g. 20 => "20.00$ OFF" */
   discountAmount?: number | null
   sku?: string | null
-  /** absolute URL for the hero image (same as og:image / JSON-LD image[0]) */
+  /** Absolute URL for the hero image (same as og:image / JSON-LD image[0]) */
   heroCanonical?: string | null
 }>()
 
-/* ==========================
-   Main gallery state
-   ========================== */
+/* ========== Main gallery state ========== */
 const activeIndex = ref(0)
 const activeImage = computed(() => props.images?.[activeIndex.value])
 
-// Outer box sizing
 const viewW = computed(() => props.maxWidth ?? 680)
 const viewH = computed(() => props.maxHeight ?? 520)
 const boxStyle = computed(() => ({ maxWidth: `${viewW.value}px`, height: `${viewH.value}px` }))
 const thumbsStyle = computed(() => ({ maxWidth: `${viewW.value}px` }))
 
-function nextImage () {
-  if (!props.images?.length) return
-  activeIndex.value = (activeIndex.value + 1) % props.images.length
-}
-function prevImage () {
-  if (!props.images?.length) return
-  activeIndex.value = (activeIndex.value - 1 + props.images.length) % props.images.length
-}
+function nextImage(){ if (props.images?.length) activeIndex.value = (activeIndex.value + 1) % props.images.length }
+function prevImage(){ if (props.images?.length) activeIndex.value = (activeIndex.value - 1 + props.images.length) % props.images.length }
 
-/* ==========================
-   Responsive targets
-   ========================== */
+/* ========== Responsive targets ========== */
 const mainW = computed(() => Math.round(Math.min(Math.max(320, viewW.value), 1024)))
 const mainH = computed(() => mainW.value)
 const sizesAttrMain = computed(() => `(max-width: 640px) 90vw, ${mainW.value}px`)
 
-const thumbW = 80
-const thumbH = 80
-
-const lightboxW = 1000
-const lightboxH = 1000
+const thumbW = 80, thumbH = 80
+const lightboxW = 1000, lightboxH = 1000
 const sizesAttrLightbox = '(max-width: 1200px) 90vw, 1000px'
 
-/* ==========================
-   URL helpers & preload
-   ========================== */
+/* ========== URL helpers & preload ========== */
 const $img = useImage()
 const { protocol, host } = useRequestURL()
 const baseOrigin = `${protocol}//${host}`
 
-// ensure absolute URL string
 function toAbsolute(href: string): string {
   if (!href) return href
   if (href.startsWith('http://') || href.startsWith('https://')) return href
   return baseOrigin + (href.startsWith('/') ? href : `/${href}`)
 }
-// origin for preconnect
 function originOf(href: string): string | null {
-  try {
-    if (!href.startsWith('http')) return null
-    return new URL(href).origin
-  } catch { return null }
+  try { if (!href.startsWith('http')) return null; return new URL(href).origin } catch { return null }
 }
 
-const hero = computed(() => props.images?.[0] || null)
+/** Use canonical URL only for the first slide; otherwise swap to the active image src */
+const mainSrc = computed(() => {
+  const activeAbs = toAbsolute(activeImage.value?.src || '')
+  if (props.heroCanonical && activeIndex.value === 0) return props.heroCanonical
+  return activeAbs
+})
 
-// Build the same responsive url/srcset NuxtImg would use (kept for potential future use)
+/* (kept for potential future use) */
 const heroResolved = computed(() => {
-  if (!hero.value) return null
-  return $img.getSizes(hero.value.src, {
+  const hero = props.images?.[0]
+  if (!hero) return null
+  return $img.getSizes(hero.src, {
     width: mainW.value,
     sizes: sizesAttrMain.value,
     modifiers: { fit: 'inside', format: 'avif,webp', quality: 70 }
-  }) // -> { src, srcset, sizes }
+  })
 })
 
-/* ==========================
-   Preload EXACT hero URL (canonical)
-   ========================== */
+/* Preload EXACT hero URL (canonical) for LCP */
 useHead(() => {
-  const href = (props.heroCanonical && props.heroCanonical.trim()) || (activeImage.value?.src ? toAbsolute(activeImage.value.src) : '')
+  const href = (props.heroCanonical && props.heroCanonical.trim()) || ''
   if (!href) return {}
   const preconnectOrigin = originOf(href)
   const links: any[] = [{ rel: 'preload', as: 'image', href, fetchpriority: 'high' }]
@@ -99,13 +78,11 @@ useHead(() => {
   return { link: links }
 })
 
-/* ==========================
-   Accessibility label helpers
-   ========================== */
+/* ========== Accessibility label helpers ========== */
 function fileBaseFromSrc(src?: string): string {
   if (!src) return ''
   try {
-    const u = new URL(src, baseOrigin) // handles relative too
+    const u = new URL(src, baseOrigin)
     const last = decodeURIComponent(u.pathname.split('/').pop() || '')
     return last.split(/[?#]/)[0]
   } catch {
@@ -116,26 +93,19 @@ function fileBaseFromSrc(src?: string): string {
 function normalizeLabel(raw?: string, fallbackSrc?: string) {
   let s = (raw || '').trim()
   if (!s) s = fileBaseFromSrc(fallbackSrc)
-  s = s
-    .replace(/\.[a-z0-9]{1,5}$/i, '')   // remove extension
-    .replace(/[-_]+/g, ' ')              // dashes/underscores -> spaces
-    .replace(/\s{2,}/g, ' ')            // collapse spaces
-    .trim()
-  // Capitalize first letter (nice touch)
+  s = s.replace(/\.[a-z0-9]{1,5}$/i, '').replace(/[-_]+/g, ' ').replace(/\s{2,}/g, ' ').trim()
   if (s) s = s.charAt(0).toUpperCase() + s.slice(1)
   return s || 'Image'
 }
 const labelFor = (img?: Img | null) => normalizeLabel(img?.alt, img?.src)
 const heroLabel = computed(() => labelFor(activeImage.value))
 
-/* ==========================
-   Lightbox
-   ========================== */
+/* ========== Lightbox ========== */
 const lightbox = ref(false)
-function openLightbox () { if (props.images?.length) lightbox.value = true }
-function closeLightbox () { lightbox.value = false }
+function openLightbox(){ if (props.images?.length) lightbox.value = true }
+function closeLightbox(){ lightbox.value = false }
 
-function onKey (e: KeyboardEvent) {
+function onKey(e: KeyboardEvent){
   if (!lightbox.value) return
   if (e.key === 'Escape') return closeLightbox()
   if (e.key === 'ArrowRight') return nextImage()
@@ -150,51 +120,38 @@ watch(lightbox, (v) => {
     document.documentElement.style.overflow = ''
   }
 })
-onUnmounted(() => {
-  document.removeEventListener('keydown', onKey)
-  document.documentElement.style.overflow = ''
-})
+onUnmounted(() => { document.removeEventListener('keydown', onKey); document.documentElement.style.overflow = '' })
 
 let sx = 0, sy = 0
-function onTouchStart (e: TouchEvent) {
-  sx = e.touches[0].clientX; sy = e.touches[0].clientY
-}
-function onTouchEnd (e: TouchEvent) {
+function onTouchStart(e: TouchEvent){ sx = e.touches[0].clientX; sy = e.touches[0].clientY }
+function onTouchEnd(e: TouchEvent){
   const dx = e.changedTouches[0].clientX - sx
   const dy = e.changedTouches[0].clientY - sy
   if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) dx < 0 ? nextImage() : prevImage()
 }
 
-/* ==========================
-   Thumbs scroller
-   ========================== */
+/* ========== Thumbs scroller ========== */
 const thumbWrapRef = ref<HTMLDivElement | null>(null)
 const thumbRefs = ref<HTMLElement[]>([])
 const canThumbPrev = ref(false)
 const canThumbNext = ref(false)
 
-function updateThumbNav () {
+function updateThumbNav(){
   const el = thumbWrapRef.value
   if (!el) { canThumbPrev.value = canThumbNext.value = false; return }
   canThumbPrev.value = el.scrollLeft > 2
   canThumbNext.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 2
 }
-function thumbsScroll (dir: -1 | 1) {
-  const el = thumbWrapRef.value
-  if (!el) return
+function thumbsScroll(dir: -1 | 1){
+  const el = thumbWrapRef.value; if (!el) return
   const step = Math.max(160, Math.floor(el.clientWidth * 0.9))
   el.scrollBy({ left: dir * step, behavior: 'smooth' })
   setTimeout(updateThumbNav, 350)
 }
-function onThumbScroll () { updateThumbNav() }
+function onThumbScroll(){ updateThumbNav() }
 
-onMounted(() => {
-  updateThumbNav()
-  window.addEventListener('resize', updateThumbNav)
-})
-onUnmounted(() => {
-  window.removeEventListener('resize', updateThumbNav)
-})
+onMounted(() => { updateThumbNav(); window.addEventListener('resize', updateThumbNav) })
+onUnmounted(() => { window.removeEventListener('resize', updateThumbNav) })
 
 watch(activeIndex, (idx) => {
   const el = thumbRefs.value[idx]
@@ -205,9 +162,7 @@ watch(() => props.images, () => {
   requestAnimationFrame(updateThumbNav)
 })
 
-/* ==========================
-   Discount overlay logic
-   ========================== */
+/* ========== Discount overlay logic ========== */
 const cardEl = ref<HTMLElement | null>(null)
 
 const endTs = computed<number | null>(() => {
@@ -222,7 +177,7 @@ onUnmounted(() => { if (timer) window.clearInterval(timer) })
 
 const remainingMs = computed(() => endTs.value ? Math.max(0, endTs.value - now.value) : 0)
 const hasTimer = computed(() => !!endTs.value && remainingMs.value > 0)
-function fmtParts (ms: number) {
+function fmtParts(ms: number){
   const s = Math.floor(ms / 1000)
   const days = Math.floor(s / 86400)
   const hrs = Math.floor((s % 86400) / 3600)
@@ -237,10 +192,9 @@ const countdownBottom = computed(() => {
   return days > 0 ? `${days} DAYS, ${hms}` : hms
 })
 
-// "$ OFF" animation
 const offAnim = ref(0)
 let rafId: number | null = null
-function animateOff (to: number, duration = 900) {
+function animateOff(to: number, duration = 900){
   const from = offAnim.value
   const start = performance.now()
   if (rafId) cancelAnimationFrame(rafId)
@@ -260,10 +214,7 @@ onMounted(() => {
   }, { threshold: 0.35 })
   if (cardEl.value) visIO.observe(cardEl.value)
 })
-onUnmounted(() => {
-  if (rafId) cancelAnimationFrame(rafId)
-  if (visIO && cardEl.value) visIO.unobserve(cardEl.value)
-})
+onUnmounted(() => { if (rafId) cancelAnimationFrame(rafId); if (visIO && cardEl.value) visIO.unobserve(cardEl.value) })
 watch(() => props.discountAmount, (v) => animateOff(Number(v || 0)))
 const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
 </script>
@@ -277,16 +228,15 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
       :style="boxStyle"
       @click="openLightbox"
     >
-      <!-- Top-center SKU badge (mobile only) -->
       <div v-if="props.sku" class="absolute top-3 left-1/2 -translate-x-1/2 z-10 lg:hidden">
         <span class="inline-flex items-center rounded-full bg-emerald-600 text-white px-2.5 py-1 text-[12px] font-bold tracking-wide ring-1 ring-white/70 shadow-sm">
           {{ props.sku }}
         </span>
       </div>
 
-      <!-- LCP MAIN IMAGE — plain <img> with canonical URL; exact match with og:image/JSON-LD -->
+      <!-- ✅ Now switches when thumbnails change -->
       <img
-        :src="props.heroCanonical || toAbsolute(activeImage?.src || '')"
+        :src="mainSrc"
         :alt="heroLabel"
         :title="heroLabel"
         :width="mainW"
@@ -294,11 +244,9 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
         :sizes="sizesAttrMain"
         loading="eager"
         fetchpriority="high"
-        decoding="sync"
         class="h-full w-full select-none object-contain"
       />
 
-      <!-- top-left badges -->
       <div class="absolute left-3 top-3 flex flex-col gap-1">
         <span
           v-if="hasOffPill"
@@ -308,7 +256,6 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
         </span>
       </div>
 
-      <!-- bottom overlay timer -->
       <div
         v-if="hasTimer"
         class="absolute inset-x-0 bottom-0 px-3 py-2 sm:py-3 text-white text-center bg-gradient-to-t from-slate-900/80 to-slate-900/10 backdrop-blur-[1px]"
@@ -321,23 +268,18 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
         </div>
       </div>
 
-      <!-- arrows -->
       <button
         type="button"
         class="absolute top-1/2 left-3 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow hover:bg-white focus:outline-none focus-visible:ring-4 focus-visible:ring-orange-100"
         aria-label="Previous image"
         @click.stop="prevImage"
-      >
-        ‹
-      </button>
+      >‹</button>
       <button
         type="button"
         class="absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow hover:bg-white focus:outline-none focus-visible:ring-4 focus-visible:ring-orange-100"
         aria-label="Next image"
         @click.stop="nextImage"
-      >
-        ›
-      </button>
+      >›</button>
     </div>
 
     <!-- Thumbnails -->
