@@ -98,6 +98,8 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
       discount_value: active ? value : null,
       discount_start_date: discRaw?.start_date ?? null,
       discount_end_date:   discRaw?.end_date   ?? null,
+      display_euro_price: p.display_euro_price,
+      euro_price: p.euro_price,
       stock,
       sku: p.sku ?? '',
       category: (Array.isArray(p?.categories) && p.categories[0]?.name) ? String(p.categories[0].name) : '',

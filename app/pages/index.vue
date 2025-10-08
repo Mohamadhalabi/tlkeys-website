@@ -19,7 +19,6 @@ const { $customApi } = useNuxtApp()
 const i18n = (useI18n?.() as any) || null
 const t = i18n?.t ?? ((s: string) => s)
 const locale = i18n?.locale ?? ref('en')
-const availableLocales: string[] = i18n?.availableLocales ?? [locale.value]
 const defaultLocale: string = i18n?.defaultLocale ?? 'en'
 
 /* ---------------- Slider ---------------- */
@@ -156,6 +155,8 @@ function mapApiProduct(p: any) {
     discount_value: active ? valueNum : null,
     discount_start_date: start,
     discount_end_date:   end,
+    display_euro_price: Number(p?.display_euro_price ?? 0) === 1,
+    euro_price: p?.euro_price ?? null,
 
     // meta / badges
     sku: p.sku ?? '',

@@ -61,6 +61,8 @@ type Product = {
   table_price?: PriceTableRow[]
   reviews?: Review[]
   categories?: SimpleItem[]
+  display_euro_price?: boolean | number | null
+  euro_price?: number | string | null
   manufacturers?: SimpleItem[]
   brands?: SimpleItem[]
   sku?: string | null
@@ -202,26 +204,6 @@ const nameToPath = (s?: string | null) => {
 
 /* urgency + discount helpers */
 const now = ref(Date.now())
-const isUrgent = computed(() => { if (!discountEndsIn.value) return false; return !String(discountEndsIn.value).includes('d') })
-const discountRange = computed(() => {
-  const start = product.value?.discount_active && product.value?.discount_start ? Date.parse(product.value.discount_start) : NaN
-  const end   = product.value?.discount_active && product.value?.discount_end   ? Date.parse(product.value.discount_end)   : NaN
-  return { start, end }
-})
-const discountProgress = computed(() => {
-  const { start, end } = discountRange.value
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null
-  const total = end - start
-  const elapsed = Math.min(Math.max(now.value - start, 0), total)
-  const pct = Math.round((elapsed / total) * 100)
-  return { pct, total, elapsed, end }
-})
-const discountTooltip = computed(() => {
-  const endISO = product.value?.discount_end
-  if (!endISO) return ''
-  try { return new Date(endISO).toLocaleString() } catch { return String(endISO) }
-})
-
 /* ---------------- SSR fetch & normalize ---------------- */
 const { data: ssr, pending: loading, error } = await useAsyncData(
   () => `product:${slug.value}`,
@@ -273,6 +255,8 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
         meta_title: data.meta_title ?? '',
         meta_description: data.meta_description ?? '',
         price: basePrice,
+        display_euro_price: Number(data.display_euro_price ?? 0) === 1,
+        euro_price: toNum(data.euro_price),
         hide_price: Number(data.hide_price ?? 0) === 1,
         requires_serial: Boolean(data.requires_serial ?? false),
         regular_price: toNum(data.regular_price),
@@ -413,6 +397,8 @@ const rawFallback = computed(() => {
 })
 const unitPrice = computed(() => {
   if (!product.value) return 0
+  if (useEuro.value) return toNum(product.value!.euro_price) || 0
+  // existing logic:
   const base = computeUnitPrice(product.value as any, qty.value).unit
   let unit = base > 0 ? base : (rawFallback.value || 0)
   const noPromo = unitWithoutDiscount.value
@@ -426,8 +412,10 @@ const unitPrice = computed(() => {
   }
   return unit
 })
+
 const unitWithoutDiscount = computed(() => {
   if (!product.value) return 0
+  if (useEuro.value) return 0 // not used when EUR is forced
   const forcedBase =
     (typeof product.value.regular_price === 'number' && product.value.regular_price > 0)
       ? product.value.regular_price
@@ -445,8 +433,12 @@ const unitWithoutDiscount = computed(() => {
   }
   return computeUnitPrice(p, qty.value).unit
 })
+
 const displayPrice = computed(() => {
   if (!product.value) return { current: 0, old: null as number | null }
+  if (useEuro.value) {
+    return { current: toNum(product.value!.euro_price) || 0, old: null }
+  }
   const current = unitPrice.value
   const old = current < unitWithoutDiscount.value ? unitWithoutDiscount.value : null
   return { current, old }
@@ -481,6 +473,16 @@ const adding = ref(false)
 const wishing = ref(false)
 const inWish = computed(() => product.value ? wishlist.isInWishlist(String(product.value.id)) : false)
 
+const useEuro = computed(() =>
+  !!product.value?.display_euro_price && toNum(product.value?.euro_price) != null
+)
+
+const formatDisplayMoney = (amount: number | null | undefined) =>
+  new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: useEuro.value ? 'EUR' : (currency.value || 'USD'),
+  }).format(Number(amount || 0))
+
 async function onAddToCart() {
   if (!product.value) return
   if (hideCart.value) return
@@ -506,6 +508,8 @@ async function onAddToCart() {
     regular_price: toNum(p.regular_price),
     sale_price: toNum(p.sale_price),
     table_price: Array.isArray(p.table_price) ? p.table_price : null,
+    euro_price: p.euro_price,
+    display_euro_price: p.display_euro_price,
     discount_type: p.discount_type ?? null,
     discount_value: toNum(p.discount_value),
     priceSnapshot: unit,
@@ -726,6 +730,8 @@ type GridProduct = {
   sku?: string | null
   category?: string | null
   hide_price?: boolean | number | null
+  display_euro_price?: boolean | number | null
+  euro_price?: number | null
 }
 const relatedProducts   = ref<GridProduct[]>([])
 const relatedLoading    = ref(false)
@@ -897,13 +903,12 @@ watch(() => product.value?.id, () => {
                   <!-- Price -->
                   <div v-if="showPriceBlock" class="flex items-end gap-3">
                     <span class="text-[28px] md:text-4xl text-red-600 font-bold tracking-tight">
-                      {{ formatMoney(displayPrice.current) }}
+                      {{ formatDisplayMoney(displayPrice.current) }}
                     </span>
                     <span v-if="displayPrice.old" class="text-lg text-gray-500 line-through">
-                      {{ formatMoney(displayPrice.old) }}
+                      {{ formatDisplayMoney(displayPrice.old) }}
                     </span>
                   </div>
-
                   <!-- WhatsApp CTA -->
                   <a
                     v-if="hidePrice || isPinCodeOffline"

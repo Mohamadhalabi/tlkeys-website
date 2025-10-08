@@ -14,6 +14,8 @@ type Product = {
   regular_price?: number | string | null
   sale_price?: number | string | null
   table_price?: TRow[] | null
+  display_euro_price: boolean
+  euro_price: number | string
   discount_type?: 'percent' | 'fixed' | null
   discount_value?: number | string | null
   discount_start_date?: string | null
@@ -45,6 +47,7 @@ const { formatMoney } = useCurrency()
 const runtime = useRuntimeConfig()
 const WHATSAPP_NUMBER = (runtime.public.WHATSAPP_NUMBER as string) || '971504429045'
 
+
 const qty = ref(1)
 const cardEl = ref<HTMLElement | null>(null)
 
@@ -73,6 +76,24 @@ const n = (x: unknown): number | null => {
     return Number.isFinite(v) ? v : null
   }
   return null
+}
+
+// --- Euro override flags & formatter ---
+const useEuro = computed(() => {
+  // accept boolean or 0/1 from backend
+  const flag = (props.product as any).display_euro_price
+  const euro = n((props.product as any).euro_price)
+  return !!flag && euro != null
+})
+
+const formatDisplayMoney = (amount: number | null | undefined) => {
+  if (useEuro.value) {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: 'EUR',
+    }).format(Number(amount || 0))
+  }
+  return formatMoney(amount) // your existing formatter
 }
 
 const asProductLike = computed(() => ({
@@ -105,9 +126,18 @@ const asProductLike = computed(() => ({
 // })
 
 /* prices for display */
-const unit = computed(() => computeUnitPrice(asProductLike.value, qty.value).unit)
+// prices for display
+const unit = computed(() => {
+  if (useEuro.value) {
+    return Number(n((props.product as any).euro_price) ?? 0)
+  }
+  return computeUnitPrice(asProductLike.value, qty.value).unit
+})
 
 const unitBefore = computed(() => {
+  // when forcing EUR display, don't show a crossed-out price
+  if (useEuro.value) return null
+
   const forcedBase =
     (typeof props.product.regular_price === 'number' && props.product.regular_price > 0)
       ? (props.product.regular_price as number)
@@ -126,9 +156,11 @@ const unitBefore = computed(() => {
   return computeUnitPrice(pNoPromo, qty.value).unit
 })
 
-const hasDiscount = computed(() => unitBefore.value > unit.value)
-const discountAmount = computed(() => Math.max(0, unitBefore.value - unit.value))
-
+const hasDiscount = computed(() => !!unitBefore.value && unitBefore.value > unit.value)
+const discountAmount = computed(() => {
+  if (!hasDiscount.value) return 0
+  return Math.max(0, (unitBefore.value || 0) - unit.value)
+})
 /* animated OFF amount */
 const offAnim = ref(0)
 let rafId: number | null = null
@@ -218,6 +250,11 @@ async function onAdd() {
     discount_start_date: p.discount_start_date ?? null,
     discount_end_date: p.discount_end_date ?? null,
     priceSnapshot: unit.value,
+
+    // ✅ carry these so the cart knows which rows are EUR
+    display_euro_price: (p as any).display_euro_price,
+    euro_price: n((p as any).euro_price),
+
     ...(requiresSerial.value ? { serial_number: [serial.value.trim()] } : {})
   })
 }
@@ -298,12 +335,13 @@ async function onAdd() {
         <!-- PRICE or WhatsApp -->
         <div v-if="!hidePrice" class="flex items-end gap-2">
           <div class="text-lg sm:text-xl font-extrabold text-red-600">
-            {{ formatMoney(unit) }}
+            {{ formatDisplayMoney(unit) }}
           </div>
           <div v-if="hasDiscount" class="text-sm text-gray-400 line-through">
-            {{ formatMoney(unitBefore) }}
+            {{ formatDisplayMoney(unitBefore) }}
           </div>
         </div>
+
 
         <!-- WhatsApp when price hidden -->
         <a

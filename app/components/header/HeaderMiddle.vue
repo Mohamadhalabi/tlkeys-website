@@ -19,6 +19,7 @@
             @keydown.up.prevent="move(-1)"
             @keydown.enter.prevent="goToShop"
             @focus="onFocus"
+            autocomplete="new-password"
           />
           <button class="px-4 flex items-center justify-center bg-orange-600 text-white" @click="goToShop()">
             <MagnifyingGlassIcon class="w-5 h-5" />
@@ -76,9 +77,15 @@
                       ></div>
                     </div>
 
+                    <!-- ✅ Price: if display_euro_price == 1 use euro_price and EUR symbol -->
                     <div v-if="!p.hide_price" class="text-right whitespace-nowrap">
-                      <div class="text-base font-semibold text-red-700">{{ formatMoney(p.price) }}</div>
-                      <div v-if="oldFor(p) !== null" class="text-xs text-gray-500 line-through">
+                      <div class="text-base font-semibold text-red-700">
+                        {{ displayPriceText(p) }}
+                      </div>
+                      <div
+                        v-if="!isEuroOverride(p) && oldFor(p) !== null"
+                        class="text-xs text-gray-500 line-through"
+                      >
                         {{ formatMoney(oldFor(p)!) }}
                       </div>
                     </div>
@@ -93,7 +100,6 @@
                       @click.stop
                       :aria-label="t('search.contactOnWhatsApp')"
                     >
-                      <!-- your SVG here -->
                       {{ t('search.contactOnWhatsApp') }}
                     </a>
                   </div>
@@ -128,13 +134,11 @@
           <span>{{ t('menu.logIn') }}</span>
         </NuxtLinkLocale>
 
-        <!-- replace this chunk in your header -->
         <NuxtLinkLocale v-else to="/account" class="flex items-center gap-1">
           <UserPlusIcon class="w-7 h-7" />
           <span v-if="displayName">Hello <span class="font-bold">{{ displayName }}</span></span>
           <span v-else>Hello</span>
         </NuxtLinkLocale>
-
 
         <NuxtLinkLocale to="/wishlist" class="relative flex items-center gap-2">
           <span class="relative">
@@ -193,7 +197,7 @@ function waLink(p: any) {
 }
 
 const displayName = computed(() => {
-  const u = auth.user.value  // 👈 unwrap the ref here
+  const u = auth.user.value
   if (!u) return null
   if (u.name && String(u.name).trim()) return u.name
   if (u.email) return u.email.split('@')[0]
@@ -246,17 +250,26 @@ const highlight = (text: string) => {
   return rx ? safe.replace(rx, '<mark class="bg-yellow-200">$1</mark>') : safe
 }
 
-/* price helpers */
+/* ---------- price helpers (EUR override support) ---------- */
 const num = (v: any): number | null => { const n = Number(v); return Number.isFinite(n) ? n : null }
+const isEuroOverride = (p: any) => Number(p?.display_euro_price ?? 0) === 1 && num(p?.euro_price) != null
+const fmtEUR = (amount: number | null | undefined) =>
+  new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(Number(amount || 0))
+
+/** Text to render for the main price line in suggestions */
+const displayPriceText = (p: any) =>
+  isEuroOverride(p) ? fmtEUR(num(p.euro_price)) : formatMoney(num(p.price) ?? 0)
+
+/** For crossed-out old price: skip when EUR is forced (no EUR regular price available) */
 const approxEq = (a: number, b: number, tol = 0.01) => Math.abs(a - b) <= tol
 const oldFor = (p: any): number | null => {
+  if (isEuroOverride(p)) return null
   const price = num(p?.price); if (price == null) return null
   const old = num(p?.old_price); if (old != null && old > price) return old
   const sale = num(p?.sale_price); const reg = num(p?.regular_price)
   if (sale != null && reg != null && reg > sale && (approxEq(price, sale) || price < reg)) return reg
   return null
 }
-
 
 function productTo(p: any) {
   return p?.href || `/products/${p.slug}`
@@ -267,7 +280,7 @@ const term = ref('')
 const suggestions = ref<any[]>([])
 const hasMore = ref(false)
 const totalResults = ref(0)
-const showMore = ref(false)     // controlled via API meta
+const showMore = ref(false)
 const loading = ref(false)
 const error = ref('')
 const open = ref(false)

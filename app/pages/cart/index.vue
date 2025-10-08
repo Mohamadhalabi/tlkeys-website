@@ -12,12 +12,18 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 const { $customApi } = useNuxtApp()
 
-const cart = useCart()
+const cart   = useCart()
 const alerts = useAlertStore()
-const auth = useAuth()
+const auth   = useAuth()
 const isAuthed = computed(() => Boolean(auth.token.value))
-const { formatMoney } = useCurrency()
+
+// currency helpers: we will convert per-row into active currency for subtotal
+const { formatMoney, convert, currency } = useCurrency()
+
 const downloading = ref(false)
+const loading = ref(true)
+const rows = ref<CartRow[]>([])
+const clearing = ref(false)
 
 useHead({
   title: t('cart.title') + ' | Techno Lock Keys',
@@ -49,13 +55,12 @@ type CartRow = {
   price_before?: number | null
   stock?: number | null
   serial_number?: string[] | null
+  display_euro_price?: boolean
+  euro_price?: number | null
 }
 
-const loading = ref(true)
-const rows = ref<CartRow[]>([])
-const clearing = ref(false)
+/* ----------------- helpers ----------------- */
 
-/* helpers */
 function n(x: unknown): number | null {
   if (typeof x === 'number' && Number.isFinite(x)) return x
   if (typeof x === 'string') {
@@ -65,7 +70,18 @@ function n(x: unknown): number | null {
   return null
 }
 
-/* pricing */
+const useEuroFor = (row: CartRow) =>
+  !!row.display_euro_price && n(row.euro_price) != null
+
+const formatRowMoney = (row: CartRow, amount: number | null | undefined) => {
+  if (useEuroFor(row)) {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' })
+      .format(Number(amount || 0))
+  }
+  return formatMoney(Number(amount || 0)) // active site currency (e.g., USD)
+}
+
+/* ----------------- pricing ----------------- */
 function asProductLike(row: CartRow): ProductLike {
   const snapshot = n(row.base.price) ?? 0
   if (row.locked) {
@@ -89,10 +105,17 @@ function asProductLike(row: CartRow): ProductLike {
 }
 
 function recalcRow(row: CartRow) {
+  // If product is flagged to display Euro and has a euro_price, pin the unit to that (no strike-through).
+  if (useEuroFor(row)) {
+    row.price = n(row.euro_price) || 0
+    row.price_before = null
+    return
+  }
   const prodLike: ProductLike = asProductLike(row)
   const withPromo = priceCalc(prodLike, row.quantity)
   let unit = withPromo.unit
 
+  // compute "no-promo" unit for strike-through
   const forcedBase =
     (typeof row.base.regular_price === 'number' && row.base.regular_price > 0)
       ? row.base.regular_price
@@ -110,6 +133,7 @@ function recalcRow(row: CartRow) {
   }
   const { unit: unitNoPromo } = priceCalc(pNoPromo, row.quantity)
 
+  // backstop: if helper didn’t apply active discount, apply here
   const dtype = row.discount_type
   const dval  = Number(row.discount_value ?? 0)
   const hasActiveDiscount = (dtype === 'fixed' || dtype === 'percent') && dval > 0
@@ -123,7 +147,7 @@ function recalcRow(row: CartRow) {
   row.price_before = unitNoPromo
 }
 
-/* shortage helpers */
+/* ----------------- shortage helpers ----------------- */
 const isShort = (row: CartRow) =>
   row.stock != null && Number(row.quantity || 0) > Number(row.stock || 0)
 
@@ -132,13 +156,46 @@ const shortageSkus = computed(() =>
   rows.value.filter(isShort).map(r => r.sku).filter(Boolean) as string[]
 )
 
-/* loaders */
-async function loadServerCart(): Promise<CartRow[]> {
-  const r = await $customApi('/v2/cart', { method: 'GET' })
-  const arr = (r?.data ?? r?.items ?? r) as any[]
-  if (!Array.isArray(arr)) return []
+function readCartArray(resp: any): any[] {
+  // accept: [] | {items: []} | {data: []} | {data: {items: []}}
+  const root = resp?.data ?? resp
+  if (Array.isArray(root)) return root
+  if (Array.isArray(root?.items)) return root.items
+  if (Array.isArray(resp?.items)) return resp.items
+  return []
+}
 
-  return arr.map(i => {
+// local merge (the one you had in useCart.ts isn't visible here)
+function mergeByProductIdLocal(rows: any[]): any[] {
+  const map = new Map<string, any>()
+  for (const r of rows) {
+    const pid = String(r.product_id ?? r.product?.id ?? r.id)
+    const prev = map.get(pid)
+    if (!prev) { map.set(pid, { ...r }); continue }
+    // sum qty
+    prev.quantity = Number(prev.quantity || 0) + Number(r.quantity || 0)
+    // merge serials
+    const a = Array.isArray(prev.serial_number) ? prev.serial_number : []
+    const b = Array.isArray(r.serial_number) ? r.serial_number : []
+    const set = new Set([...a, ...b].map(s => String(s || '').trim()).filter(Boolean))
+    prev.serial_number = set.size ? Array.from(set) : null
+    // keep EUR flag if any row has it
+    if (r.display_euro_price) {
+      prev.display_euro_price = r.display_euro_price
+      prev.euro_price = r.euro_price
+    }
+  }
+  return Array.from(map.values())
+}
+/* ----------------- loaders ----------------- */
+async function loadServerCart(): Promise<CartRow[]> {
+  const resp = await $customApi('/v2/cart', { method: 'GET' })
+  const raw = readCartArray(resp)            // ← parse any shape
+  if (!raw.length) return []                 // nothing on server
+
+  const merged = mergeByProductIdLocal(raw)  // ← avoid dup lines
+
+  return merged.map(i => {
     const lockedUnit = n(i?.locked_unit)
     const row: CartRow = {
       product_id: i.product_id ?? i.id,
@@ -162,12 +219,15 @@ async function loadServerCart(): Promise<CartRow[]> {
       discount_end_date:   i?.discount?.end_date   ?? i?.discount_end_date   ?? null,
       price: 0,
       serial_number: Array.isArray(i?.serial_number) ? i.serial_number : null,
-      stock: n(i?.stock ?? i?.available_quantity ?? i?.quantity_available ?? i?.inventory?.quantity)
+      stock: n(i?.stock ?? i?.available_quantity ?? i?.quantity_available ?? i?.inventory?.quantity),
+      display_euro_price: Number(i?.display_euro_price ?? 0) === 1,
+      euro_price: n(i?.euro_price),
     }
     recalcRow(row)
     return row
   })
 }
+
 
 async function loadGuestCart(): Promise<CartRow[]> {
   const snaps = (cart.guestItems?.value || []) as any[]
@@ -194,6 +254,9 @@ async function loadGuestCart(): Promise<CartRow[]> {
       price: 0,
       stock: n(s?.stock),
       serial_number: Array.isArray(s?.serial_number) ? s.serial_number : null,
+      // ✅ keep Euro display flags from guest cart
+      display_euro_price: Number(s?.display_euro_price ?? 0) === 1 || s?.display_euro_price === true,
+      euro_price: n(s?.euro_price),
     }
     recalcRow(row)
     return row
@@ -257,14 +320,22 @@ async function load() {
   }
 }
 
-/* effects */
+/* ----------------- effects ----------------- */
 watch(() => cart.guestItems?.value, () => { if (!isAuthed.value) load() }, { deep: true })
 onMounted(load)
 
-/* actions */
+/* ----------------- actions + totals ----------------- */
+
+// Subtotal in ACTIVE currency (e.g., USD). Each row total is converted if it’s EUR.
 const subtotal = computed(() =>
-  rows.value.reduce((sum, r) => sum + (r.price || 0) * Number(r.quantity || 0), 0)
+  rows.value.reduce((sum, r) => {
+    const rowTotal = (r.price || 0) * Number(r.quantity || 0)
+    const fromCode = useEuroFor(r) ? 'EUR' : 'USD'
+    return sum + convert(rowTotal, fromCode as any, currency.value as any)
+  }, 0)
 )
+
+const formatSubtotal = (amount: number) => formatMoney(amount)
 
 async function inc(row: CartRow) { await setQty(row, Number(row.quantity) + 1) }
 async function dec(row: CartRow) { await setQty(row, Math.max(1, Number(row.quantity) - 1)) }
@@ -406,23 +477,23 @@ async function clearAll() {
 
               <div class="ms-auto text-right">
                 <div class="text-2xl font-extrabold text-red-600">
-                  {{ formatMoney((row.price || 0) * (row.quantity || 1)) }}
+                  {{ formatRowMoney(row, (row.price || 0) * (row.quantity || 1)) }}
                 </div>
-                <div
-                  v-if="row.price_before != null && row.price_before > (row.price || 0)"
-                  class="text-sm text-gray-500 line-through"
-                >
-                  {{ formatMoney((row.price_before || 0) * (row.quantity || 1)) }}
+
+                <div v-if="row.price_before != null && row.price_before > (row.price || 0)"
+                    class="text-sm text-gray-500 line-through">
+                  {{ formatRowMoney(row, (row.price_before || 0) * (row.quantity || 1)) }}
                 </div>
+
                 <div class="text-xs">
                   {{ t('cart.unit') }}
-                  <span
-                    v-if="row.price_before != null && row.price_before > (row.price || 0)"
-                    class="line-through text-gray-400 mr-1"
-                  >
-                    {{ formatMoney(row.price_before || 0) }}
+                  <span v-if="row.price_before != null && row.price_before > (row.price || 0)"
+                        class="line-through text-gray-400 mr-1">
+                    {{ formatRowMoney(row, row.price_before || 0) }}
                   </span>
-                  <span class="font-semibold text-red-600">{{ formatMoney(row.price || 0) }}</span>
+                  <span class="font-semibold text-red-600">
+                    {{ formatRowMoney(row, row.price || 0) }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -442,7 +513,7 @@ async function clearAll() {
 
           <div class="flex items-center justify-between text-lg">
             <span>{{ t('cart.subtotal') }}</span>
-            <span class="text-red-600">{{ formatMoney(subtotal) }}</span>
+            <span class="text-red-600">{{ formatSubtotal(subtotal) }}</span>
           </div>
           <p class="text-xs text-gray-500">{{ t('cart.shippingNote') }}</p>
 

@@ -9,6 +9,34 @@ const SYNC_LOCK_KEY = 'cart-sync-lock'
 type Id = number | string
 type PriceTableRow = { min_qty: number; max_qty?: number | null; price: number; sale_price?: number | null }
 
+// put near the top, after types
+function mergeByProductId(rows: CartItem[] | any[]): any[] {
+  const map = new Map<string, any>()
+  for (const r of rows) {
+    const pid = String(r.product_id ?? r.product?.id ?? r.id)
+    const prev = map.get(pid)
+    if (!prev) {
+      map.set(pid, { ...r })
+      continue
+    }
+    // sum quantities
+    prev.quantity = Number(prev.quantity || 0) + Number(r.quantity || 0)
+
+    // union serial numbers if present
+    const a = Array.isArray(prev.serial_number) ? prev.serial_number : []
+    const b = Array.isArray(r.serial_number) ? r.serial_number : []
+    const set = new Set([...a, ...b].map(s => String(s || '').trim()).filter(Boolean))
+    prev.serial_number = set.size ? Array.from(set) : null
+
+    // prefer EUR display if any row has it
+    if (r.display_euro_price) {
+      prev.display_euro_price = r.display_euro_price
+      prev.euro_price = r.euro_price
+    }
+  }
+  return Array.from(map.values())
+}
+
 export type CartItem = {
   product_id: Id
   quantity: number
@@ -27,6 +55,8 @@ export type CartItem = {
   priceSnapshot?: number | null
   stock?: number | null
   serial_number?: string[] | null
+  display_euro_price?: boolean | number | null
+  euro_price?: number | null
 }
 
 // ---------- helpers ----------
@@ -99,6 +129,8 @@ export function useCart() {
       priceSnapshot: toNum(meta?.priceSnapshot) ?? null,
       stock: toNum(meta?.stock) ?? null,
       serial_number: serials.length ? serials : null,
+      display_euro_price: (meta as any)?.display_euro_price ?? null,
+      euro_price: toNum((meta as any)?.euro_price) ?? null,
     }
 
     if (idx >= 0) {
@@ -166,10 +198,6 @@ export function useCart() {
 
   // --- server actions ---
   async function addToServer(product_id: Id, quantity: number, meta?: Partial<CartItem>) {
-
-    console.log("TESTTT~!@#");
-    console.log(meta);
-
     serverCount.value = Math.max(0, Number(serverCount.value || 0) + Math.max(1, Number(quantity || 1)))
     notifyCartChanged()
 
@@ -210,30 +238,35 @@ export function useCart() {
   }
 
   // --- guest → server sync on login ---
-  async function syncGuestToServer() {
-    if (!process.client) return
-    if (!guestItems.value.length) { await fetchServerCount(); return }
-    if (syncing.value) return
-    if (sessionStorage.getItem(SYNC_LOCK_KEY) === '1') return
+// --- guest → server sync on login ---
+async function syncGuestToServer() {
+  if (!process.client) return
+  if (!guestItems.value.length) { await fetchServerCount(); return }
+  if (syncing.value) return
+  if (sessionStorage.getItem(SYNC_LOCK_KEY) === '1') return
 
-    syncing.value = true
-    sessionStorage.setItem(SYNC_LOCK_KEY, '1')
-    try {
-      const items = guestItems.value.map(i => ({
-        product_id: i.product_id,
-        quantity: i.quantity,
-        ...(Array.isArray(i.serial_number) && i.serial_number.length
-          ? { serial_number: i.serial_number }
-          : {})
-      }))
-      await $customApi('/v2/cart/sync', { method: 'POST', body: { items } })
-      clearGuest()
-    } finally {
-      syncing.value = false
-      sessionStorage.removeItem(SYNC_LOCK_KEY)
-      await fetchServerCount()
+  syncing.value = true
+  sessionStorage.setItem(SYNC_LOCK_KEY, '1')
+  try {
+    // increment quantities on server (one call per item)
+    for (const i of guestItems.value) {
+      const serials = Array.isArray(i.serial_number) ? i.serial_number : []
+      await $customApi('/v2/cart/add', {
+        method: 'POST',
+        body: {
+          product_id: i.product_id,
+          quantity: i.quantity,
+          ...(serials.length ? { serial_number: serials } : {})
+        }
+      })
     }
+    clearGuest()
+  } finally {
+    syncing.value = false
+    sessionStorage.removeItem(SYNC_LOCK_KEY)
+    await fetchServerCount()
   }
+}
 
   // --- helpers for alert logic ---
   function guestQtyFor(product_id: Id) {

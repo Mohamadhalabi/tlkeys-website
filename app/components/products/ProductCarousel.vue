@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, computed, watchEffect, watch } from 'vue'
 import ProductGrid from '~/components/products/ProductGrid.vue'
+import { useCurrency } from '~/composables/useCurrency'
 
 type Product = Record<string, any>
 
@@ -64,6 +65,19 @@ const emit = defineEmits<{
   (e: 'add-to-cart', p: any): void
 }>()
 
+/* ===== currency helpers (per-row EUR override) ===== */
+const { currency } = useCurrency()
+const toNum = (v: any) => {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+const isEuroRow = (p: any) => Number(p?.display_euro_price ?? 0) === 1 && toNum(p?.euro_price) != null
+const money = (p: any, value: number | null | undefined) => {
+  const code = isEuroRow(p) ? 'EUR' : (currency.value || 'USD')
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency: code })
+    .format(Number(value || 0))
+}
+
 /* ---- direction ---- */
 const isRTL = ref(false)
 function detectDir() {
@@ -78,7 +92,7 @@ function detectDir() {
 const rootEl = ref<HTMLElement | null>(null)
 const perRow = ref(2)
 const rows = ref(1)
-const layoutReady = ref(false) // ✅ prevents the “two big cards” flash
+const layoutReady = ref(false)
 
 let ro: ResizeObserver | null = null
 const BP = { xsMicro: 340, sm: 640, md: 768, lg: 1024, xl: 1280 }
@@ -146,7 +160,35 @@ const slicedClient = computed(() => {
 })
 
 const visibleServerSlice = computed(() => (props.products || []).slice(0, perPage.value))
-const visibleProducts = computed(() => props.serverPaging ? visibleServerSlice.value : slicedClient.value)
+const visibleProductsRaw = computed(() => props.serverPaging ? visibleServerSlice.value : slicedClient.value)
+
+/**
+ * 🔎 Final array sent to the grid:
+ * - If a row has EUR override, use `euro_price` as the price, drop strike-through.
+ * - Attach `price_label` so a simple grid can render the already-formatted string.
+ * - Also pass `moneyFn` prop to ProductGrid for grids that allow custom formatting.
+ */
+const visibleProducts = computed(() => {
+  return (visibleProductsRaw.value || []).map((p: any) => {
+    const eur = isEuroRow(p)
+    const price = eur ? toNum(p.euro_price) ?? 0
+                      : toNum(p.price) ?? toNum(p.sale_price) ?? toNum(p.regular_price) ?? 0
+    const old   = eur ? null
+                      : (toNum(p.regular_price) && (toNum(p.regular_price)! > price) ? toNum(p.regular_price) : null)
+
+    return {
+      ...p,
+      price,
+      oldPrice: old,
+      // keep flags so downstream add-to-cart can preserve EUR pinning in cart
+      display_euro_price: eur ? 1 : Number(p?.display_euro_price ?? 0),
+      euro_price: eur ? price : (toNum(p.euro_price) ?? null),
+      // handy pre-formatted labels (optional for ProductGrid)
+      price_label: money(p, price),
+      old_price_label: old != null ? money(p, old) : null,
+    }
+  })
+})
 
 watch([perPage, () => props.products?.length], () => {
   if (pageClient.value > totalPagesClient.value - 1) pageClient.value = 0
@@ -200,9 +242,7 @@ watch(() => props.currentPage, (p) => {
 const transitionName = computed(() => {
   if (props.transitionType === 'none') return ''
   if (props.transitionType === 'fade') return 'pc-fade'
-  // slide
   const isNext = pageAnim.value === 'next'
-  // RTL flips directions
   const left = isRTL.value ? 'pc-slide-right' : 'pc-slide-left'
   const right = isRTL.value ? 'pc-slide-left' : 'pc-slide-right'
   return isNext ? left : right
@@ -262,6 +302,17 @@ function setupVisibilityPause(enable: boolean) {
   if (enable) document.addEventListener('visibilitychange', onVisibilityChange)
   else document.removeEventListener('visibilitychange', onVisibilityChange)
 }
+
+/* ====== re-emit add-to-cart with EUR flags preserved ====== */
+function emitAddToCart(p: any) {
+  const eur = isEuroRow(p)
+  emit('add-to-cart', {
+    ...p,
+    // ensure parent receives the override flags
+    display_euro_price: eur ? 1 : Number(p?.display_euro_price ?? 0),
+    euro_price: eur ? (toNum(p?.euro_price) ?? toNum(p?.price) ?? 0) : (toNum(p?.euro_price) ?? null),
+  })
+}
 </script>
 
 <template>
@@ -317,7 +368,8 @@ function setupVisibilityPause(enable: boolean) {
               :products="visibleProducts"
               :rows="rows"
               :products-per-row="perRow"
-              @add-to-cart="$emit('add-to-cart', $event)"
+              :money-fn="money"
+              @add-to-cart="emitAddToCart"
             />
           </div>
         </Transition>
@@ -363,8 +415,8 @@ function setupVisibilityPause(enable: boolean) {
 /* --- arrow gutter system --- */
 .pc-stage {
   /* base sizes */
-  --pc-arrow-gap: 10px;  /* space from content edge */
-  --pc-arrow-size: 38px; /* default; overridden by media queries */
+  --pc-arrow-gap: 10px;
+  --pc-arrow-size: 38px;
   --pc-trans-ms: v-bind('transitionMs + "ms"');
   --pc-trans-ease: v-bind('transitionEasing');
 
@@ -393,7 +445,6 @@ function setupVisibilityPause(enable: boolean) {
 }
 
 /* ====== Page Transitions ====== */
-/* Slide (direction aware via class name) */
 .pc-slide-left-enter-active,
 .pc-slide-left-leave-active,
 .pc-slide-right-enter-active,

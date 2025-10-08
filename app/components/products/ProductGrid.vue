@@ -9,6 +9,8 @@ type P = {
   oldPrice?: number | null
   rewardPoints?: number | null
   badgeText?: string | null
+  display_euro_price: boolean
+  euro_price: number
   freeShipping?: boolean
   slug?: string
   href?: string
