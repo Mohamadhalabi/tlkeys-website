@@ -16,6 +16,7 @@ type QuoteProduct = {
   line: number
   weight: number
   image?: string | null
+  is_machine?: boolean
 }
 type Address = {
   id: number
@@ -38,13 +39,28 @@ type CouponResult = {
   message?: string | null
   discount_value?: number
 }
+type Promotions = {
+  eligible: { free_ship: boolean; ten_off: boolean }
+  selected: 'free_ship'|'ten_off'|'none'
+  savings: { free_ship: number; ten_off: number }
+  notes: { free_ship: string; ten_off: string }
+}
 type Quote = {
   products: QuoteProduct[]
   addresses: Address[]
   selected_address_id: number|null
   shipping: { options: ShippingOption[], selected: ShippingKey|null, price: number }
-  summary: { sub_total:number; discount:number; sub_after_coupon:number; shipping:number; total:number }
-  weights: { total_weight_kg:number; zone_id:number|null }
+  summary: {
+    sub_total:number
+    coupon_discount:number
+    promo_discount:number
+    discount:number
+    sub_after_coupon:number
+    shipping:number
+    total:number
+  }
+  weights: { total_weight_kg:number; machine_weight_kg?:number; zone_id:number|null }
+  promotions?: Promotions
   coupon?: CouponResult | null
 }
 type Country = {
@@ -54,6 +70,7 @@ type Country = {
   iso3?: string | null
   zone_id?: number | null
 }
+type PromoKey = 'free_ship'|'ten_off'|'none'
 
 /* ---------------- Setup ---------------- */
 const UAE_COUNTRY_ID = 231
@@ -96,12 +113,12 @@ const quote = ref<Quote | null>(null)
 const loading = ref(false)
 const creatingOrder = ref(false)
 
-/** Coupon:
- *  - couponInput: text in the box (free typing)
- *  - appliedCouponCode: the code we actually send to backend (only after clicking Apply)
- */
+/** Coupon: */
 const couponInput = ref<string>('')
 const appliedCouponCode = ref<string | null>(null)
+
+/** Promotions (mutually exclusive) */
+const selectedPromo = ref<PromoKey>('none')
 
 /** Alert de-dup */
 const lastShownCouponKey = ref<string | null>(null)
@@ -209,7 +226,7 @@ async function fetchAddresses() {
 /** fetchQuote
  *  - If you pass {couponOverride}, it will be used for this request only (used by Apply).
  *  - Otherwise, we send appliedCouponCode (if any).
- *  - showCouponAlert controls whether we pop a toast (only on Apply).
+ *  - Also send the selected promo (free_ship | ten_off | none).
  */
 async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAlert?: boolean }) {
   loading.value = true
@@ -224,15 +241,24 @@ async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAle
 
     if (couponToSend) params.set('coupon', couponToSend)
 
+    // send promo choice (mutually exclusive)
+    if (selectedPromo.value) params.set('promo', selectedPromo.value)
+
     const res = await $customApi<Quote>(`/checkout/quote?${params.toString()}`)
     quote.value = res
 
+    // sync selected address and default shipping
     if (!selectedAddressId.value) selectedAddressId.value = res.selected_address_id ?? null
     if (!selectedShipping.value && res.shipping?.selected) {
       selectedShipping.value = res.shipping.selected as ShippingKey
     }
     if (selectedAddress.value?.country_id === UAE_COUNTRY_ID && selectedShipping.value && !['pick_up','domestic'].includes(selectedShipping.value)) {
       selectedShipping.value = null
+    }
+
+    // sync promo from backend decision (best savings when user didn't choose)
+    if (res.promotions?.selected) {
+      selectedPromo.value = res.promotions.selected as PromoKey
     }
 
     if (opts?.showCouponAlert) {
@@ -329,6 +355,7 @@ async function createOrder() {
     shipping_method: selectedShipping.value,
     payment_method:  paymentMap[paymentMethod.value],
     coupon_code:     appliedCouponCode.value || null,
+    promo:           selectedPromo.value, // <-- store the chosen promo with the order if backend supports it
   }
 
   try {
@@ -469,7 +496,7 @@ watch(selectedShipping, async () => {
               :aria-label="$t('checkout.couponCode') || 'Coupon code'"
             />
             <button
-              class="rounded-xl border px-4 py-2 font-medium hover:bg-gray-50"
+              class="rounded-2xl border px-4 py-2 font-medium hover:bg-gray-50"
               :disabled="!couponInput || creatingOrder"
               @click="applyCoupon"
             >
@@ -478,13 +505,75 @@ watch(selectedShipping, async () => {
 
             <button
               v-if="appliedCouponCode"
-              class="rounded-xl border px-4 py-2 font-medium hover:bg-gray-50"
+              class="rounded-2xl border px-4 py-2 font-medium hover:bg-gray-50"
               :disabled="creatingOrder"
               @click="removeCoupon"
             >
               {{ $t('common.remove') || 'Remove' }} ({{ appliedCouponCode }})
             </button>
           </div>
+        </div>
+
+        <!-- Promotions (mutually exclusive) -->
+        <div
+          v-if="quote?.promotions && (quote.promotions.eligible.free_ship || quote.promotions.eligible.ten_off)"
+          class="rounded-2xl border p-4 bg-white shadow-sm"
+        >
+          <h3 class="text-lg font-semibold mb-2">{{ $t('checkout.promotions') || 'Promotions' }}</h3>
+
+          <div class="space-y-2">
+            <label
+              v-if="quote.promotions.eligible.free_ship"
+              class="flex items-start gap-2 p-2 rounded-xl border hover:bg-gray-50 cursor-pointer transition ring-offset-2"
+              :class="selectedPromo==='free_ship' ? 'ring-2 ring-emerald-500' : ''"
+            >
+              <input class="mt-1" type="radio" value="free_ship" v-model="selectedPromo" @change="fetchQuote()" />
+              <div>
+                <div class="font-medium">
+                  {{ $t('checkout.freeShipTitle') || 'Free Shipping (>$500 eligible items)' }}
+                  <span class="ml-2 text-emerald-700 font-semibold" v-if="quote.promotions.savings.free_ship">
+                    -{{ money(quote.promotions.savings.free_ship) }}$
+                  </span>
+                </div>
+                <div class="text-xs text-gray-600">
+                  {{ quote.promotions.notes.free_ship }}
+                </div>
+              </div>
+            </label>
+
+            <label
+              v-if="quote.promotions.eligible.ten_off"
+              class="flex items-start gap-2 p-2 rounded-xl border hover:bg-gray-50 cursor-pointer transition ring-offset-2"
+              :class="selectedPromo==='ten_off' ? 'ring-2 ring-emerald-500' : ''"
+            >
+              <input class="mt-1" type="radio" value="ten_off" v-model="selectedPromo" @change="fetchQuote()" />
+              <div>
+                <div class="font-medium">
+                  {{ $t('checkout.tenOffTitle') || '10% OFF (>$700, first paid order)' }}
+                  <span class="ml-2 text-emerald-700 font-semibold" v-if="quote.promotions.savings.ten_off">
+                    -{{ money(quote.promotions.savings.ten_off) }}$
+                  </span>
+                </div>
+                <div class="text-xs text-gray-600">
+                  {{ quote.promotions.notes.ten_off }}
+                </div>
+              </div>
+            </label>
+
+            <label
+              class="flex items-start gap-2 p-2 rounded-xl border hover:bg-gray-50 cursor-pointer transition ring-offset-2"
+              :class="selectedPromo==='none' ? 'ring-2 ring-emerald-500' : ''"
+            >
+              <input class="mt-1" type="radio" value="none" v-model="selectedPromo" @change="fetchQuote()" />
+              <div class="font-medium">{{ $t('checkout.noPromo') || 'No promotion' }}</div>
+            </label>
+          </div>
+
+          <p v-if="selectedPromo==='ten_off' && quote?.summary?.promo_discount"
+             class="mt-2 text-sm text-emerald-700">
+            {{ $t('checkout.promoSavings') || 'Promo savings' }}:
+            -{{ money(quote.summary.promo_discount) }}$
+          </p>
         </div>
 
         <!-- Step Note: Address -->
@@ -733,9 +822,14 @@ watch(selectedShipping, async () => {
           <!-- Totals -->
           <div class="mt-4 space-y-1 text-sm">
             <div class="flex justify-between"><span>{{ $t('checkout.subtotal') }}</span><span>{{ money(quote?.summary?.sub_total) }}$</span></div>
-            <div v-if="quote?.summary?.discount" class="flex justify-between text-emerald-700">
-              <span>{{ $t('checkout.coupon') }}</span><span>-{{ money(quote?.summary?.discount) }}</span>
+
+            <div v-if="quote?.summary?.coupon_discount" class="flex justify-between text-emerald-700">
+              <span>{{ $t('checkout.coupon') }}</span><span>-{{ money(quote?.summary?.coupon_discount) }}$</span>
             </div>
+            <div v-if="quote?.summary?.promo_discount" class="flex justify-between text-emerald-700">
+              <span>{{ $t('checkout.promotion') || 'Promotion' }}</span><span>-{{ money(quote?.summary?.promo_discount) }}$</span>
+            </div>
+
             <div class="flex justify-between">
               <span>{{ $t('checkout.shipping') }} ({{ selectedShipping || '-' }})</span>
               <span>{{ money(quote?.summary?.shipping) }}$</span>
