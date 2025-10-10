@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { useRoute, useRuntimeConfig, useNuxtApp, definePageMeta } from '#imports'
+import { useRoute, useRuntimeConfig, useNuxtApp, useHead } from '#imports'
+import { useI18n } from 'vue-i18n'
 import { useAlertStore } from '~/stores/alert'
 import { computeUnitPrice } from '~/utils/pricing'
 import { useCurrency } from '~/composables/useCurrency'
 
-definePageMeta({ ssr: false })
+/* Head */
+useHead({
+  title: 'Buy Now — Checkout',
+  meta: [{ name: 'robots', content: 'noindex,nofollow' }]
+})
 
 type Country = { id:number; name:string|Record<string,string>; iso2?:string|null; zone_id?:number|null }
 type ShippingKey = 'dhl'|'fedex'|'aramex'|'ups'
@@ -35,15 +40,18 @@ type ProductLite = {
   discount_active?:boolean
   discount_end?:string|null
 }
+type PayMethod = 'card'|'paypal'|'transfer'
 
+const { t } = useI18n()
 const route = useRoute()
 const { $customApi } = useNuxtApp()
 const cfg = useRuntimeConfig()
 const alerts = useAlertStore()
 const { formatMoney } = useCurrency()
 
+/* routing / data */
 const pid   = computed(() => String(route.query.pid || ''))
-const pslug = computed(() => String(route.query.pslug || ''))  // ✅ from product page
+const pslug = computed(() => String(route.query.pslug || ''))
 const initialQty = Math.max(1, Number(route.query.qty || 1))
 const serialFromQuery = String(route.query.serial || '')
 
@@ -56,10 +64,21 @@ const countries = ref<Country[]>([])
 const countriesLoading = ref(false)
 const countriesError = ref<string|null>(null)
 const selectedCountryId = ref<number | ''>('')
+
 const quoteLoading = ref(false)
 const quoteError = ref<string|null>(null)
 const quote = ref<BuyNowQuote | null>(null)
 const selectedShipping = ref<ShippingKey | null>(null)
+
+/* form */
+const submitAttempted = ref(false)
+const email = ref('')
+const fullName = ref('')
+const city = ref('')
+const streetAddress = ref('')
+const postalCode = ref('')
+const phone = ref('')
+const paymentMethod = ref<PayMethod>('card')
 
 function nameOf(c: Country): string {
   try {
@@ -97,10 +116,8 @@ async function fetchProduct() {
 
   try {
     if (pslug.value) {
-      // ✅ your API supports this
       await use(`/products/slug/${encodeURIComponent(pslug.value)}?include=images,table_price,discount`)
     } else {
-      // fallbacks when only id is available
       try {
         await use(`/products/${encodeURIComponent(pid.value)}?include=images,table_price,discount`)
       } catch {
@@ -173,9 +190,79 @@ watch(selectedShipping, () => {
   quote.value.summary.total = +(lineTotal.value + opt.price).toFixed(2)
 })
 
+/* Validation + totals + submit */
+const validEmail = computed(() => /\S+@\S+\.\S+/.test(email.value.trim()))
+const allRequiredFilled = computed(() => {
+  return (
+    validEmail.value &&
+    fullName.value.trim().length > 5 &&
+    selectedCountryId.value !== '' &&
+    city.value.trim().length > 3 &&
+    streetAddress.value.trim().length > 8 &&
+    postalCode.value.trim().length > 0 &&
+    phone.value.trim().length > 6
+  )
+})
+const canPlaceOrder = computed(() =>
+  allRequiredFilled.value && !loadingProduct.value && !countriesLoading.value && !quoteLoading.value && !productError.value && !countriesError.value && !quoteError.value
+)
+
+/* Show shipping as 0.00 until quote exists */
+const displayedShipping = computed(() => quote.value?.summary.shipping ?? 0)
+
+/* Subtotal (products + shipping) */
+const subtotal = computed(() => +(lineTotal.value + displayedShipping.value).toFixed(2))
+/* 3% fee for card & PayPal */
+const feeRate = computed(() => (paymentMethod.value === 'card' || paymentMethod.value === 'paypal') ? 0.03 : 0)
+const paymentFee = computed(() => +(subtotal.value * feeRate.value).toFixed(2))
+const grandTotal = computed(() => +(subtotal.value + paymentFee.value).toFixed(2))
+
+function markInvalid(v: string | number | '') {
+  return submitAttempted.value && (!v || String(v).trim() === '')
+}
+
+function handlePlaceOrder() {
+  submitAttempted.value = true
+  if (!allRequiredFilled.value) {
+    alerts.error(t('checkout.missingFields'))
+    return
+  }
+  const payload = {
+    product_id: product.value?.id,
+    quantity: qty.value,
+    contact: {
+      email: email.value.trim(),
+      full_name: fullName.value.trim(),
+      phone: phone.value.trim()
+    },
+    address: {
+      country_id: selectedCountryId.value,
+      city: city.value.trim(),
+      street: streetAddress.value.trim(),
+      postal_code: postalCode.value.trim()
+    },
+    shipping: {
+      method: selectedShipping.value,
+      price: displayedShipping.value
+    },
+    amounts: {
+      unit: unitPrice.value,
+      line: lineTotal.value,
+      shipping: displayedShipping.value,
+      payment_fee: paymentFee.value,
+      subtotal: subtotal.value,
+      total: grandTotal.value
+    },
+    payment_method: paymentMethod.value as PayMethod,
+    serial: serialFromQuery || null
+  }
+
+  console.log('Checkout payload:', payload)
+  alerts.success(t('checkout.orderCreated'))
+}
+
 onMounted(async () => {
   await Promise.all([fetchProduct(), fetchCountries()])
-  // If you want an initial country selected, set selectedCountryId.value here.
 })
 </script>
 
@@ -185,66 +272,119 @@ onMounted(async () => {
       <!-- LEFT -->
       <section class="lg:col-span-2">
         <div class="rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div class="p-6 border-b border-gray-100 flex items-center gap-3">
-            <img src="/images/logo/techno-lock-desktop-logo.webp" alt="Logo" class="h-8" />
-            <span class="text-sm text-gray-400">Buy Now</span>
+          <div class="p-6 border-b border-gray-100 flex items-center gap-4">
+            <img src="/images/logo/techno-lock-desktop-logo.webp" alt="Logo" class="h-16" />
+            <h1 class="text-2xl font-semibold text-gray-900">{{ t('dashboard.checkout') }}</h1>
           </div>
 
           <div class="p-6 space-y-6">
-            <div>
-              <div class="text-sm text-gray-600 mb-2">Paypal Express Checkout</div>
-              <button type="button" class="w-full rounded-md border border-yellow-400 bg-yellow-400/90 px-4 py-3 font-semibold text-gray-900 hover:bg-yellow-400">
-                PayPal
-              </button>
-            </div>
-
-            <div class="relative h-px bg-gray-200"><span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-3 text-xs text-gray-500">OR</span></div>
-
             <div class="grid grid-cols-1 gap-4">
               <div>
-                <label class="text-sm text-gray-600">Email</label>
-                <input type="email" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" placeholder="you@example.com" />
+                <label class="text-sm text-gray-600">{{ t('common.email') }} <span class="text-red-500">*</span></label>
+                <input
+                  type="email"
+                  v-model="email"
+                  required
+                  class="mt-1 w-full rounded-lg border px-3 py-2"
+                  :class="validEmail ? 'border-gray-300' : (submitAttempted ? 'border-red-400' : 'border-gray-300')"
+                  :placeholder="t('common.emailAddress')"
+                />
+                <p v-if="submitAttempted && !validEmail" class="text-xs text-red-600 mt-1">{{ t('checkout.missingFields') }}</p>
               </div>
 
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div class="sm:col-span-2">
-                  <label class="text-sm text-gray-600">Country</label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="text-sm text-gray-600">{{ t('auth.register.fullName') }} <span class="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    v-model="fullName"
+                    required
+                    class="mt-1 w-full rounded-lg border px-3 py-2"
+                    :class="markInvalid(fullName) ? 'border-red-400' : 'border-gray-300'"
+                    placeholder="First Last"
+                  />
+                </div>
+                <div>
+                  <label class="text-sm text-gray-600">{{ t('auth.register.phone') }} <span class="text-red-500">*</span></label>
+                  <input
+                    type="tel"
+                    v-model="phone"
+                    required
+                    class="mt-1 w-full rounded-lg border px-3 py-2"
+                    :class="markInvalid(phone) ? 'border-red-400' : 'border-gray-300'"
+                    placeholder="+1 555 555 5555"
+                  />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="text-sm text-gray-600">{{ t('checkout.country') }} <span class="text-red-500">*</span></label>
                   <select
                     v-model.number="selectedCountryId"
-                    class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    required
+                    class="mt-1 w-full rounded-lg border px-3 py-2"
+                    :class="markInvalid(selectedCountryId) ? 'border-red-400' : 'border-gray-300'"
                     :disabled="loadingProduct || countriesLoading || !!productError"
                   >
-                    <option value="">{{ countriesLoading ? 'Loading…' : 'Select a country' }}</option>
+                    <option value="">{{ countriesLoading ? t('common.loading') : t('checkout.selectCountry') }}</option>
                     <option v-for="c in countries" :key="c.id" :value="c.id">{{ nameOf(c) }}</option>
                   </select>
                   <p v-if="countriesError" class="text-xs text-red-600 mt-1">{{ countriesError }}</p>
                 </div>
+                <div>
+                  <label class="text-sm text-gray-600">{{ t('checkout.city') }} <span class="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    v-model="city"
+                    required
+                    class="mt-1 w-full rounded-lg border px-3 py-2"
+                    :class="markInvalid(city) ? 'border-red-400' : 'border-gray-300'"
+                    :placeholder="t('checkout.city')"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label class="text-sm text-gray-600">{{ t('checkout.street') }} <span class="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  v-model="streetAddress"
+                  required
+                  class="mt-1 w-full rounded-lg border px-3 py-2"
+                  :class="markInvalid(streetAddress) ? 'border-red-400' : 'border-gray-300'"
+                  :placeholder="t('checkout.address')"
+                />
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="sm:col-span-2">
+                  <label class="text-sm text-gray-600">{{ t('checkout.postalCode') }} <span class="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    v-model="postalCode"
+                    required
+                    class="mt-1 w-full rounded-lg border px-3 py-2"
+                    :class="markInvalid(postalCode) ? 'border-red-400' : 'border-gray-300'"
+                    :placeholder="t('checkout.postalCode')"
+                  />
+                </div>
 
                 <div>
-                  <label class="text-sm text-gray-600">Qty</label>
+                  <label class="text-sm text-gray-600">{{ t('product.quantity') }}</label>
                   <input type="number" min="1" v-model.number="qty" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" />
                 </div>
               </div>
 
+              <!-- Shipping methods -->
               <div class="mt-2">
                 <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm text-gray-600">Shipping Method</span>
-                  <button
-                    type="button"
-                    class="text-xs px-2 py-1 rounded border hover:bg-gray-50"
-                    :disabled="!product || !selectedCountryId || quoteLoading"
-                    @click="fetchBuyNowQuote"
-                  >
-                    {{ quote ? 'Recalculate' : 'Calculate' }}
-                  </button>
+                  <span class="text-sm text-gray-600">{{ t('checkout.shippingMethod') }}</span>
                 </div>
 
                 <div v-if="quoteLoading" class="h-20 rounded bg-gray-100 animate-pulse"></div>
                 <div v-else-if="productError" class="rounded border border-red-200 bg-red-50 p-3 text-red-700 text-sm">
                   {{ productError }}
-                </div>
-                <div v-else-if="!product" class="rounded border border-amber-200 bg-amber-50 p-3 text-amber-800 text-sm">
-                  Loading product…
                 </div>
                 <div v-else-if="quoteError" class="rounded border border-red-200 bg-red-50 p-3 text-red-700 text-sm">
                   {{ quoteError }}
@@ -262,17 +402,44 @@ onMounted(async () => {
                     <div class="text-xs text-gray-400" v-else>—</div>
                   </label>
                 </div>
+
+                <!-- When no country selected yet we still show 0.00 in the summary (right side);
+                     here we can keep the area empty or add a helper line if you later add a key -->
+              </div>
+
+              <!-- Payment methods (+ 3% note) -->
+              <div class="mt-4">
+                <div class="flex items-center justify-between">
+                  <div class="text-sm text-gray-600 mb-2">{{ t('checkout.paymentMethod') }}</div>
+                  <div class="text-xs text-gray-500">{{ t('checkout.paymentSurcharge') }}</div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <label class="rounded-xl border p-3 cursor-pointer text-center hover:shadow-sm flex flex-col items-center justify-center space-y-2"
+                         :class="paymentMethod==='card' ? 'ring-2 ring-orange-500' : ''">
+                    <input class="sr-only" type="radio" value="card" v-model="paymentMethod" />
+                    <span class="text-2xl">💳</span>
+                    <div class="font-medium text-sm">Card</div>
+                  </label>
+
+                  <label class="rounded-xl border p-3 cursor-pointer text-center hover:shadow-sm flex flex-col items-center justify-center space-y-2"
+                         :class="paymentMethod==='paypal' ? 'ring-2 ring-orange-500' : ''">
+                    <input class="sr-only" type="radio" value="paypal" v-model="paymentMethod" />
+                    <span class="text-2xl">🅿️</span>
+                    <div class="font-medium text-sm">PayPal</div>
+                  </label>
+
+                  <label class="rounded-xl border p-3 cursor-pointer text-center hover:shadow-sm flex flex-col items-center justify-center space-y-2"
+                         :class="paymentMethod==='transfer' ? 'ring-2 ring-orange-500' : ''">
+                    <input class="sr-only" type="radio" value="transfer" v-model="paymentMethod" />
+                    <span class="text-2xl">🏦</span>
+                    <div class="font-medium text-sm">{{ t('checkout.bankTransfer') }}</div>
+                  </label>
+                </div>
               </div>
 
               <div class="flex items-center justify-between pt-2">
-                <button type="button" class="text-sm text-gray-600 hover:underline" @click="history.back()">Back</button>
-                <button
-                  type="button"
-                  class="rounded-xl bg-orange-500 px-6 py-3 font-medium text-white shadow-sm hover:bg-orange-600 disabled:opacity-50"
-                  :disabled="!quote || !selectedShipping"
-                >
-                  Continue to Shipping
-                </button>
+                <button type="button" class="text-sm text-gray-600 hover:underline" @click="history.back()">{{ t('common.close') }}</button>
               </div>
             </div>
           </div>
@@ -280,9 +447,9 @@ onMounted(async () => {
       </section>
 
       <!-- RIGHT: Summary -->
-      <aside>
-        <div class="rounded-2xl border border-gray-200 bg-white shadow-sm p-6">
-          <h2 class="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
+      <aside class="lg:sticky lg:top-32 h-fit">
+        <div class="rounded-2xl border border-gray-200 bg-white shadow-sm p-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-auto">
+          <h2 class="text-lg font-semibold text-gray-900 mb-4">{{ t('cart.summary') }}</h2>
 
           <div v-if="loadingProduct" class="h-24 bg-gray-100 rounded animate-pulse"></div>
           <div v-else-if="productError" class="rounded border border-red-200 bg-red-50 p-3 text-red-700 text-sm">
@@ -294,18 +461,35 @@ onMounted(async () => {
               <img :src="imageSrc" :alt="product.title" class="h-16 w-16 rounded object-cover border" />
               <div class="flex-1">
                 <div class="text-sm font-medium text-gray-900 line-clamp-2">{{ product.title }}</div>
-                <div v-if="product.sku" class="text-xs text-gray-500">SKU: {{ product.sku }}</div>
-                <div class="mt-1 text-xs text-gray-500" v-if="serialFromQuery">Serial: {{ serialFromQuery }}</div>
-                <div class="mt-2 text-sm text-gray-600">Qty: {{ qty }}</div>
+                <div v-if="product.sku" class="text-xs text-gray-500">{{ t('cart.sku') }} {{ product.sku }}</div>
+                <div class="mt-2 text-sm text-gray-600">{{ t('product.quantity') }}: {{ qty }}</div>
               </div>
               <div class="text-sm font-semibold">{{ formatMoney(unitPrice) }}</div>
             </div>
 
             <div class="border-t border-gray-100 pt-3 space-y-1 text-sm">
-              <div class="flex justify-between"><span>Product Price</span><span>{{ formatMoney(unitPrice) }}</span></div>
-              <div class="flex justify-between"><span>Line</span><span>{{ formatMoney(lineTotal) }}</span></div>
-              <div class="flex justify-between text-gray-500"><span>Shipping</span><span>{{ quote ? formatMoney(quote.summary.shipping) : '—' }}</span></div>
-              <div class="flex justify-between font-semibold text-gray-900 pt-1"><span>Total</span><span>{{ quote ? formatMoney(quote.summary.total) : formatMoney(lineTotal) }}</span></div>
+              <div class="flex justify-between"><span>{{ t('cart.unit') }}</span><span>{{ formatMoney(unitPrice) }}</span></div>
+              <div class="flex justify-between"><span>{{ t('checkout.subtotal') }}</span><span>{{ formatMoney(lineTotal) }}</span></div>
+              <div class="flex justify-between text-gray-700">
+                <span>{{ t('checkout.shipping') }}</span><span>{{ formatMoney(displayedShipping) }}</span>
+              </div>
+              <div v-if="paymentFee > 0" class="flex justify-between text-gray-700">
+                <span>{{ t('checkout.paymentSurcharge') }}</span><span>{{ formatMoney(paymentFee) }}</span>
+              </div>
+              <div class="flex justify-between font-semibold text-gray-900 pt-1">
+                <span>{{ t('checkout.total') }}</span><span>{{ formatMoney(grandTotal) }}</span>
+              </div>
+            </div>
+
+            <div class="pt-2">
+              <button
+                type="button"
+                class="w-full block rounded-xl bg-emerald-600 py-3 font-medium text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="!canPlaceOrder"
+                @click="handlePlaceOrder"
+              >
+                {{ t('checkout.createOrder') }}
+              </button>
             </div>
           </div>
         </div>

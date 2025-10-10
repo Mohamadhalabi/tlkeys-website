@@ -2,8 +2,10 @@
 import { ref, watch, computed } from 'vue'
 import { useNuxtApp, useRuntimeConfig } from '#imports'
 
-definePageMeta({ layout: 'pincode_layout' })
-
+definePageMeta({
+  layout: 'pincode_layout',
+  analytics: false, // ⬅️ disable GA4 here
+})
 type VinResponse = {
   partno?: string | null
   requests_left?: number | null

@@ -169,13 +169,13 @@ export default defineNuxtConfig({
   //   quality: 70
   // },
 
-  routeRules: {
-    '/products/**': { headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
-    '/_nuxt/**':    { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    '/fonts/**':    { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    '/_ipx/**':     { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    '/images/**':   { headers: { 'cache-control': 'public, max-age=31536000, immutable' } }
-  },
+  // routeRules: {
+  //   '/products/**': { headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
+  //   '/_nuxt/**':    { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+  //   '/fonts/**':    { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+  //   '/_ipx/**':     { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+  //   '/images/**':   { headers: { 'cache-control': 'public, max-age=31536000, immutable' } }
+  // },
 
   nitro: {
     compressPublicAssets: true,

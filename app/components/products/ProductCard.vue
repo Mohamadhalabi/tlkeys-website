@@ -319,14 +319,13 @@ async function onAdd() {
 
         <NuxtLinkLocale
           :to="linkTo"
-          :aria-label="product.name"
           class="block mt-1 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-300"
         >
-          <h3
+          <span
             class="text-[13px] sm:text-[15px] font-semibold text-gray-900/90 group-hover:text-gray-900 leading-5 sm:leading-6 tracking-tight hyphens-auto break-words line-clamp-4 min-h-[3.75rem] transition-colors group-hover:underline underline-offset-2 decoration-slate-300"
           >
             {{ product.name }}
-          </h3>
+          </span>
         </NuxtLinkLocale>
       </div>
 

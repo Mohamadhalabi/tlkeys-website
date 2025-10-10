@@ -651,5 +651,39 @@
       "faq": "FAQ",
       "videos": "Videos",
       "contact": "Contact Us"
-    }
+    },
+  "buynow": {
+    "meta": {
+      "title": "Buy Now — Checkout",
+      "description": "Secure checkout for a single product. Enter your address, choose shipping, and pay by card, PayPal, or bank transfer."
+    },
+    "title": "Checkout",
+    "email": "Email",
+    "fullName": "Full Name",
+    "phone": "Phone",
+    "country": "Country",
+    "city": "City",
+    "street": "Street Address",
+    "postal": "Postal Code",
+    "qty": "Qty",
+    "shippingMethod": "Shipping Method",
+    "paymentMethod": "Payment Method",
+    "card": "Card",
+    "paypal": "PayPal",
+    "transfer": "Bank Transfer",
+    "feeNote": "3% fee applies to Card & PayPal.",
+    "orderSummary": "Order Summary",
+    "productPrice": "Product Price",
+    "line": "Line",
+    "shipping": "Shipping",
+    "paymentFee": "Payment Fee (3%)",
+    "total": "Total",
+    "sku": "SKU",
+    "serial": "Serial",
+    "validationEmail": "Please enter a valid email.",
+    "fillAll": "Please fill in all required fields.",
+    "placeOrder": "Place Order",
+    "back": "Back",
+    "loadingProduct": "Loading product…"
+  }
 }

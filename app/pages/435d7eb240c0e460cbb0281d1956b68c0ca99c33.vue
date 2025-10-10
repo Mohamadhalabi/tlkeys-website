@@ -3,8 +3,10 @@ import { ref, computed, watch } from 'vue'
 import { useNuxtApp, useRuntimeConfig, useHead } from '#imports'
 import { useI18n } from 'vue-i18n'
 
-definePageMeta({ layout: 'pincode_layout' })
-
+definePageMeta({
+  layout: 'pincode_layout',
+  analytics: false, // ⬅️ disable GA4 here
+})
 type ApiResponse = {
   error?: string
   message?: string
