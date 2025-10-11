@@ -256,7 +256,7 @@ const toAbs = (src?: string) => {
 }
 const ogImage = computed(() => toAbs(itemsForSlider.value?.[0]?.image))
 const metaTitle   = computed(() => t('home.meta.title') || `${siteName.value} — ${t('home.meta.suffix') || 'Auto Keys & Remotes'}`)
-const metaDesc    = computed(() => t('home.meta.description') || 'Shop car remotes, key programmers, cutters, cables, and more. Fast shipping and expert support.')
+const metaDesc    = computed(() => t('home.meta.description') || 'Shop car remotes, Xhorse, vvdi, autel, KEYDIY key programmers, cutters, cables, and more.')
 const metaKeywords= computed(() => t('home.meta.keywords') || 'car remotes, xhorse, keydiy, key programming, key cutting, locksmith tools')
 
 useSeoMeta({
@@ -364,7 +364,7 @@ useHead({
   />
 
   <!-- Featured -->
-  <section ref="featuredEl">
+  <section ref="featuredEl" data-nosnippet>
     <ProductCarousel
       v-if="featured.length"
       :title="t('home.featuredProducts') || 'FEATURED PRODUCTS'"
@@ -381,7 +381,7 @@ useHead({
   </section>
 
   <!-- New Arrivals -->
-  <section ref="newEl">
+  <section ref="newEl" data-nosnippet>
     <ProductCarousel
       v-if="newArrivals.length"
       :title="t('home.newArrivals') || 'NEW ARRIVALS'"
@@ -402,6 +402,7 @@ useHead({
 
   <!-- Brand sections -->
   <BrandSection
+    data-nosnippet
     :title="t('home.xhorseRemotes') || 'Xhorse remotes'"
     :category-id="29"
     left-image="/images/home/banners/xhorse-remotes.webp"
@@ -411,6 +412,7 @@ useHead({
     :per-row="4"
   />
   <BrandSection
+    data-nosnippet
     :title="t('home.lonsdorRemotes') || 'Lonsdor remotes'"
     :category-id="30"
     left-image="/images/home/banners/lonsdor-remotes.webp"
@@ -420,6 +422,7 @@ useHead({
     :per-row="4"
   />
   <BrandSection
+    data-nosnippet
     :title="t('home.keydiyRemotes') || 'Keydiy remotes'"
     :category-id="33"
     left-image="/images/home/banners/keydiy-remotes.webp"
@@ -429,7 +432,3 @@ useHead({
     :per-row="4"
   />
 </template>
-
-<style scoped>
-/* arrows are handled inside ProductCarousel */
-</style>

@@ -95,7 +95,7 @@ const visible = computed(() => (props.products || []).slice(0, limit.value))
           class="grid gap-3 sm:gap-4 md:gap-5 place-items-stretch custom-grid"
           :class="gridColsClass"
         >
-          <div v-for="product in visible" :key="product.id" class="h-full">
+          <div v-for="product in visible" :key="product.id" class="h-full" data-nosnippet>
             <ProductCard
               :product="product"
               :show-rewards="showRewards"
