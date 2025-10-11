@@ -78,6 +78,7 @@ useHead(() => {
   return { link: links }
 })
 
+
 /* ========== Accessibility label helpers ========== */
 function fileBaseFromSrc(src?: string): string {
   if (!src) return ''
@@ -234,18 +235,22 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
         </span>
       </div>
 
-      <!-- ✅ Now switches when thumbnails change -->
-      <img
+      <!-- AFTER -->
+      <NuxtImg
         :src="mainSrc"
         :alt="heroLabel"
         :title="heroLabel"
         :width="mainW"
         :height="mainH"
         :sizes="sizesAttrMain"
+        format="avif,webp,jpeg"
+        fit="inside"
+        quality="70"
         loading="eager"
-        fetchpriority="high"
+        :fetchpriority="'high'"
         class="h-full w-full select-none object-contain"
       />
+
 
       <div class="absolute left-3 top-3 flex flex-col gap-1">
         <span

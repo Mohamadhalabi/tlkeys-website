@@ -66,7 +66,9 @@ export default defineNuxtConfig({
     '@nuxtjs/tailwindcss',
     ['@nuxtjs/i18n', i18nOptions], // ← single source of truth
     '@nuxt/image',
-    '@pinia/nuxt'
+    '@pinia/nuxt',
+    'nuxt-delay-hydration',
+    'nuxt-vitalizer'
   ],
 
   css: [
@@ -161,21 +163,37 @@ export default defineNuxtConfig({
     }
   },
 
+  delayHydration: {
+    mode: 'mount'
+  },
+  vitalizer: {
+    disablePreloadLinks: true,
+    disableStylesheets: 'entry'
+  },
   site: { url: siteUrl },
 
-  // image: {
-  //   domains: ['www.tlkeys.com', 'dev-srv.tlkeys.com'],
-  //   format: ['avif', 'webp'],
-  //   quality: 70
-  // },
+  image: {                    // ✅ ENABLE THIS
+    domains: [
+      'www.tlkeys.com',
+      'dev-srv.tlkeys.com',
+      // add your CDN domain if any:
+      // 'cdn.tlkeys.com'
+    ],
+    format: ['avif', 'webp', 'jpeg'],
+    quality: 90,
+    presets: {
+      product: { modifiers: { quality: 80 } },
+      thumb:   { modifiers: { width: 80, height: 80, fit: 'inside', quality: 70 } }
+    }
+  },
 
-  // routeRules: {
-  //   '/products/**': { headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
-  //   '/_nuxt/**':    { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-  //   '/fonts/**':    { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-  //   '/_ipx/**':     { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-  //   '/images/**':   { headers: { 'cache-control': 'public, max-age=31536000, immutable' } }
-  // },
+  routeRules: {
+    // Serve product pages via ISR/SWR (10 minutes) and set browser cache too
+    '/products/**': { swr: 600, cache: { browser: true, maxAge: 600 } },
+    '/fonts/**':  { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    '/_ipx/**':   { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    '/images/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } }
+  },
 
   nitro: {
     compressPublicAssets: true,
@@ -186,7 +204,7 @@ export default defineNuxtConfig({
 
   vite: {
     optimizeDeps: { include: ['swiper', 'lodash-es'] },
-    build: { cssCodeSplit: false }
+    build: { cssCodeSplit: true }
   },
 
   compatibilityDate: '2025-09-22',
