@@ -4,37 +4,33 @@ import { fileURLToPath } from 'url'
 const siteUrl  = (process.env.SITE_URL || 'https://www.tlkeys.com').replace(/\/+$/, '')
 const siteName = 'tlkeys'
 const logoUrl  = `${siteUrl}/images/logo/techno-lock-desktop-logo.webp`
-const searchTarget = `${siteUrl}/shop?q={search_term_string}`
 
 const SAME_AS = [
-  process.env.SOCIAL_FACEBOOK,
-  process.env.SOCIAL_INSTAGRAM,
-  process.env.SOCIAL_YOUTUBE,
-  process.env.SOCIAL_TIKTOK
+  "https://www.facebook.com/technolockkeystrade",
+  "https://www.instagram.com/technolock",
+  "https://www.youtube.com/@technolock",
+  "https://www.tiktok.com/@technolockkeys"
 ].filter(Boolean)
 
-const ADDRESS =
-  process.env.BUSINESS_STREET ||
-  process.env.BUSINESS_LOCALITY ||
-  process.env.BUSINESS_REGION ||
-  process.env.BUSINESS_POSTCODE ||
-  process.env.BUSINESS_COUNTRY
-    ? {
-        '@type': 'PostalAddress',
-        streetAddress: process.env.BUSINESS_STREET,
-        addressLocality: process.env.BUSINESS_LOCALITY,
-        addressRegion: process.env.BUSINESS_REGION,
-        postalCode: process.env.BUSINESS_POSTCODE,
-        addressCountry: process.env.BUSINESS_COUNTRY || 'AE'
-      }
-    : undefined
 
-let OPENING_HOURS: any
-try {
-  OPENING_HOURS = process.env.OPENING_HOURS_JSON ? JSON.parse(process.env.OPENING_HOURS_JSON) : undefined
-} catch { OPENING_HOURS = undefined }
+const OPENING_HOURS = [
+  {
+    "@type": "OpeningHoursSpecification",
+    "dayOfWeek": [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday"
+    ],
+    "opens": "09:00",
+    "closes": "18:00"
+  },
+]
 
-// --- i18n (inline on module!) ---
+// --- i18n ---
 const i18nOptions = {
   locales: [
     { code: 'en', iso: 'en-US', dir: 'ltr', file: 'en.json', name: 'English' },
@@ -50,9 +46,7 @@ const i18nOptions = {
   baseUrl: siteUrl,
   seo: true,
   lazy: true,
-  // Must be RELATIVE to srcDir ("app")
   langDir: 'locales',
-  // Minimal file (don’t import messages here when using lazy+langDir)
   vueI18n: 'i18n.config.ts'
 }
 
@@ -64,27 +58,35 @@ export default defineNuxtConfig({
 
   modules: [
     '@nuxtjs/tailwindcss',
-    ['@nuxtjs/i18n', i18nOptions], // ← single source of truth
+    ['@nuxtjs/i18n', i18nOptions],
     '@nuxt/image',
     '@pinia/nuxt',
     'nuxt-delay-hydration',
     'nuxt-vitalizer'
   ],
 
+  /**
+   * 🔧 BIG win: shrink entry.css
+   * Keep only your absolute base file(s) globally.
+   * Move the others to layout/component-level (see tweaks below).
+   */
   css: [
     fileURLToPath(new URL('./app/assets/css/main.css', import.meta.url)),
-    fileURLToPath(new URL('./app/assets/css/common.css', import.meta.url)),
-    fileURLToPath(new URL('./app/assets/css/layout-default.css', import.meta.url)),
-    fileURLToPath(new URL('./app/assets/css/layout-header.css', import.meta.url))
+    // ⛔ moved to layout: common.css, layout-default.css, layout-header.css
   ],
 
   app: {
     head: {
       link: [
+        // Preconnects that really help
         { rel: 'preconnect', href: 'https://www.google-analytics.com', crossorigin: 'anonymous' },
-        { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
-        { rel: 'dns-prefetch', href: '//fonts.gstatic.com' },
         { rel: 'preconnect', href: 'https://dev-srv.tlkeys.com', crossorigin: 'anonymous' },
+
+        // ✅ Preload fonts so they don’t block layout later
+        { rel: 'preload', as: 'font', type: 'font/woff2', href: '/fonts/proximanova_regular.woff2', crossorigin: 'anonymous' },
+        { rel: 'preload', as: 'font', type: 'font/woff2', href: '/fonts/proximanova_bold.woff2', crossorigin: 'anonymous' },
+
+        // Favicons
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
         { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/icons/favicon-32x32.png' },
         { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/icons/favicon-16x16.png' },
@@ -146,9 +148,9 @@ export default defineNuxtConfig({
             priceRange: '$$',
             currenciesAccepted: 'USD, EUR, TRY, AED, GBP',
             areaServed: 'Worldwide',
-            telephone: process.env.BUSINESS_PHONE || undefined,
-            email: process.env.BUSINESS_EMAIL || undefined,
-            address: ADDRESS,
+            telephone: "+971504429045",
+            email: "info@tlkeys.com",
+            address: "Sharjah – Industrial No. 5, behind Maliha Road Shop No. 8, Property of Ali Nasir Mohamed Suleiman United Arab Emirates",
             openingHoursSpecification: OPENING_HOURS,
             sameAs: SAME_AS.length ? SAME_AS : undefined
           })
@@ -156,6 +158,7 @@ export default defineNuxtConfig({
       ],
       noscript: [
         {
+          // keep if you need GTM noscript. If you’re optimizing FCP, you can remove it.
           innerHTML:
             `<iframe src="https://www.googletagmanager.com/ns.html?id=${process.env.NUXT_PUBLIC_GTM_ID || 'GTM-XXXXXXX'}" height="0" width="0" style="display:none;visibility:hidden"></iframe>`
         }
@@ -163,48 +166,66 @@ export default defineNuxtConfig({
     }
   },
 
+  /**
+   * Delay hydration as you already do, keeps JS from blocking LCP.
+   */
   delayHydration: {
     mode: 'mount'
   },
-  vitalizer: {
-    disablePreloadLinks: true,
-    disableStylesheets: 'entry'
-  },
+
+  /**
+   * Vitalizer can defer offscreen islands/images.
+   * (Defaults are fine; heavy above-the-fold components shouldn’t be wrapped.)
+   */
+  vitalizer: { /* defaults */ },
+
   site: { url: siteUrl },
 
-  image: {                    // ✅ ENABLE THIS
-    domains: [
-      'www.tlkeys.com',
-      'dev-srv.tlkeys.com',
-      // add your CDN domain if any:
-      // 'cdn.tlkeys.com'
-    ],
+  /**
+   * Images: ensure right formats and let IPX resize down huge sources.
+   */
+  image: {
+    domains: ['www.tlkeys.com', 'dev-srv.tlkeys.com'],
     format: ['avif', 'webp', 'jpeg'],
-    quality: 90,
+    quality: 85, // a notch lower
     presets: {
-      product: { modifiers: { quality: 80 } },
-      thumb:   { modifiers: { width: 80, height: 80, fit: 'inside', quality: 70 } }
+      // ✅ add a tiny logo preset so the 800×267 source isn’t shipped
+      logo:   { modifiers: { width: 76, height: 26, fit: 'inside', quality: 70 } },
+      product:{ modifiers: { width: 400, height: 400, fit: 'cover', quality: 80 } },
+      thumb:  { modifiers: { width: 80, height: 80, fit: 'inside', quality: 70 } }
     }
   },
 
+  /**
+   * Cache & ISR: make /_nuxt immutable and keep product pages fresh without blocking FCP.
+   */
   routeRules: {
-    // Serve product pages via ISR/SWR (10 minutes) and set browser cache too
-    '/products/**': { swr: 600, cache: { browser: true, maxAge: 600 } },
-    '/fonts/**':  { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    '/_ipx/**':   { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    '/images/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } }
+    '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    '/_ipx/**':  { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    '/images/**':{ headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+
+    // Product pages: short SWR to keep them fast but up-to-date
+    '/products/**': { swr: 600, cache: { browser: true, maxAge: 600 } }
   },
 
+  /**
+   * Compression of static assets is on (Brotli/Gzip). For HTML, enable Brotli on Nginx/Cloudflare.
+   */
   nitro: {
     compressPublicAssets: true,
     prerender: { crawlLinks: false, routes: [] }
   },
 
-  experimental: { payloadExtraction: false },
+  experimental: {
+    inlineSSRStyles: true,   // ✅ inline critical CSS to cut render-blocking
+    renderJsonPayloads: true
+  },
 
   vite: {
     optimizeDeps: { include: ['swiper', 'lodash-es'] },
-    build: { cssCodeSplit: true }
+    build: {
+      cssCodeSplit: true      // ✅ keep component CSS split
+    }
   },
 
   compatibilityDate: '2025-09-22',
