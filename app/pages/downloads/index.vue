@@ -197,7 +197,6 @@ useHead(() => ({
           alt=""
           class="w-full aspect-[4/3] object-contain bg-white
                  transition-transform duration-300 ease-out group-hover:scale-[1.03]"
-          sizes="(min-width:1280px) 25vw, (min-width:768px) 33vw, 100vw"
           format="webp"
           loading="lazy"
         />

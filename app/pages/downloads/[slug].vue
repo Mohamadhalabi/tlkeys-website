@@ -207,7 +207,6 @@ useHead(() => ({
                 :src="imgUrl(item.internal_image) || imgUrl(item.image)"
                 :alt="item.title"
                 class="max-h-full max-w-full object-contain"
-                sizes="(min-width:1024px) 25vw, 60vw"
                 format="webp"
                 loading="lazy"
               />
