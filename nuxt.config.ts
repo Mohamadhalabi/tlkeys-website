@@ -184,17 +184,17 @@ export default defineNuxtConfig({
   /**
    * Images: ensure right formats and let IPX resize down huge sources.
    */
-  image: {
-    domains: ['www.tlkeys.com', 'dev-srv.tlkeys.com'],
-    format: ['avif', 'webp', 'jpeg'],
-    quality: 85, // a notch lower
-    presets: {
-      // ✅ add a tiny logo preset so the 800×267 source isn’t shipped
-      logo:   { modifiers: { width: 76, height: 26, fit: 'inside', quality: 70 } },
-      product:{ modifiers: { width: 400, height: 400, fit: 'cover', quality: 80 } },
-      thumb:  { modifiers: { width: 80, height: 80, fit: 'inside', quality: 70 } }
-    }
-  },
+  // image: {
+  //   domains: ['www.tlkeys.com', 'dev-srv.tlkeys.com'],
+  //   format: ['avif', 'webp', 'jpeg'],
+  //   quality: 85, // a notch lower
+  //   presets: {
+  //     // ✅ add a tiny logo preset so the 800×267 source isn’t shipped
+  //     logo:   { modifiers: { width: 10, height: 26, quality: 70 } },
+  //     product:{ modifiers: { width: 400, height: 400, fit: 'cover', quality: 80 } },
+  //     thumb:  { modifiers: { width: 80, height: 80, fit: 'inside', quality: 70 } }
+  //   }
+  // },
 
   /**
    * Cache & ISR: make /_nuxt immutable and keep product pages fresh without blocking FCP.

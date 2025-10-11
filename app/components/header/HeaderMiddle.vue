@@ -3,7 +3,7 @@
     <div class="mx-auto px-6 max-w-screen-xl flex items-center justify-between gap-6 relative">
       <!-- Logo -->
       <NuxtLinkLocale to="/" class="website-logo flex items-center justify-center">
-        <NuxtImg src="/images/logo/techno-lock-desktop-logo.webp" alt="Logo" class="h-full object-contain" />
+        <NuxtImg width="230" src="/images/logo/techno-lock-desktop-logo.webp" alt="Logo" class="h-full object-contain" />
       </NuxtLinkLocale>
 
       <!-- Search + Suggestions -->
