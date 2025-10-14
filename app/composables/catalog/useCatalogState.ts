@@ -58,7 +58,7 @@ export function useCatalogState(initialFilters?: InitialFilters) {
       models:        qy.models ? parseCsv(qy.models) : (initialFilters?.models ?? []),
       attributes:    parseAttributesParam(qy.attributes),
       q:    (qy.q as string) || (qy.search as string) || '',
-      sort: (qy.sort as string) || 'newest',
+      sort: (qy.sort as string) || 'price_desc',
       page: Number(qy.page || 1),
       perPage: parsePerPage(qy.per_page || (qy as any).page_size),
     }
@@ -78,7 +78,7 @@ export function useCatalogState(initialFilters?: InitialFilters) {
     models: [] as string[],
     attributes: {} as AttrMap,
     q: '',
-    sort: 'newest',
+    sort: 'price_desc',
     page: 1,
     perPage: 25 as number | 'all'
   })
