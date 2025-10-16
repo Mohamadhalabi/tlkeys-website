@@ -53,6 +53,7 @@ export default defineNuxtConfig({
   ssr: true,
   srcDir: 'app',
   pages: true,
+  middleware: ['shop-redirect'],
 
   modules: [
     '@nuxtjs/tailwindcss',
