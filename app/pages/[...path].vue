@@ -1,12 +1,18 @@
+<!-- pages/[...path].vue -->
 <script setup lang="ts">
 import { setHeader, setResponseStatus } from 'h3'
 
+const route = useRoute()
+
 // Only for server requests (SSR)
 if (process.server) {
-  const event = useRequestEvent()
-  if (event) {
-    setResponseStatus(event, 410, 'Gone')
-    setHeader(event, 'x-robots-tag', 'noindex, nofollow')
+  // ❗ Skip 410 for /shop, /shop/, and /shop/*
+  if (!route.path.startsWith('/shop')) {
+    const event = useRequestEvent()
+    if (event) {
+      setResponseStatus(event, 410, 'Gone')
+      setHeader(event, 'x-robots-tag', 'noindex, nofollow')
+    }
   }
 }
 
@@ -19,6 +25,7 @@ useSeoMeta({
   ogType: 'website'
 })
 </script>
+
 
 <template>
   <main class="min-h-[70vh] grid place-items-center px-6 py-16">
