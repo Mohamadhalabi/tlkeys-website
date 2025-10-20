@@ -34,7 +34,8 @@ const i18nOptions = {
     { code: 'es', iso: 'es-ES', dir: 'ltr', file: 'es.json', name: 'Español' },
     { code: 'fr', iso: 'fr-FR', dir: 'ltr', file: 'fr.json', name: 'Français' },
     { code: 'ru', iso: 'ru-RU', dir: 'ltr', file: 'ru.json', name: 'Русский' },
-    { code: 'de', iso: 'de-DE', dir: 'ltr', file: 'de.json', name: 'Deutsch' }
+    { code: 'de', iso: 'de-DE', dir: 'ltr', file: 'de.json', name: 'Deutsch' },
+    { code: 'tr', iso: 'tr-TR', dir: 'ltr', file: 'tr.json', name: 'Turkish'}
   ],
   defaultLocale: 'en',
   strategy: 'prefix_except_default',

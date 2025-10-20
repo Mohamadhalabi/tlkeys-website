@@ -16,7 +16,7 @@ export default defineNuxtPlugin(() => {
     ? (useRequestHeaders(['cookie', 'authorization', 'accept-language']) as Record<string, string>)
     : {}
 
-  const supported = ['en', 'ar', 'es', 'fr', 'ru', 'de'] as const
+  const supported = ['en', 'ar', 'es', 'fr', 'ru', 'de','tr'] as const
   type Supported = (typeof supported)[number]
   const DEFAULT_LOCALE: Supported = 'en'
 

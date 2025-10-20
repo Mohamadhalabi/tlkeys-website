@@ -109,16 +109,17 @@ import { useSwitchLocalePath } from '#i18n'
 import { useCurrency, type CurrencyCode } from '~/composables/useCurrency'
 
 /** Locales we support */
-type LocaleCode = 'en' | 'ar' | 'es' | 'fr' | 'ru' | 'de'
-type CountryCode = 'US' | 'SA' | 'ES' | 'FR' | 'RU' | 'DE'
+type LocaleCode = 'en' | 'ar' | 'es' | 'fr' | 'ru' | 'de' | 'tr'
+type CountryCode = 'US' | 'SA' | 'ES' | 'FR' | 'RU' | 'DE' | 'TR'
 
-const languages: Array<{ code: LocaleCode; label: string; country: CountryCode; dir: 'ltr'|'rtl' }> = [
-  { code: 'en', label: 'English',  country: 'US', dir: 'ltr' },
-  { code: 'ar', label: 'العربية',  country: 'SA', dir: 'rtl' },
-  { code: 'es', label: 'Español',  country: 'ES', dir: 'ltr' },
+const languages: Array<{ code: LocaleCode; label: string; country: CountryCode; dir: 'ltr' | 'rtl' }> = [
+  { code: 'en', label: 'English', country: 'US', dir: 'ltr' },
+  { code: 'ar', label: 'العربية', country: 'SA', dir: 'rtl' },
+  { code: 'es', label: 'Español', country: 'ES', dir: 'ltr' },
   { code: 'fr', label: 'Français', country: 'FR', dir: 'ltr' },
-  { code: 'ru', label: 'Русский',  country: 'RU', dir: 'ltr' },
-  { code: 'de', label: 'Deutsch',  country: 'DE', dir: 'ltr' },
+  { code: 'ru', label: 'Русский', country: 'RU', dir: 'ltr' },
+  { code: 'de', label: 'Deutsch', country: 'DE', dir: 'ltr' },
+  { code: 'tr', label: 'Türkçe', country: 'TR', dir: 'ltr' } // ✅ Added Turkish
 ]
 
 /** i18n */
@@ -137,7 +138,9 @@ const onCurrencyChange = () => {
 /** Language dropdown state */
 const openLang = ref(false)
 const langMenuRef = ref<HTMLElement | null>(null)
-const currentLang = computed(() => languages.find(l => l.code === (locale.value as LocaleCode)) ?? languages[0])
+const currentLang = computed(
+  () => languages.find((l) => l.code === (locale.value as LocaleCode)) ?? languages[0]
+)
 
 // Close the dropdown when clicking outside
 const onDocClick = (e: MouseEvent) => {
@@ -155,13 +158,10 @@ async function switchLang(code: LocaleCode) {
   const path = switchLocalePath(code)
   if (!path) return
   openLang.value = false
-  // Navigate to the same route but with the new locale prefix (e.g., /ar/...)
   await navigateTo(path, { replace: true })
-  // Optional: refresh data after switching language without a hard reload
   await refreshNuxtData()
-  // Update page direction for RTL languages
   if (process.client) {
-    document.documentElement.setAttribute('dir', languages.find(l => l.code === code)?.dir ?? 'ltr')
+    document.documentElement.setAttribute('dir', languages.find((l) => l.code === code)?.dir ?? 'ltr')
   }
 }
 
@@ -186,75 +186,40 @@ onMounted(() => {
   selectedCurrency.value = currency.value
   currentMessage.value = String(t(keys[idx]))
   timer = setInterval(cycleOnce, 4000)
-  // Set initial dir
   if (process.client) {
     document.documentElement.setAttribute('dir', currentLang.value.dir)
   }
 })
 
-onBeforeUnmount(() => { if (timer) clearInterval(timer) })
+onBeforeUnmount(() => {
+  if (timer) clearInterval(timer)
+})
 
-/** React to locale changes and keep the UI in sync */
 watch(() => locale.value, () => {
   currentMessage.value = String(t(keys[idx]))
 })
 
-/** Tiny inline flag SVGs (square flags, simple but crisp). Replace with your own if you prefer. */
+/** Tiny inline flag SVGs */
 function flagSvg(country: CountryCode) {
   switch (country) {
-    /* US */
     case 'US':
-      return `
-        <svg width="18" height="12" viewBox="0 0 36 24" aria-hidden="true">
-          <rect width="36" height="24" fill="#b22234"/>
-          <g fill="#fff">
-            <rect y="3" width="36" height="3"/>
-            <rect y="9" width="36" height="3"/>
-            <rect y="15" width="36" height="3"/>
-            <rect y="21" width="36" height="3"/>
-          </g>
-          <rect width="16" height="12" fill="#3c3b6e"/>
-        </svg>`
-    /* Saudi Arabia (green) – simplified */
+      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="24" fill="#b22234"/><g fill="#fff"><rect y="3" width="36" height="3"/><rect y="9" width="36" height="3"/><rect y="15" width="36" height="3"/><rect y="21" width="36" height="3"/></g><rect width="16" height="12" fill="#3c3b6e"/></svg>`
     case 'SA':
-      return `
-        <svg width="18" height="12" viewBox="0 0 36 24" aria-hidden="true">
-          <rect width="36" height="24" fill="#007a3d"/>
-        </svg>`
-    /* Spain */
+      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="24" fill="#007a3d"/></svg>`
     case 'ES':
-      return `
-        <svg width="18" height="12" viewBox="0 0 36 24" aria-hidden="true">
-          <rect width="36" height="24" fill="#aa151b"/>
-          <rect y="6" width="36" height="12" fill="#f1bf00"/>
-        </svg>`
-    /* France */
+      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="24" fill="#aa151b"/><rect y="6" width="36" height="12" fill="#f1bf00"/></svg>`
     case 'FR':
-      return `
-        <svg width="18" height="12" viewBox="0 0 36 24" aria-hidden="true">
-          <rect width="12" height="24" fill="#0055a4"/>
-          <rect x="12" width="12" height="24" fill="#fff"/>
-          <rect x="24" width="12" height="24" fill="#ef4135"/>
-        </svg>`
-    /* Russia */
+      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="12" height="24" fill="#0055a4"/><rect x="12" width="12" height="24" fill="#fff"/><rect x="24" width="12" height="24" fill="#ef4135"/></svg>`
     case 'RU':
-      return `
-        <svg width="18" height="12" viewBox="0 0 36 24" aria-hidden="true">
-          <rect width="36" height="8" fill="#fff"/>
-          <rect y="8" width="36" height="8" fill="#0039a6"/>
-          <rect y="16" width="36" height="8" fill="#d52b1e"/>
-        </svg>`
-    /* Germany */
+      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="8" fill="#fff"/><rect y="8" width="36" height="8" fill="#0039a6"/><rect y="16" width="36" height="8" fill="#d52b1e"/></svg>`
     case 'DE':
-      return `
-        <svg width="18" height="12" viewBox="0 0 36 24" aria-hidden="true">
-          <rect width="36" height="8" fill="#000"/>
-          <rect y="8" width="36" height="8" fill="#dd0000"/>
-          <rect y="16" width="36" height="8" fill="#ffce00"/>
-        </svg>`
+      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="8" fill="#000"/><rect y="8" width="36" height="8" fill="#dd0000"/><rect y="16" width="36" height="8" fill="#ffce00"/></svg>`
+    case 'TR':
+      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="24" fill="#e30a17"/><circle cx="13" cy="12" r="5" fill="#fff"/><circle cx="14.5" cy="12" r="3.2" fill="#e30a17"/><polygon fill="#fff" points="18,12 21.5,13.8 20.2,10.2 22.5,8 19,8 18,4.5 17,8 13.5,8 15.8,10.2 14.5,13.8"/></svg>`
   }
 }
 </script>
+
 
 <style>
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
