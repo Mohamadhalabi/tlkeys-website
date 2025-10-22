@@ -185,7 +185,10 @@
     "payCard": "الدفع بالبطاقة",
     "bankTransfer": "تحويل بنكي",
     "pickup": "الاستلام",
-    "localShipping": "شحن محلي"
+    "localShipping": "شحن محلي",
+    "itemNotAvailableForCountry": "العنصر غير متاح لهذا البلد",
+    "shippingBlocked": "الشحن محظور"
+
   },
   "edit": "تعديل",
   "delete": "حذف",

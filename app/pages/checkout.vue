@@ -17,6 +17,8 @@ type QuoteProduct = {
   weight: number
   image?: string | null
   is_machine?: boolean
+  /** NEW: backend flag per product */
+  blocked_in_selected_country?: boolean
 }
 type Address = {
   id: number
@@ -31,7 +33,7 @@ type Address = {
   postal_code?: string | null
 }
 type ShippingKey = 'pick_up'|'domestic'|'dhl'|'fedex'|'aramex'|'ups'
-type ShippingOption = { key: ShippingKey; label: string; price: number; disabled?: boolean }
+type ShippingOption = { key: ShippingKey; label: string; price: number; disabled?: boolean; note?: string }
 type CouponResult = {
   code: string
   applied: boolean
@@ -44,6 +46,15 @@ type Promotions = {
   selected: 'free_ship'|'ten_off'|'none'
   savings: { free_ship: number; ten_off: number }
   notes: { free_ship: string; ten_off: string }
+}
+/** NEW: checkout_block payload from backend */
+type CheckoutBlock = {
+  is_blocked: boolean
+  country_id?: number | null
+  country_name?: string | null
+  message?: string | null
+  action_hint?: string | null
+  violations?: Array<{ product_id: number; sku: string; title: string }>
 }
 type Quote = {
   products: QuoteProduct[]
@@ -62,6 +73,8 @@ type Quote = {
   weights: { total_weight_kg:number; machine_weight_kg?:number; zone_id:number|null }
   promotions?: Promotions
   coupon?: CouponResult | null
+  /** NEW */
+  checkout_block?: CheckoutBlock | null
 }
 type Country = {
   id: number
@@ -133,9 +146,6 @@ const selectedShipping = ref<ShippingKey | null>(null)
 
 const paymentMethod = ref<'card'|'paypal'|'transfer' | null>(null)
 const acceptTerms = ref(false)
-
-const shippingDisabled = computed(() => !selectedAddressId.value)
-const paymentDisabled = computed(() => !selectedShipping.value)
 
 const surchargePct = computed(() => (paymentMethod.value === 'card' || paymentMethod.value === 'paypal') ? 3 : 0)
 const totalWithSurcharge = computed(() => {
@@ -272,21 +282,31 @@ async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAle
   }
 }
 
-/** Click handlers for coupon */
-async function applyCoupon() {
-  const code = (couponInput.value || '').trim()
-  if (!code) return
-  await fetchQuote({ couponOverride: code, showCouponAlert: true })
-  if (quote.value?.coupon?.applied) {
-    appliedCouponCode.value = code
-  }
-}
-async function removeCoupon() {
-  appliedCouponCode.value = null
-  lastShownCouponKey.value = null
-  await fetchQuote()
-  alerts.showAlert({ type: 'info', title: (t('checkout.couponRemoved') || 'Coupon removed') as string })
-}
+/* ---------------- Blocked-country helpers ---------------- */
+/** Is checkout blocked? */
+const isCheckoutBlocked = computed<boolean>(() => !!quote.value?.checkout_block?.is_blocked)
+/** Country name for message */
+const blockedCountryName = computed<string>(() =>
+  (quote.value?.checkout_block?.country_name || selectedAddress.value?.country_name || '') as string
+)
+/** SKU list for message */
+const blockedSkus = computed<string[]>(() => {
+  const viaPayload = quote.value?.checkout_block?.violations?.map(v => v.sku).filter(Boolean) ?? []
+  // fallback: derive from products list
+  if (viaPayload.length) return viaPayload as string[]
+  return (quote.value?.products || [])
+    .filter(p => p.blocked_in_selected_country)
+    .map(p => String(p.sku || ''))
+    .filter(Boolean)
+})
+/** Convenience: list of blocked product_ids to mark in UI */
+const blockedProductIds = computed<Set<number | string>>(() => {
+  const set = new Set<number | string>()
+  ;(quote.value?.products || []).forEach(p => {
+    if (p.blocked_in_selected_country) set.add(p.product_id)
+  })
+  return set
+})
 
 /* ---------------- Save/Delete address ---------------- */
 async function saveAddress() {
@@ -336,6 +356,16 @@ async function deleteAddress(a: Address) {
 
 /* ---------------- Order creation ---------------- */
 async function createOrder() {
+  if (isCheckoutBlocked.value) {
+    alerts.showAlert({
+      type: 'error',
+      title: t('checkout.blockedTitle') || 'Cannot place order',
+      message: (quote.value?.checkout_block?.message
+                || t('checkout.blockedMessageGeneric')
+                || 'Some items cannot be shipped to this country. Please remove them or change the shipping country.') as string
+    })
+    return
+  }
   if (!selectedAddressId.value) return alerts.showAlert({ type:'error', title: t('checkout.selectAddressFirst') || 'Please select an address' })
   if (!selectedShipping.value)  return alerts.showAlert({ type:'error', title: t('checkout.selectShippingFirst') || 'Please choose a shipping method' })
   if (!paymentMethod.value)     return alerts.showAlert({ type:'error', title: t('checkout.selectPaymentFirst') || 'Please select a payment method' })
@@ -355,7 +385,7 @@ async function createOrder() {
     shipping_method: selectedShipping.value,
     payment_method:  paymentMap[paymentMethod.value],
     coupon_code:     appliedCouponCode.value || null,
-    promo:           selectedPromo.value, // <-- store the chosen promo with the order if backend supports it
+    promo:           selectedPromo.value,
   }
 
   try {
@@ -479,6 +509,31 @@ watch(selectedShipping, async () => {
       </ol>
     </nav>
 
+    <!-- NEW: Blocked-country banner -->
+    <div
+      v-if="isCheckoutBlocked"
+      class="mb-4 rounded-2xl border border-rose-200 bg-rose-50 text-rose-900 p-4"
+      role="alert"
+    >
+      <div class="flex items-start gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mt-0.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M11.001 10h2v5h-2z"/><path d="M12 17a1.25 1.25 0 110 2.5A1.25 1.25 0 0112 17z"/><path d="M10.29 3.86l-8 14A1 1 0 003 19h18a1 1 0 00.87-1.5l-8-14a1 1 0 00-1.74 0z"/>
+        </svg>
+        <div>
+          <p class="font-semibold">
+            {{ quote?.checkout_block?.message || `Some items cannot be shipped to ${blockedCountryName}.` }}
+          </p>
+          <p v-if="blockedSkus.length" class="mt-1 text-sm">
+            {{ $t('checkout.blockedSkus') || 'Blocked SKUs for this country' }}:
+            <span class="font-mono">{{ blockedSkus.join(', ') }}</span>
+          </p>
+          <p class="mt-1 text-xs text-rose-700">
+            {{ quote?.checkout_block?.action_hint || ($t('checkout.blockedActionHint') || 'Remove restricted items or change the shipping country to proceed.') }}
+          </p>
+        </div>
+      </div>
+    </div>
+
     <div v-if="(quote?.products?.length ?? 0) > 0" class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:sticky">
       <!-- LEFT: Steps -->
       <section class="lg:col-span-8 space-y-6">
@@ -578,7 +633,7 @@ watch(selectedShipping, async () => {
 
         <!-- Step Note: Address -->
         <div
-          v-if="stepNote && stepNote.where === 'address'"
+          v-if="!selectedAddressId"
           class="rounded-2xl border p-4 bg-amber-50/70 text-amber-900 shadow-sm"
           role="status"
         >
@@ -586,7 +641,7 @@ watch(selectedShipping, async () => {
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mt-0.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm.75 5a.75.75 0 10-1.5 0v6a.75.75 0 00.75.75H16a.75.75 0 000-1.5h-3.25V7z"/>
             </svg>
-            <p class="text-sm font-medium">{{ stepNote.text }}</p>
+            <p class="text-sm font-medium">{{ $t('checkout.stepAddress') || 'Please first select / add address' }}</p>
           </div>
         </div>
 
@@ -635,7 +690,7 @@ watch(selectedShipping, async () => {
         </div>
 
         <!-- Step 2: Shipping -->
-        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="(shippingDisabled || creatingOrder) ? 'opacity-50 pointer-events-none' : ''">
+        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="(!selectedAddressId || creatingOrder) ? 'opacity-50 pointer-events-none' : ''">
           <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M2 6a2 2 0 012-2h10a2 2 0 012 2v8h-1.18a3 3 0 10-5.64 0H8.82a3 3 0 10-5.64 0H2V6z"/>
@@ -644,18 +699,13 @@ watch(selectedShipping, async () => {
             {{ $t('checkout.shippingMethod') }}
           </h3>
 
-          <!-- Step Note: Shipping -->
+          <!-- Shipping blocked note -->
           <div
-            v-if="stepNote && stepNote.where === 'shipping'"
-            class="mb-3 rounded-2xl border p-3 bg-amber-50/70 text-amber-900 shadow-sm"
+            v-if="isCheckoutBlocked"
+            class="mb-3 rounded-2xl border p-3 bg-rose-50/80 text-rose-900 shadow-sm text-sm"
             role="status"
           >
-            <div class="flex items-start gap-3">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mt-0.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm.75 5a.75.75 0 10-1.5 0v6a.75.75 0 00.75.75H16a.75.75 0 000-1.5h-3.25V7z"/>
-              </svg>
-              <p class="text-sm font-medium">{{ stepNote.text }}</p>
-            </div>
+            {{ $t('checkout.shippingBlocked') || 'Shipping options are disabled due to product/country restriction.' }}
           </div>
 
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -663,9 +713,9 @@ watch(selectedShipping, async () => {
               v-for="opt in shippingOptions"
               :key="opt.key"
               class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
-              :class="selectedShipping === opt.key ? 'ring-2 ring-emerald-500' : ''"
+              :class="[selectedShipping === opt.key ? 'ring-2 ring-emerald-500' : '', (opt.disabled || isCheckoutBlocked) ? 'opacity-50 pointer-events-none' : '']"
             >
-              <input type="radio" class="sr-only" :value="opt.key" v-model="selectedShipping" :disabled="opt.disabled" />
+              <input type="radio" class="sr-only" :value="opt.key" v-model="selectedShipping" :disabled="opt.disabled || isCheckoutBlocked" />
               <div class="flex items-center justify-center gap-2">
                 <span v-if="opt.key==='pick_up'" class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
                   {{ $t('checkout.pickup') || 'Pickup' }}
@@ -678,14 +728,17 @@ watch(selectedShipping, async () => {
                 <span v-else-if="opt.key==='aramex'" class="inline-flex items-center rounded px-1.5 py-0.5 text-md font-bold bg-red-100 text-red-700 border border-red-200">ARAMEX</span>
                 <span v-else class="inline-flex items-center rounded px-1.5 py-0.5 text-md font-bold bg-amber-100 text-amber-700 border border-amber-200">UPS</span>
               </div>
-              <div class="text-md font-bold mt-3" v-if="!opt.disabled">{{ money(opt.price) }}$</div>
+              <div class="text-md font-bold mt-3" v-if="!opt.disabled && !isCheckoutBlocked">{{ money(opt.price) }}$</div>
               <div class="text-xs text-gray-400" v-else>—</div>
+              <div v-if="opt.note && (opt.disabled || isCheckoutBlocked)" class="mt-1 text-[11px] text-gray-500">
+                {{ opt.note }}
+              </div>
             </label>
           </div>
         </div>
 
         <!-- Step 3: Payment -->
-        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="(paymentDisabled || creatingOrder) ? 'opacity-50 pointer-events-none' : ''">
+        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="((!selectedShipping && !isCheckoutBlocked) ? 'opacity-50 pointer-events-none' : '') + (creatingOrder ? ' opacity-50 pointer-events-none' : '')">
           <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M2 6a2 2 0 012-2h16a2 2 0 012 2v2H2V6z"/>
@@ -694,24 +747,10 @@ watch(selectedShipping, async () => {
             {{ $t('checkout.paymentMethod') }}
           </h3>
 
-          <!-- Step Note: Payment -->
-          <div
-            v-if="stepNote && stepNote.where === 'payment'"
-            class="mb-3 rounded-2xl border p-3 bg-amber-50/70 text-amber-900 shadow-sm"
-            role="status"
-          >
-            <div class="flex items-start gap-3">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mt-0.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm.75 5a.75.75 0 10-1.5 0v6a.75.75 0 00.75.75H16a.75.75 0 000-1.5h-3.25V7z"/>
-              </svg>
-              <p class="text-sm font-medium">{{ stepNote.text }}</p>
-            </div>
-          </div>
-
           <div class="grid sm:grid-cols-3 gap-3">
             <label class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
                    :class="paymentMethod === 'card' ? 'ring-2 ring-emerald-500' : ''">
-              <input class="sr-only" type="radio" value="card" v-model="paymentMethod" />
+              <input class="sr-only" type="radio" value="card" v-model="paymentMethod" :disabled="isCheckoutBlocked" />
               <div class="flex items-center justify-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6a2 2 0 012-2h14a2 2 0 012 2v2H3V6z"/><path d="M3 10h18v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8zm2 5h6v2H5v-2z"/></svg>
                 <span class="font-medium">{{ $t('checkout.payCard') }}</span>
@@ -720,7 +759,7 @@ watch(selectedShipping, async () => {
 
             <label class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
                    :class="paymentMethod === 'paypal' ? 'ring-2 ring-emerald-500' : ''">
-              <input class="sr-only" type="radio" value="paypal" v-model="paymentMethod" />
+              <input class="sr-only" type="radio" value="paypal" v-model="paymentMethod" :disabled="isCheckoutBlocked" />
               <div class="flex items-center justify-center gap-2">
                 <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-600 text-white text-xs font-bold">P</span>
                 <span class="font-medium">PayPal</span>
@@ -729,7 +768,7 @@ watch(selectedShipping, async () => {
 
             <label class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
                    :class="paymentMethod === 'transfer' ? 'ring-2 ring-emerald-500' : ''">
-              <input class="sr-only" type="radio" value="transfer" v-model="paymentMethod" />
+              <input class="sr-only" type="radio" value="transfer" v-model="paymentMethod" :disabled="isCheckoutBlocked" />
               <div class="flex items-center justify-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l9 6v2H3V9l9-6z"/><path d="M4 13h16v6H4v-6z"/></svg>
                 <span class="font-medium">{{ $t('checkout.bankTransfer') }}</span>
@@ -795,6 +834,19 @@ watch(selectedShipping, async () => {
                 <div class="text-sm">
                   <div class="font-medium line-clamp-2">{{ row.title }}</div>
                   <div v-if="row.sku" class="text-green-600 font-bold">{{ $t('labels.sku') || 'SKU' }}: {{ row.sku }}</div>
+
+                  <!-- NEW: per-item blocked chip -->
+                  <div
+                    v-if="row.blocked_in_selected_country"
+                    class="mt-1 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 text-rose-700 px-2 py-0.5"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M11.001 10h2v5h-2z"/><path d="M12 17a1.25 1.25 0 110 2.5A1.25 1.25 0 0112 17z"/><path d="M10.29 3.86l-8 14A1 1 0 003 19h18a1 1 0 00.87-1.5l-8-14a1 1 0 00-1.74 0z"/></svg>
+                    <span class="text-xs">
+                      {{ $t('checkout.itemNotAvailableForCountry') || 'Not available to' }}
+                      <strong>{{ blockedCountryName }}</strong>
+                    </span>
+                  </div>
+
                   <div class="text-gray-500">{{ row.quantity }} × {{ money(row.unit) }}</div>
                 </div>
               </div>
@@ -860,9 +912,10 @@ watch(selectedShipping, async () => {
 
             <button
               class="w-full mt-3 rounded-xl bg-orange-500 text-white px-6 py-3 font-medium shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="!selectedAddressId || !selectedShipping || !paymentMethod || !acceptTerms || creatingOrder"
+              :disabled="isCheckoutBlocked || !selectedAddressId || !selectedShipping || !paymentMethod || !acceptTerms || creatingOrder"
               :aria-busy="creatingOrder ? 'true' : 'false'"
               @click="createOrder"
+              :title="isCheckoutBlocked ? ($t('checkout.blockedButtonTitle') || 'Remove restricted items or change the country to continue') : ''"
             >
               <span v-if="creatingOrder" class="inline-flex items-center gap-2">
                 <svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" aria-hidden="true">

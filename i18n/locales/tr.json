@@ -186,7 +186,10 @@
     "payCard": "Kart ile öde",
     "bankTransfer": "Banka havalesi",
     "pickup": "Mağazadan al",
-    "localShipping": "Yerel gönderim"
+    "localShipping": "Yerel gönderim",
+    "itemNotAvailableForCountry": "Ürün bu ülke için mevcut değil",
+    "shippingBlocked": "Gönderim engellendi"
+
   },
   "edit": "Düzenle",
   "delete": "Sil",

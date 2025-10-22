@@ -185,7 +185,10 @@
     "payCard": "Оплатить картой",
     "bankTransfer": "Банковский перевод",
     "pickup": "Самовывоз",
-    "localShipping": "Местная доставка"
+    "localShipping": "Местная доставка",
+    "itemNotAvailableForCountry": "Товар недоступен для этой страны",
+    "shippingBlocked": "Доставка заблокирована"
+
   },
   "edit": "Редактировать",
   "delete": "Удалить",

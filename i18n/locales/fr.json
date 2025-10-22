@@ -185,7 +185,10 @@
     "payCard": "Payer par carte",
     "bankTransfer": "Virement bancaire",
     "pickup": "Retrait",
-    "localShipping": "Livraison locale"
+    "localShipping": "Livraison locale",
+    "itemNotAvailableForCountry": "Article non disponible pour ce pays",
+    "shippingBlocked": "Expédition bloquée"
+
   },
   "edit": "Modifier",
   "delete": "Supprimer",

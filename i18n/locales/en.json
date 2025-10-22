@@ -186,7 +186,9 @@
     "payCard": "Pay by card",
     "bankTransfer": "Bank transfer",
     "pickup": "Pickup",
-    "localShipping": "Local shipping"
+    "localShipping": "Local shipping",
+    "itemNotAvailableForCountry" : "Item Not Available For Country",
+    "shippingBlocked" : "Shipping Blocked"
   },
   "edit": "Edit",
   "delete": "Delete",

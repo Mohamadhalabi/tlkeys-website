@@ -185,7 +185,10 @@
     "payCard": "Pagar con tarjeta",
     "bankTransfer": "Transferencia bancaria",
     "pickup": "Recogida",
-    "localShipping": "Envío local"
+    "localShipping": "Envío local",
+    "itemNotAvailableForCountry": "Artículo no disponible para este país",
+    "shippingBlocked": "Envío bloqueado"
+
   },
   "edit": "Editar",
   "delete": "Eliminar",

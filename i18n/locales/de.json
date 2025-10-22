@@ -185,7 +185,9 @@
     "payCard": "Mit Karte bezahlen",
     "bankTransfer": "Banküberweisung",
     "pickup": "Abholung",
-    "localShipping": "Lokaler Versand"
+    "localShipping": "Lokaler Versand",
+    "itemNotAvailableForCountry": "Artikel für dieses Land nicht verfügbar",
+    "shippingBlocked": "Versand blockiert"
   },
   "edit": "Bearbeiten",
   "delete": "Löschen",
