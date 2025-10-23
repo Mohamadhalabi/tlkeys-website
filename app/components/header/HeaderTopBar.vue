@@ -109,8 +109,8 @@ import { useSwitchLocalePath } from '#i18n'
 import { useCurrency, type CurrencyCode } from '~/composables/useCurrency'
 
 /** Locales we support */
-type LocaleCode = 'en' | 'ar' | 'es' | 'fr' | 'ru' | 'de' | 'tr'
-type CountryCode = 'US' | 'SA' | 'ES' | 'FR' | 'RU' | 'DE' | 'TR'
+type LocaleCode = 'en' | 'ar' | 'es' | 'fr' | 'ru' | 'de' | 'tr' | 'pt' | 'it'
+type CountryCode = 'US' | 'SA' | 'ES' | 'FR' | 'RU' | 'DE' | 'TR' | 'PT' | 'IT'
 
 const languages: Array<{ code: LocaleCode; label: string; country: CountryCode; dir: 'ltr' | 'rtl' }> = [
   { code: 'en', label: 'English', country: 'US', dir: 'ltr' },
@@ -119,7 +119,9 @@ const languages: Array<{ code: LocaleCode; label: string; country: CountryCode; 
   { code: 'fr', label: 'Français', country: 'FR', dir: 'ltr' },
   { code: 'ru', label: 'Русский', country: 'RU', dir: 'ltr' },
   { code: 'de', label: 'Deutsch', country: 'DE', dir: 'ltr' },
-  { code: 'tr', label: 'Türkçe', country: 'TR', dir: 'ltr' } // ✅ Added Turkish
+  { code: 'tr', label: 'Türkçe', country: 'TR', dir: 'ltr' },
+  { code: 'pt', label: 'portuguese', country: 'PT', dir: 'ltr'},
+  { code: 'it', label: 'Italian', country: 'IT', dir: 'ltr'}
 ]
 
 /** i18n */
@@ -216,8 +218,13 @@ function flagSvg(country: CountryCode) {
       return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="8" fill="#000"/><rect y="8" width="36" height="8" fill="#dd0000"/><rect y="16" width="36" height="8" fill="#ffce00"/></svg>`
     case 'TR':
       return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="24" fill="#e30a17"/><circle cx="13" cy="12" r="5" fill="#fff"/><circle cx="14.5" cy="12" r="3.2" fill="#e30a17"/><polygon fill="#fff" points="18,12 21.5,13.8 20.2,10.2 22.5,8 19,8 18,4.5 17,8 13.5,8 15.8,10.2 14.5,13.8"/></svg>`
+    case 'IT':
+      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="12" height="24" fill="#009246"/><rect x="12" width="12" height="24" fill="#fff"/><rect x="24" width="12" height="24" fill="#ce2b37"/></svg>`
+    case 'PT':
+      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="14" height="24" fill="#006600"/><rect x="14" width="22" height="24" fill="#ff0000"/><circle cx="14" cy="12" r="4" fill="#ffcc00"/></svg>`
   }
 }
+
 </script>
 
 
