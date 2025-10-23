@@ -52,7 +52,7 @@ const items = computed(() => ([
   { key: 'promotion',     label: t('subnav.promotion',     'Promotion'),     to: '/shop?promotion' },
   { key: 'free-shipping', label: t('subnav.freeShipping',  'Free Shipping'), to: '/shop?free-shipping' },
   { key: 'bundled',       label: t('subnav.bundles',       'Bundles'),       to: '/shop?bundled' },
-  { key: 'new-arrival',   label: t('subnav.newArrival',    'New Arrival'),   to: '/shop?new-arrival' },
+  { key: 'new-arrival',   label: t('subnav.newArrival',    'New Arrival'),   to: '/shop?new-arrival=&sort=newest&per_page=25' },
 ]))
 
 /* ----------------- Active when on /shop and flag exists -------------- */
