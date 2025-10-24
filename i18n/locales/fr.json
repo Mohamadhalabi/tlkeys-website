@@ -652,5 +652,34 @@
       "faq": "FAQ",
       "videos": "Vidéos",
       "contact": "Nous contacter"
-    }
+    },
+
+  "completeCustomOrder": {
+  "title": "Terminer la commande",
+  "loading": "Chargement de votre commande…",
+  "errorTitle": "Impossible de charger votre commande",
+  "tryAgain": "Réessayer",
+  "goHome": "Accueil",
+  "paymentFailed": "Paiement échoué ou annulé",
+  "thanks": "Merci ! Votre commande est confirmée",
+  "orderId": "ID de commande",
+  "placedOn": "Passée le",
+  "status": "Statut",
+  "youWillReceiveEmail": "Vous recevrez bientôt un e-mail avec les prochaines étapes.",
+  "orderDetails": "Détails de la commande",
+  "subtotal": "Sous-total",
+  "shipping": "Livraison",
+  "total": "Total",
+  "payment": "Paiement",
+  "bankTransfer": "Vous avez choisi un virement bancaire. Nous avons enregistré votre commande — veuillez suivre les instructions envoyées par e-mail.",
+  "payNow": "Payer maintenant",
+  "whatsNext": "Et ensuite ?",
+  "tryAnotherPayment": "Essayez un autre mode de paiement.",
+  "weWillNotify": "Nous vous informerons par e-mail lorsque l’état de votre commande changera.",
+  "keepOrderId": "Conservez votre numéro de commande pour référence.",
+  "continueShopping": "Continuer vos achats",
+  "notPaidYet": "Paiement en attente ou non effectué"
+
+}
+
 }

@@ -652,5 +652,34 @@
       "faq": "FAQ",
       "videos": "Videos",
       "contact": "Contáctanos"
-    }
+    },
+
+  "completeCustomOrder": {
+  "title": "Completar pedido",
+  "loading": "Cargando tu pedido…",
+  "errorTitle": "No se pudo cargar tu pedido",
+  "tryAgain": "Intentar de nuevo",
+  "goHome": "Inicio",
+  "paymentFailed": "El pago falló o fue cancelado",
+  "thanks": "¡Gracias! Tu pedido está confirmado",
+  "orderId": "ID de pedido",
+  "placedOn": "Realizado el",
+  "status": "Estado",
+  "youWillReceiveEmail": "Recibirás un correo electrónico con los próximos pasos.",
+  "orderDetails": "Detalles del pedido",
+  "subtotal": "Subtotal",
+  "shipping": "Envío",
+  "total": "Total",
+  "payment": "Pago",
+  "bankTransfer": "Has elegido transferencia bancaria. Hemos guardado tu pedido — sigue las instrucciones enviadas a tu correo electrónico.",
+  "payNow": "Pagar ahora",
+  "whatsNext": "¿Qué sigue?",
+  "tryAnotherPayment": "Prueba otro método de pago.",
+  "weWillNotify": "Te notificaremos por correo electrónico cuando cambie el estado de tu pedido.",
+  "keepOrderId": "Guarda tu número de pedido para referencia.",
+  "continueShopping": "Seguir comprando",
+  "notPaidYet": "Pago pendiente o no realizado"
+
+}
+
 }

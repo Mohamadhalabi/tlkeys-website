@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { useRoute, useRuntimeConfig, useNuxtApp, useHead } from '#imports'
+import { useRoute,useRouter, useRuntimeConfig, useNuxtApp, useHead } from '#imports'
 import { useI18n } from 'vue-i18n'
 import { useAlertStore } from '~/stores/alert'
 import { computeUnitPrice } from '~/utils/pricing'
@@ -11,6 +11,7 @@ useHead({
   title: 'Buy Now — Checkout',
   meta: [{ name: 'robots', content: 'noindex,nofollow' }]
 })
+const router = useRouter()
 
 type Country = { id:number; name:string|Record<string,string>; iso2?:string|null; zone_id?:number|null }
 type ShippingKey = 'dhl'|'fedex'|'aramex'|'ups'
@@ -40,7 +41,7 @@ type ProductLite = {
   discount_active?:boolean
   discount_end?:string|null
 }
-type PayMethod = 'card'|'paypal'|'transfer'
+type PayMethod = 'card'|'paypal'|'transfer' // UI values
 
 const { t } = useI18n()
 const route = useRoute()
@@ -79,6 +80,9 @@ const streetAddress = ref('')
 const postalCode = ref('')
 const phone = ref('')
 const paymentMethod = ref<PayMethod>('card')
+
+/* placing state for order submission */
+const placingOrder = ref(false)
 
 function nameOf(c: Country): string {
   try {
@@ -203,8 +207,19 @@ const allRequiredFilled = computed(() => {
     phone.value.trim().length > 6
   )
 })
+
+/* require selecting a shipping method only if options are present */
+const mustSelectShipping = computed(() => {
+  const opts = quote.value?.shipping?.options || []
+  return Array.isArray(opts) && opts.length > 0
+})
+
 const canPlaceOrder = computed(() =>
-  allRequiredFilled.value && !loadingProduct.value && !countriesLoading.value && !quoteLoading.value && !productError.value && !countriesError.value && !quoteError.value
+  allRequiredFilled.value &&
+  (!mustSelectShipping.value || !!selectedShipping.value) &&
+  !loadingProduct.value && !countriesLoading.value && !quoteLoading.value &&
+  !productError.value && !countriesError.value && !quoteError.value &&
+  !placingOrder.value
 )
 
 /* Show shipping as 0.00 until quote exists */
@@ -221,22 +236,29 @@ function markInvalid(v: string | number | '') {
   return submitAttempted.value && (!v || String(v).trim() === '')
 }
 
-function handlePlaceOrder() {
+async function handlePlaceOrder() {
   submitAttempted.value = true
   if (!allRequiredFilled.value) {
-    alerts.error(t('checkout.missingFields'))
+    alerts.error(t('checkout.missingFields') || 'Please complete the required fields.')
     return
   }
+  if (mustSelectShipping.value && !selectedShipping.value) {
+    alerts.error(t('checkout.selectShipping') || 'Please select a shipping method.')
+    return
+  }
+
+  const backendPaymentMethod = paymentMethod.value
+
   const payload = {
     product_id: product.value?.id,
-    quantity: qty.value,
+    quantity: Math.max(1, Number(qty.value || 1)),
     contact: {
       email: email.value.trim(),
       full_name: fullName.value.trim(),
-      phone: phone.value.trim()
+      phone: phone.value.trim() || null
     },
     address: {
-      country_id: selectedCountryId.value,
+      country_id: Number(selectedCountryId.value),
       city: city.value.trim(),
       street: streetAddress.value.trim(),
       postal_code: postalCode.value.trim()
@@ -253,13 +275,54 @@ function handlePlaceOrder() {
       subtotal: subtotal.value,
       total: grandTotal.value
     },
-    payment_method: paymentMethod.value as PayMethod,
+    payment_method: backendPaymentMethod, // 'card' | 'paypal' | 'transfer'
     serial: serialFromQuery || null
   }
 
-  console.log('Checkout payload:', payload)
-  alerts.success(t('checkout.orderCreated'))
+  try {
+    placingOrder.value = true
+    const res = await $customApi('/guest-checkout', { method: 'POST', body: payload })
+    const data: any = res?.data ?? res
+
+    const method = (data?.payment?.method ?? backendPaymentMethod) as PayMethod
+    const link: string | null =
+      data?.payment?.link ??
+      data?.payment?.url ??
+      data?.redirect_url ??
+      data?.payment_link ??
+      null
+
+    const uuid: string | null = data?.uuid ?? null
+    if (uuid) {
+      try { sessionStorage.setItem('guest_checkout_uuid', uuid) } catch {}
+    }
+
+    // 🔽 Handle payment method cases
+    if (method === 'transfer') {
+      // Directly route to complete order page
+      router.push({ path: '/complete-custom-order', query: { orderId: uuid } })
+      return
+    }
+
+    if (link) {
+      // For PayPal or Card, go directly to payment link
+      location.assign(String(link))
+      return
+    }
+
+  } catch (err: any) {
+    const msg =
+      err?.response?._data?.message ||
+      err?.data?.message ||
+      err?.message ||
+      (t('errors.generic') as string) ||
+      'Something went wrong while creating the order.'
+    alerts.error(msg)
+  } finally {
+    placingOrder.value = false
+  }
 }
+
 
 onMounted(async () => {
   await Promise.all([fetchProduct(), fetchCountries()])
@@ -402,16 +465,12 @@ onMounted(async () => {
                     <div class="text-xs text-gray-400" v-else>—</div>
                   </label>
                 </div>
-
-                <!-- When no country selected yet we still show 0.00 in the summary (right side);
-                     here we can keep the area empty or add a helper line if you later add a key -->
               </div>
 
               <!-- Payment methods (+ 3% note) -->
               <div class="mt-4">
                 <div class="flex items-center justify-between">
                   <div class="text-sm text-gray-600 mb-2">{{ t('checkout.paymentMethod') }}</div>
-                  <div class="text-xs text-gray-500">{{ t('checkout.paymentSurcharge') }}</div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -485,7 +544,7 @@ onMounted(async () => {
                 :disabled="!canPlaceOrder"
                 @click="handlePlaceOrder"
               >
-                {{ t('checkout.createOrder') }}
+                {{ placingOrder ? (t('checkout.processing') || 'Processing…') : t('checkout.createOrder') }}
               </button>
             </div>
           </div>

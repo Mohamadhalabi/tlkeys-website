@@ -687,5 +687,32 @@
     "placeOrder": "Place Order",
     "back": "Back",
     "loadingProduct": "Loading product…"
+  },
+    "completeCustomOrder": {
+    "title": "Complete order",
+    "loading": "Loading your order…",
+    "errorTitle": "Couldn’t load your order",
+    "tryAgain": "Try again",
+    "goHome": "Go home",
+    "paymentFailed": "Payment failed or canceled",
+    "thanks": "Thanks! Your order is confirmed",
+    "orderId": "Order ID",
+    "placedOn": "Placed on",
+    "status": "Status",
+    "youWillReceiveEmail": "You’ll receive an email with next steps shortly.",
+    "orderDetails": "Order details",
+    "subtotal": "Subtotal",
+    "shipping": "Shipping",
+    "total": "Total",
+    "payment": "Payment",
+    "bankTransfer": "You chose Bank transfer. We’ve saved your order — please follow the instructions sent to your email.",
+    "payNow": "Pay now",
+    "whatsNext": "What’s next?",
+    "tryAnotherPayment": "Try another payment method.",
+    "weWillNotify": "We’ll notify you by email when your order status changes.",
+    "keepOrderId": "Keep your order ID for reference.",
+    "continueShopping": "Continue shopping",
+    "notPaidYet" : "Not Paid Yet"
   }
+
 }

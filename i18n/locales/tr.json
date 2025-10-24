@@ -685,5 +685,32 @@
     "placeOrder": "Siparişi Ver",
     "back": "Geri",
     "loadingProduct": "Ürün yükleniyor…"
-  }
+  },
+  "completeCustomOrder": {
+  "title": "Siparişi tamamla",
+  "loading": "Siparişiniz yükleniyor…",
+  "errorTitle": "Siparişiniz yüklenemedi",
+  "tryAgain": "Tekrar dene",
+  "goHome": "Ana sayfa",
+  "paymentFailed": "Ödeme başarısız oldu veya iptal edildi",
+  "thanks": "Teşekkürler! Siparişiniz onaylandı",
+  "orderId": "Sipariş Numarası",
+  "placedOn": "Tarih",
+  "status": "Durum",
+  "youWillReceiveEmail": "Kısa süre içinde sonraki adımlar için bir e-posta alacaksınız.",
+  "orderDetails": "Sipariş detayları",
+  "subtotal": "Ara toplam",
+  "shipping": "Kargo",
+  "total": "Toplam",
+  "payment": "Ödeme",
+  "bankTransfer": "Banka havalesi seçtiniz. Siparişiniz kaydedildi — lütfen e-postayla gönderilen talimatları izleyin.",
+  "payNow": "Şimdi öde",
+  "whatsNext": "Sırada ne var?",
+  "tryAnotherPayment": "Başka bir ödeme yöntemi deneyin.",
+  "weWillNotify": "Sipariş durumunuz değiştiğinde size e-posta ile bildireceğiz.",
+  "keepOrderId": "Referans için sipariş numaranızı saklayın.",
+  "continueShopping": "Alışverişe devam et",
+  "notPaidYet": "Ödeme beklemede veya henüz yapılmadı"
+}
+
 }

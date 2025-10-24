@@ -722,5 +722,32 @@
     "placeOrder": "Effettua Ordine",
     "back": "Indietro",
     "loadingProduct": "Caricamento prodotto…"
-    }
+    },
+    "completeCustomOrder": {
+  "title": "Completa l’ordine",
+  "loading": "Caricamento del tuo ordine…",
+  "errorTitle": "Impossibile caricare l’ordine",
+  "tryAgain": "Riprova",
+  "goHome": "Home",
+  "paymentFailed": "Pagamento fallito o annullato",
+  "thanks": "Grazie! Il tuo ordine è confermato",
+  "orderId": "ID ordine",
+  "placedOn": "Effettuato il",
+  "status": "Stato",
+  "youWillReceiveEmail": "Riceverai presto un’e-mail con i prossimi passaggi.",
+  "orderDetails": "Dettagli dell’ordine",
+  "subtotal": "Subtotale",
+  "shipping": "Spedizione",
+  "total": "Totale",
+  "payment": "Pagamento",
+  "bankTransfer": "Hai scelto il bonifico bancario. Abbiamo salvato il tuo ordine — segui le istruzioni inviate via e-mail.",
+  "payNow": "Paga ora",
+  "whatsNext": "Cosa succede dopo?",
+  "tryAnotherPayment": "Prova un altro metodo di pagamento.",
+  "weWillNotify": "Ti informeremo via e-mail quando lo stato dell’ordine cambierà.",
+  "keepOrderId": "Conserva l’ID dell’ordine per riferimento.",
+  "continueShopping": "Continua a fare acquisti",
+  "notPaidYet": "Pagamento in sospeso o non effettuato"
+}
+
 }

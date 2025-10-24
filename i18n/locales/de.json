@@ -651,5 +651,33 @@
       "faq": "FAQ",
       "videos": "Videos",
       "contact": "Kontakt"
-  }
+  },
+
+  "completeCustomOrder": {
+  "title": "Bestellung abschließen",
+  "loading": "Bestellung wird geladen…",
+  "errorTitle": "Ihre Bestellung konnte nicht geladen werden",
+  "tryAgain": "Erneut versuchen",
+  "goHome": "Startseite",
+  "paymentFailed": "Zahlung fehlgeschlagen oder abgebrochen",
+  "thanks": "Danke! Ihre Bestellung ist bestätigt",
+  "orderId": "Bestell-ID",
+  "placedOn": "Erstellt am",
+  "status": "Status",
+  "youWillReceiveEmail": "Sie erhalten in Kürze eine E-Mail mit weiteren Schritten.",
+  "orderDetails": "Bestelldetails",
+  "subtotal": "Zwischensumme",
+  "shipping": "Versand",
+  "total": "Gesamt",
+  "payment": "Zahlung",
+  "bankTransfer": "Sie haben Überweisung gewählt. Ihre Bestellung wurde gespeichert — bitte folgen Sie den Anweisungen in der E-Mail.",
+  "payNow": "Jetzt bezahlen",
+  "whatsNext": "Wie geht es weiter?",
+  "tryAnotherPayment": "Versuchen Sie eine andere Zahlungsmethode.",
+  "weWillNotify": "Wir informieren Sie per E-Mail, sobald sich der Bestellstatus ändert.",
+  "keepOrderId": "Bewahren Sie Ihre Bestellnummer zur Referenz auf.",
+  "continueShopping": "Weiter einkaufen",
+  "notPaidYet": "Zahlung ausstehend oder nicht erfolgt"
+}
+
 }
