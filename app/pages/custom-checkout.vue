@@ -438,9 +438,6 @@ onMounted(async () => {
                 </div>
               </div>
 
-              <div class="flex items-center justify-between pt-2">
-                <button type="button" class="text-sm text-gray-600 hover:underline" @click="history.back()">{{ t('common.close') }}</button>
-              </div>
             </div>
           </div>
         </div>
@@ -460,11 +457,11 @@ onMounted(async () => {
             <div class="flex gap-3">
               <img :src="imageSrc" :alt="product.title" class="h-16 w-16 rounded object-cover border" />
               <div class="flex-1">
-                <div class="text-sm font-medium text-gray-900 line-clamp-2">{{ product.title }}</div>
-                <div v-if="product.sku" class="text-xs text-gray-500">{{ t('cart.sku') }} {{ product.sku }}</div>
-                <div class="mt-2 text-sm text-gray-600">{{ t('product.quantity') }}: {{ qty }}</div>
+                <div class="text-md font-medium text-gray-900 line-clamp-2">{{ product.title }}</div>
+                <div v-if="product.sku" class="text-sm text-green-700 text-bold">{{ t('cart.sku') }} {{ product.sku }}</div>
+                <div class="mt-2 text-md text-gray-600">{{ t('product.quantity') }}: {{ qty }}</div>
               </div>
-              <div class="text-sm font-semibold">{{ formatMoney(unitPrice) }}</div>
+              <div class="text-md text-red-600 font-semibold">{{ formatMoney(unitPrice) }}</div>
             </div>
 
             <div class="border-t border-gray-100 pt-3 space-y-1 text-sm">
@@ -476,7 +473,7 @@ onMounted(async () => {
               <div v-if="paymentFee > 0" class="flex justify-between text-gray-700">
                 <span>{{ t('checkout.paymentSurcharge') }}</span><span>{{ formatMoney(paymentFee) }}</span>
               </div>
-              <div class="flex justify-between font-semibold text-gray-900 pt-1">
+              <div class="flex justify-between text-lg font-semibold text-red-900 pt-1">
                 <span>{{ t('checkout.total') }}</span><span>{{ formatMoney(grandTotal) }}</span>
               </div>
             </div>

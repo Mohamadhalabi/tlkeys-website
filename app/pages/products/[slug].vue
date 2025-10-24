@@ -80,6 +80,7 @@ type Product = {
   faq?: FaqItem[] | null
   videos?: VideoItem[] | null
   requires_serial?: boolean | null
+  canonical_slug?: string | null
 }
 
 /* ---------------- Base setup ---------------- */
@@ -257,6 +258,7 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
         price: basePrice,
         display_euro_price: Number(data.display_euro_price ?? 0) === 1,
         euro_price: toNum(data.euro_price),
+        canonical_slug: data.canonical_slug ?? data.slug,
         hide_price: Number(data.hide_price ?? 0) === 1,
         requires_serial: Boolean(data.requires_serial ?? false),
         regular_price: toNum(data.regular_price),
@@ -566,6 +568,20 @@ const tabs = computed(() =>
 const activeTab = ref<TabKey>('desc')
 function setTab(k: TabKey) { activeTab.value = k }
 
+// --- Canonical helpers ---
+const canonicalSlug = computed(
+  () => product.value?.canonical_slug || product.value?.slug || slug.value
+)
+
+// Replace only the last path segment (the product slug) but keep locale/parents
+const canonicalPath = computed(() => {
+  const want = String(canonicalSlug.value || '').trim()
+  if (!want) return route.path
+  // route.path doesn't include query/hash; safe to replace last segment
+  return route.path.replace(/\/[^/]+$/, `/${encodeURIComponent(want)}`)
+})
+
+const canonicalAbsUrl = computed(() => baseSiteUrl.value + canonicalPath.value)
 
 /* head/meta */
 useHead(() => {
@@ -705,7 +721,7 @@ useHead(() => {
       { name: 'robots', content: 'index,follow,max-image-preview:large' }
     ],
     link: [
-      { rel: 'canonical', href: absUrl.value },
+      { rel: 'canonical', href: canonicalAbsUrl },
       ...(primary ? [{ rel: 'preload', as: 'image', href: primary, fetchpriority: 'high' } as any] : [])
     ],
     script: graph.length
@@ -979,16 +995,7 @@ watch(() => product.value?.id, () => {
                       <span v-else>{{ _t('product.adding','Adding…') }}</span>
                     </button>
 
-                    <!-- <button
-                      v-if="showBuyNow"
-                      type="button"
-                      class="inline-flex items-center justify-center gap-2 rounded-xl border border-orange-500 bg-white px-6 py-3 font-semibold text-orange-600 shadow-sm hover:bg-orange-50 focus-visible:ring-4 focus-visible:ring-orange-200 disabled:opacity-60"
-                      :disabled="buying || !canAddToCart"
-                      @click="onBuyNow"
-                    >
-                      <span v-if="!buying">{{ _t('product.buyNow','Buy now') }}</span>
-                      <span v-else>{{ _t('product.processing','Processing…') }}</span>
-                    </button> -->
+
 
                     <button
                       v-if="showWishlistUI"
@@ -1002,6 +1009,22 @@ watch(() => product.value?.id, () => {
                       </span>
                       <span v-else>{{ _t('product.saving','Saving…') }}</span>
                     </button>
+
+                    <button
+                      v-if="showBuyNow"
+                      type="button"
+                      class="inline-flex items-center justify-center gap-2 rounded-xl border border-[#FFC439] bg-[#FFC439] px-6 py-3 font-semibold text-[#003087] shadow-sm hover:bg-[#FFB300] focus-visible:ring-4 focus-visible:ring-[#FFDD00]/40 disabled:opacity-60"
+                      :disabled="buying || !canAddToCart"
+                      @click="onBuyNow"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" class="h-5 w-5">
+                        <path fill="#003087" d="M25.6 6H13.8c-.9 0-1.6.6-1.8 1.4L9 27.8c-.1.5.3.9.8.9h5.1l.6-4.1c.1-.8.9-1.4 1.8-1.4h3.8c7.1 0 11.2-3.4 12.3-10.1.5-3.1-.1-5.5-1.9-7.1C30.2 6.6 28.1 6 25.6 6z"/>
+                        <path fill="#009CDE" d="M26.4 9.4c-.5 2.9-2.8 4.6-6.2 4.6h-3.8c-.9 0-1.6.6-1.8 1.4l-1.6 11.2-.3 2.1c-.1.5.3.9.8.9h4.4c.9 0 1.6-.6 1.8-1.4l.5-3.4h3.8c5.3 0 8.8-2.7 9.8-7.9.9-4.5-.7-7.5-4.4-8.9-.9-.3-2.3-.6-3-.6z"/>
+                      </svg>
+                      <span v-if="!buying">{{ _t('product.buyNow','Buy now') }}</span>
+                      <span v-else>{{ _t('product.processing','Processing…') }}</span>
+                    </button>
+
                   </div>
                 </div>
 
