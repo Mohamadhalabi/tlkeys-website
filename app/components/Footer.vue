@@ -77,21 +77,21 @@
         <div class="flex items-center gap-3">
           <!-- Shipping -->
           <div class="hidden sm:flex items-center gap-2">
-            <img src="../../../payment-shipping-methods/dhl-express.svg" alt="DHL" class="h-5" loading="lazy" />
-            <img src="../../../payment-shipping-methods/fedex-express-6.svg" alt="FedEx" class="h-5" loading="lazy" />
-            <img src="../../../payment-shipping-methods/ups-united-parcel-service.svg" alt="UPS" class="h-5" loading="lazy" />
-            <img src="../../../payment-shipping-methods/aramex-logo-1.svg" alt="Aramex" class="h-5" loading="lazy" />
+            <img src="../../payment-shipping-methods/dhl-express.svg" alt="DHL" class="h-5" loading="lazy" />
+            <img src="../../payment-shipping-methods/fedex-express-6.svg" alt="FedEx" class="h-5" loading="lazy" />
+            <img src="../../payment-shipping-methods/ups-united-parcel-service.svg" alt="UPS" class="h-5" loading="lazy" />
+            <img src="../../payment-shipping-methods/aramex-logo-1.svg" alt="Aramex" class="h-5" loading="lazy" />
           </div>
 
           <span class="hidden sm:inline text-neutral-500">|</span>
 
           <!-- Payments -->
           <div class="flex items-center gap-2">
-            <img src="../../../payment-shipping-methods/visa-10.svg" alt="Visa" class="h-5" loading="lazy" />
-            <img src="../../../payment-shipping-methods/mastercard-modern-design-.svg" alt="Mastercard" class="h-5" loading="lazy" />
-            <img src="../../../payment-shipping-methods/paypal-3.svg" alt="PayPal" class="h-5" loading="lazy" />
-            <img src="../../../payment-shipping-methods/american-express-1.svg" alt="American Express" class="h-5" loading="lazy" />
-            <img src="../../../payment-shipping-methods/wire-transfer-1.svg" alt="Wire Transfer" class="h-5" loading="lazy" />
+            <img src="../../payment-shipping-methods/visa-10.svg" alt="Visa" class="h-5" loading="lazy" />
+            <img src="../../payment-shipping-methods/mastercard-modern-design-.svg" alt="Mastercard" class="h-5" loading="lazy" />
+            <img src="../../payment-shipping-methods/paypal-3.svg" alt="PayPal" class="h-5" loading="lazy" />
+            <img src="../../payment-shipping-methods/american-express-1.svg" alt="American Express" class="h-5" loading="lazy" />
+            <img src="../../payment-shipping-methods/wire-transfer-1.svg" alt="Wire Transfer" class="h-5" loading="lazy" />
           </div>
         </div>
       </div>
