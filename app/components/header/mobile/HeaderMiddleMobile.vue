@@ -441,7 +441,7 @@ import { useCart } from '~/composables/useCart'
 import { useCurrency, type CurrencyCode } from '~/composables/useCurrency'
 
 /* ----- Language config (same set as topbar) ----- */
-type LocaleCode = 'en' | 'ar' | 'es' | 'fr' | 'ru' | 'de'
+type LocaleCode = 'en' | 'ar' | 'es' | 'fr' | 'ru' | 'de' | 'it' | 'pt' | 'tr'
 const languages: Array<{ code: LocaleCode; label: string; dir: 'ltr'|'rtl' }> = [
   { code: 'en', label: 'English',  dir: 'ltr' },
   { code: 'ar', label: 'العربية',  dir: 'rtl' },
@@ -449,6 +449,9 @@ const languages: Array<{ code: LocaleCode; label: string; dir: 'ltr'|'rtl' }> = 
   { code: 'fr', label: 'Français', dir: 'ltr' },
   { code: 'ru', label: 'Русский',  dir: 'ltr' },
   { code: 'de', label: 'Deutsch',  dir: 'ltr' },
+  { code: 'tr', label: 'Turkish', dir: 'ltr' },
+  { code: 'it', label: 'Italian', dir: 'ltr' },
+  { code: 'pt', label: 'Portoguese', dir: 'ltr' }
 ]
 
 const { t, locale } = useI18n()
