@@ -76,7 +76,7 @@
         <!-- Shipping + Payment icons -->
         <div class="flex items-center gap-3">
           <!-- Shipping -->
-          <div class="hidden sm:flex items-center gap-2">
+          <!-- <div class="hidden sm:flex items-center gap-2">
             <img src="../../payment-shipping-methods/dhl-express.svg" alt="DHL" class="h-5" loading="lazy" />
             <img src="../../payment-shipping-methods/fedex-express-6.svg" alt="FedEx" class="h-5" loading="lazy" />
             <img src="../../payment-shipping-methods/ups-united-parcel-service.svg" alt="UPS" class="h-5" loading="lazy" />
@@ -92,7 +92,7 @@
             <img src="../../payment-shipping-methods/paypal-3.svg" alt="PayPal" class="h-5" loading="lazy" />
             <img src="../../payment-shipping-methods/american-express-1.svg" alt="American Express" class="h-5" loading="lazy" />
             <img src="../../payment-shipping-methods/wire-transfer-1.svg" alt="Wire Transfer" class="h-5" loading="lazy" />
-          </div>
+          </div> -->
         </div>
       </div>
     </div>
