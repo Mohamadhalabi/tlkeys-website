@@ -526,7 +526,8 @@
       "clearedTitle": "Cart cleared",
       "clearFailedTitle": "Clear cart failed"
     },
-    "shortNote": "The selected quantity for product \"{sku}\" is currently not available, but we will try to get it for you."
+    "shortNote": "The selected quantity for product \"{sku}\" is currently not available, but we will try to get it for you.",
+    "notAvailable" : "The selected quantity is currently not available, but we’ll try to get it for you. If we’re unable to, we’ll issue a refund."
   },
   "breadcrumbs": { "home": "Home", "shop": "Shop" },
   "pagination": {

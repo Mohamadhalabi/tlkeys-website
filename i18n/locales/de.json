@@ -524,7 +524,8 @@
       "clearedTitle": "Warenkorb geleert",
       "clearFailedTitle": "Leeren des Warenkorbs fehlgeschlagen"
     },
-    "shortNote": "Die gewählte Menge für „{sku}“ ist derzeit nicht verfügbar, wir werden jedoch versuchen, sie für Sie zu beschaffen."
+    "shortNote": "Die gewählte Menge für „{sku}“ ist derzeit nicht verfügbar, wir werden jedoch versuchen, sie für Sie zu beschaffen.",
+    "notAvailable": "Die ausgewählte Menge ist derzeit nicht verfügbar, aber wir werden versuchen, sie für Sie zu besorgen. Wenn das nicht möglich ist, erstatten wir den Betrag zurück."
   },
   "breadcrumbs": { "home": "Startseite", "shop": "Shop" },
   "pagination": {

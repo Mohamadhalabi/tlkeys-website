@@ -524,7 +524,8 @@
       "clearedTitle": "Sepet temizlendi",
       "clearFailedTitle": "Sepeti temizleme başarısız"
     },
-    "shortNote": "“{sku}” ürününün seçilen adedi şu anda mevcut değil, ancak sizin için temin etmeye çalışacağız."
+    "shortNote": "“{sku}” ürününün seçilen adedi şu anda mevcut değil, ancak sizin için temin etmeye çalışacağız.",
+    "notAvailable": "Seçilen miktar şu anda mevcut değil, ancak sizin için temin etmeye çalışacağız. Eğer temin edemezsek, geri ödeme yapacağız."
   },
   "breadcrumbs": { "home": "Ana Sayfa", "shop": "Mağaza" },
   "pagination": {

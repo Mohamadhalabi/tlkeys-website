@@ -524,7 +524,8 @@
       "clearedTitle": "Carrinho limpo",
       "clearFailedTitle": "Falha ao limpar o carrinho"
     },
-    "shortNote": "A quantidade seleccionada para o produto \"{sku}\" não está actualmente disponível, mas tentaremos obtê-la para si."
+    "shortNote": "A quantidade seleccionada para o produto \"{sku}\" não está actualmente disponível, mas tentaremos obtê-la para si.",
+    "notAvailable": "A quantidade selecionada não está disponível no momento, mas tentaremos obtê-la para você. Se não for possível, emitiremos um reembolso."
   },
   "breadcrumbs": { "home": "Início", "shop": "Loja" },
   "pagination": {

@@ -40,6 +40,9 @@ type ProductLite = {
   discount_value?:number|string|null
   discount_active?:boolean
   discount_end?:string|null
+  /** NEW: stock qty and free shipping flag coming from backend */
+  quantity?: number|null
+  is_free_shipping?: number|boolean|null
 }
 type PayMethod = 'card'|'paypal'|'transfer' // UI values
 
@@ -106,6 +109,9 @@ async function fetchProduct() {
     const res = await $customApi(`${API_BASE_URL}${path}`)
     const p = (res?.data ?? res) as any
     const images = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [{ src: p.image }] : [])
+
+    console.log("TESTTTT");
+    console.log(p);
     product.value = {
       id: p.id, title: p.title ?? p.name ?? '', slug: p.slug ?? null,
       sku: p.sku ?? null, image: p.image ?? null, images,
@@ -114,7 +120,10 @@ async function fetchProduct() {
       discount_type: p?.discount?.type ?? p.discount_type ?? null,
       discount_value: p?.discount?.value ?? p.discount_value ?? null,
       discount_active: Boolean(p?.discount?.active ?? p.discount_active ?? false),
-      discount_end: p?.discount?.end_date ?? p.discount_end ?? null
+      discount_end: p?.discount?.end_date ?? p.discount_end ?? null,
+      /** NEW: map stock qty & free shipping */
+      quantity: typeof p.quantity === 'number' ? p.quantity : (p.quantity ? Number(p.quantity) : null),
+      is_free_shipping: p.is_free_shipping ?? null,
     }
   }
 
@@ -156,6 +165,13 @@ const unitPrice = computed(() => {
 })
 const lineTotal = computed(() => Math.max(0, unitPrice.value * Math.max(1, Number(qty.value || 1))))
 
+/** NEW: helper for free shipping flag */
+const isFreeShipping = computed(() => {
+  const flag = product.value?.is_free_shipping
+  // treat 1 / true as free shipping
+  return flag === 1 || flag === true
+})
+
 async function fetchBuyNowQuote() {
   quoteLoading.value = true
   quoteError.value = null
@@ -172,8 +188,30 @@ async function fetchBuyNowQuote() {
     }
     const res = await $customApi<BuyNowQuote>('/buy-now/quote', { method: 'POST', body })
     const data: any = res?.data ?? res
-    quote.value = data
-    selectedShipping.value = (data?.shipping?.selected ?? null) as ShippingKey | null
+
+    // If free shipping, force shipping-related numbers to 0 (and show options as 0 for clarity)
+    if (isFreeShipping.value) {
+      const zeroedOptions: ShippingOption[] = Array.isArray(data?.shipping?.options)
+        ? data.shipping.options.map((o: ShippingOption) => ({ ...o, price: 0 }))
+        : []
+      quote.value = {
+        ...data,
+        shipping: {
+          ...(data?.shipping ?? { options: [], selected: null, price: 0 }),
+          options: zeroedOptions,
+          price: 0,
+        },
+        summary: {
+          ...(data?.summary ?? { product_total: lineTotal.value, shipping: 0, total: lineTotal.value }),
+          shipping: 0,
+          total: +(lineTotal.value + 0).toFixed(2),
+        }
+      }
+      selectedShipping.value = (quote.value.shipping.selected ?? null) as ShippingKey | null
+    } else {
+      quote.value = data
+      selectedShipping.value = (data?.shipping?.selected ?? null) as ShippingKey | null
+    }
   } catch (e: any) {
     quoteError.value = e?.message || 'Failed to calculate shipping'
   } finally {
@@ -186,6 +224,16 @@ watch([qty, selectedCountryId], () => {
 })
 watch(selectedShipping, () => {
   if (!quote.value || !selectedShipping.value) return
+
+  // If free shipping, keep shipping at 0 regardless of selection
+  if (isFreeShipping.value) {
+    quote.value.shipping.selected = selectedShipping.value
+    quote.value.shipping.price = 0
+    quote.value.summary.shipping = 0
+    quote.value.summary.total = +(lineTotal.value + 0).toFixed(2)
+    return
+  }
+
   const opt = quote.value.shipping.options.find(o => o.key === selectedShipping.value)
   if (!opt || opt.disabled) return
   quote.value.shipping.selected = selectedShipping.value
@@ -208,8 +256,10 @@ const allRequiredFilled = computed(() => {
   )
 })
 
-/* require selecting a shipping method only if options are present */
+/* require selecting a shipping method only if options are present
+   and shipping is NOT free */
 const mustSelectShipping = computed(() => {
+  if (isFreeShipping.value) return false
   const opts = quote.value?.shipping?.options || []
   return Array.isArray(opts) && opts.length > 0
 })
@@ -222,8 +272,8 @@ const canPlaceOrder = computed(() =>
   !placingOrder.value
 )
 
-/* Show shipping as 0.00 until quote exists */
-const displayedShipping = computed(() => quote.value?.summary.shipping ?? 0)
+/* Show shipping as 0.00 until quote exists; override to 0 if free shipping */
+const displayedShipping = computed(() => isFreeShipping.value ? 0 : (quote.value?.summary.shipping ?? 0))
 
 /* Subtotal (products + shipping) */
 const subtotal = computed(() => +(lineTotal.value + displayedShipping.value).toFixed(2))
@@ -299,13 +349,11 @@ async function handlePlaceOrder() {
 
     // 🔽 Handle payment method cases
     if (method === 'transfer') {
-      // Directly route to complete order page
       router.push({ path: '/complete-custom-order', query: { orderId: uuid } })
       return
     }
 
     if (link) {
-      // For PayPal or Card, go directly to payment link
       location.assign(String(link))
       return
     }
@@ -322,7 +370,6 @@ async function handlePlaceOrder() {
     placingOrder.value = false
   }
 }
-
 
 onMounted(async () => {
   await Promise.all([fetchProduct(), fetchCountries()])
@@ -517,6 +564,15 @@ onMounted(async () => {
               <img :src="imageSrc" :alt="product.title" class="h-16 w-16 rounded object-cover border" />
               <div class="flex-1">
                 <div class="text-md font-medium text-gray-900 line-clamp-2">{{ product.title }}</div>
+
+                <!-- NEW: out-of-stock message -->
+                <div
+                  v-if="Number(product.quantity ?? 0) === 0"
+                  class="mt-1 text-sm text-amber-700"
+                >
+                {{ t('cart.notAvailable') }}
+                </div>
+
                 <div v-if="product.sku" class="text-sm text-green-700 text-bold">{{ t('cart.sku') }} {{ product.sku }}</div>
                 <div class="mt-2 text-md text-gray-600">{{ t('product.quantity') }}: {{ qty }}</div>
               </div>

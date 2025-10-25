@@ -525,7 +525,8 @@
       "clearedTitle": "Panier vidé",
       "clearFailedTitle": "Échec du vidage du panier"
     },
-    "shortNote": "La quantité choisie pour le produit « {sku} » n’est pas disponible pour le moment, mais nous tenterons de l’obtenir pour vous."
+    "shortNote": "La quantité choisie pour le produit « {sku} » n’est pas disponible pour le moment, mais nous tenterons de l’obtenir pour vous.",
+    "notAvailable": "La quantité sélectionnée n’est actuellement pas disponible, mais nous essaierons de l’obtenir pour vous. Si ce n’est pas possible, nous procéderons à un remboursement."
   },
   "breadcrumbs": { "home": "Accueil", "shop": "Boutique" },
   "pagination": {

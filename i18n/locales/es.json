@@ -525,7 +525,8 @@
       "clearedTitle": "Carrito vaciado",
       "clearFailedTitle": "Error al vaciar el carrito"
     },
-    "shortNote": "La cantidad seleccionada para el producto \"{sku}\" no está disponible actualmente, pero intentaremos conseguirla para ti."
+    "shortNote": "La cantidad seleccionada para el producto \"{sku}\" no está disponible actualmente, pero intentaremos conseguirla para ti.",
+    "notAvailable": "La cantidad seleccionada no está disponible actualmente, pero intentaremos conseguirla para usted. Si no es posible, emitiremos un reembolso."
   },
   "breadcrumbs": { "home": "Inicio", "shop": "Tienda" },
   "pagination": {
