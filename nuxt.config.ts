@@ -65,6 +65,7 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     'nuxt-delay-hydration',
     'nuxt-vitalizer',
+    '@vite-pwa/nuxt'
   ],
 
   css: [
@@ -73,6 +74,27 @@ export default defineNuxtConfig({
     fileURLToPath(new URL('./app/assets/css/layout-default.css', import.meta.url)),
     fileURLToPath(new URL('./app/assets/css/layout-header.css', import.meta.url))
   ],
+
+  pwa: {
+    registerType: 'autoUpdate',
+    devOptions: { enabled: true },
+    manifest: {
+      name: 'TLKeys',
+      short_name: 'TLKeys',
+      start_url: '/',
+      scope: '/',
+      display: 'standalone',
+      background_color: '#111827',
+      theme_color: '#111827',
+      icons: [
+        { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+        { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+        { src: '/maskable-pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+      ]
+    },
+    workbox: { globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,jpg,jpeg,woff2}'] },
+    devOptions: { enabled: true }
+  },
 
   app: {
     head: {
