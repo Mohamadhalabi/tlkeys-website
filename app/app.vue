@@ -22,6 +22,7 @@ useHead(() => ({
   <NuxtLayout>
     <NuxtLoadingIndicator color="orange" :height="10" />
     <div id="page-wrap" class="min-h-dvh overflow-x-clip">
+      <NuxtPwaAssets />
       <NuxtPage />
     </div>
     <BackToTop />
