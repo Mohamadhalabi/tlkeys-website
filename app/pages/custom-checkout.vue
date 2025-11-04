@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { useRoute,useRouter, useRuntimeConfig, useNuxtApp, useHead } from '#imports'
+import { useRoute, useRouter, useRuntimeConfig, useNuxtApp, useHead } from '#imports'
 import { useI18n } from 'vue-i18n'
 import { useAlertStore } from '~/stores/alert'
 import { computeUnitPrice } from '~/utils/pricing'
 import { useCurrency } from '~/composables/useCurrency'
 
-/* Head */
 useHead({
   title: 'Buy Now — Checkout',
   meta: [{ name: 'robots', content: 'noindex,nofollow' }]
 })
+
 const router = useRouter()
 
 type Country = { id:number; name:string|Record<string,string>; iso2?:string|null; zone_id?:number|null }
@@ -40,11 +40,10 @@ type ProductLite = {
   discount_value?:number|string|null
   discount_active?:boolean
   discount_end?:string|null
-  /** NEW: stock qty and free shipping flag coming from backend */
   quantity?: number|null
   is_free_shipping?: number|boolean|null
 }
-type PayMethod = 'card'|'paypal'|'transfer' // UI values
+type PayMethod = 'card'|'paypal'|'transfer'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -74,6 +73,9 @@ const quoteError = ref<string|null>(null)
 const quote = ref<BuyNowQuote | null>(null)
 const selectedShipping = ref<ShippingKey | null>(null)
 
+/* BLOCKED COUNTRY STATE */
+const countryBlocked = ref<{ code:string; message:string; country?:string; country_id?:number } | null>(null)
+
 /* form */
 const submitAttempted = ref(false)
 const email = ref('')
@@ -84,17 +86,17 @@ const postalCode = ref('')
 const phone = ref('')
 const paymentMethod = ref<PayMethod>('card')
 
-/* placing state for order submission */
+/* placing state */
 const placingOrder = ref(false)
 
 function nameOf(c: Country): string {
   try {
     if (typeof c.name === 'string') {
       const s = c.name.trim()
-      if (s.startsWith('{')) { const o = JSON.parse(s); return o.en || Object.values(o)[0] || '' }
+      if (s.startsWith('{')) { const o = JSON.parse(s); return (o.en as string) || (Object.values(o)[0] as string) || '' }
       return s
     }
-    return c.name?.['en'] || Object.values(c.name||{})[0] || ''
+    return (c.name?.['en'] as string) || (Object.values(c.name||{})[0] as string) || ''
   } catch { return String(c.name ?? '') }
 }
 
@@ -109,9 +111,6 @@ async function fetchProduct() {
     const res = await $customApi(`${API_BASE_URL}${path}`)
     const p = (res?.data ?? res) as any
     const images = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [{ src: p.image }] : [])
-
-    console.log("TESTTTT");
-    console.log(p);
     product.value = {
       id: p.id, title: p.title ?? p.name ?? '', slug: p.slug ?? null,
       sku: p.sku ?? null, image: p.image ?? null, images,
@@ -121,7 +120,6 @@ async function fetchProduct() {
       discount_value: p?.discount?.value ?? p.discount_value ?? null,
       discount_active: Boolean(p?.discount?.active ?? p.discount_active ?? false),
       discount_end: p?.discount?.end_date ?? p.discount_end ?? null,
-      /** NEW: map stock qty & free shipping */
       quantity: typeof p.quantity === 'number' ? p.quantity : (p.quantity ? Number(p.quantity) : null),
       is_free_shipping: p.is_free_shipping ?? null,
     }
@@ -165,16 +163,25 @@ const unitPrice = computed(() => {
 })
 const lineTotal = computed(() => Math.max(0, unitPrice.value * Math.max(1, Number(qty.value || 1))))
 
-/** NEW: helper for free shipping flag */
 const isFreeShipping = computed(() => {
   const flag = product.value?.is_free_shipping
-  // treat 1 / true as free shipping
   return flag === 1 || flag === true
 })
+
+function parseQuoteError(err: any): { code?:string; message:string } {
+  const status = err?.response?.status ?? err?.status
+  const payload = err?.response?._data ?? err?.data ?? null
+  if (status === 422 && payload?.error?.code) {
+    return { code: String(payload.error.code), message: String(payload.error.message || 'Blocked') }
+  }
+  if (typeof payload?.message === 'string') return { message: payload.message }
+  return { message: err?.message || 'Failed to calculate shipping' }
+}
 
 async function fetchBuyNowQuote() {
   quoteLoading.value = true
   quoteError.value = null
+  countryBlocked.value = null
   quote.value = null
   try {
     if (!product.value) throw new Error('No product')
@@ -189,7 +196,6 @@ async function fetchBuyNowQuote() {
     const res = await $customApi<BuyNowQuote>('/buy-now/quote', { method: 'POST', body })
     const data: any = res?.data ?? res
 
-    // If free shipping, force shipping-related numbers to 0 (and show options as 0 for clarity)
     if (isFreeShipping.value) {
       const zeroedOptions: ShippingOption[] = Array.isArray(data?.shipping?.options)
         ? data.shipping.options.map((o: ShippingOption) => ({ ...o, price: 0 }))
@@ -213,19 +219,33 @@ async function fetchBuyNowQuote() {
       selectedShipping.value = (data?.shipping?.selected ?? null) as ShippingKey | null
     }
   } catch (e: any) {
-    quoteError.value = e?.message || 'Failed to calculate shipping'
+    const { code, message } = parseQuoteError(e)
+    if (code === 'COUNTRY_BLOCKED') {
+      const payload = e?.response?._data?.error
+      countryBlocked.value = {
+        code: 'COUNTRY_BLOCKED',
+        message: payload?.message || 'This product cannot be shipped to the selected country.',
+        country: payload?.details?.country,
+        country_id: payload?.details?.country_id
+      }
+      quote.value = null
+      selectedShipping.value = null
+      quoteError.value = null
+    } else {
+      quoteError.value = message
+    }
   } finally {
     quoteLoading.value = false
   }
 }
 
 watch([qty, selectedCountryId], () => {
+  countryBlocked.value = null
   if (product.value && selectedCountryId.value) fetchBuyNowQuote()
 })
+
 watch(selectedShipping, () => {
   if (!quote.value || !selectedShipping.value) return
-
-  // If free shipping, keep shipping at 0 regardless of selection
   if (isFreeShipping.value) {
     quote.value.shipping.selected = selectedShipping.value
     quote.value.shipping.price = 0
@@ -233,7 +253,6 @@ watch(selectedShipping, () => {
     quote.value.summary.total = +(lineTotal.value + 0).toFixed(2)
     return
   }
-
   const opt = quote.value.shipping.options.find(o => o.key === selectedShipping.value)
   if (!opt || opt.disabled) return
   quote.value.shipping.selected = selectedShipping.value
@@ -242,7 +261,6 @@ watch(selectedShipping, () => {
   quote.value.summary.total = +(lineTotal.value + opt.price).toFixed(2)
 })
 
-/* Validation + totals + submit */
 const validEmail = computed(() => /\S+@\S+\.\S+/.test(email.value.trim()))
 const allRequiredFilled = computed(() => {
   return (
@@ -256,8 +274,6 @@ const allRequiredFilled = computed(() => {
   )
 })
 
-/* require selecting a shipping method only if options are present
-   and shipping is NOT free */
 const mustSelectShipping = computed(() => {
   if (isFreeShipping.value) return false
   const opts = quote.value?.shipping?.options || []
@@ -266,18 +282,15 @@ const mustSelectShipping = computed(() => {
 
 const canPlaceOrder = computed(() =>
   allRequiredFilled.value &&
+  !countryBlocked.value &&
   (!mustSelectShipping.value || !!selectedShipping.value) &&
   !loadingProduct.value && !countriesLoading.value && !quoteLoading.value &&
   !productError.value && !countriesError.value && !quoteError.value &&
   !placingOrder.value
 )
 
-/* Show shipping as 0.00 until quote exists; override to 0 if free shipping */
 const displayedShipping = computed(() => isFreeShipping.value ? 0 : (quote.value?.summary.shipping ?? 0))
-
-/* Subtotal (products + shipping) */
 const subtotal = computed(() => +(lineTotal.value + displayedShipping.value).toFixed(2))
-/* 3% fee for card & PayPal */
 const feeRate = computed(() => (paymentMethod.value === 'card' || paymentMethod.value === 'paypal') ? 0.03 : 0)
 const paymentFee = computed(() => +(subtotal.value * feeRate.value).toFixed(2))
 const grandTotal = computed(() => +(subtotal.value + paymentFee.value).toFixed(2))
@@ -288,6 +301,12 @@ function markInvalid(v: string | number | '') {
 
 async function handlePlaceOrder() {
   submitAttempted.value = true
+
+  if (countryBlocked.value) {
+    alerts.error(countryBlocked.value.message)
+    return
+  }
+
   if (!allRequiredFilled.value) {
     alerts.error(t('checkout.missingFields') || 'Please complete the required fields.')
     return
@@ -325,7 +344,7 @@ async function handlePlaceOrder() {
       subtotal: subtotal.value,
       total: grandTotal.value
     },
-    payment_method: backendPaymentMethod, // 'card' | 'paypal' | 'transfer'
+    payment_method: backendPaymentMethod,
     serial: serialFromQuery || null
   }
 
@@ -347,7 +366,6 @@ async function handlePlaceOrder() {
       try { sessionStorage.setItem('guest_checkout_uuid', uuid) } catch {}
     }
 
-    // 🔽 Handle payment method cases
     if (method === 'transfer') {
       router.push({ path: '/complete-custom-order', query: { orderId: uuid } })
       return
@@ -493,6 +511,18 @@ onMounted(async () => {
                 </div>
 
                 <div v-if="quoteLoading" class="h-20 rounded bg-gray-100 animate-pulse"></div>
+
+                <!-- BLOCKED BANNER -->
+                <div
+                  v-else-if="countryBlocked"
+                  class="rounded border border-red-200 bg-red-50 p-3 text-red-700 text-sm"
+                >
+                  {{ countryBlocked.message }}
+                  <template v-if="countryBlocked.country">
+                    ({{ countryBlocked.country }})
+                  </template>
+                </div>
+
                 <div v-else-if="productError" class="rounded border border-red-200 bg-red-50 p-3 text-red-700 text-sm">
                   {{ productError }}
                 </div>
@@ -514,7 +544,7 @@ onMounted(async () => {
                 </div>
               </div>
 
-              <!-- Payment methods (+ 3% note) -->
+              <!-- Payment methods -->
               <div class="mt-4">
                 <div class="flex items-center justify-between">
                   <div class="text-sm text-gray-600 mb-2">{{ t('checkout.paymentMethod') }}</div>
@@ -564,19 +594,17 @@ onMounted(async () => {
               <img :src="imageSrc" :alt="product.title" class="h-16 w-16 rounded object-cover border" />
               <div class="flex-1">
                 <div class="text-md font-medium text-gray-900 line-clamp-2">{{ product.title }}</div>
-
-                <!-- NEW: out-of-stock message -->
-                <div
-                  v-if="Number(product.quantity ?? 0) === 0"
-                  class="mt-1 text-sm text-amber-700"
-                >
-                {{ t('cart.notAvailable') }}
+                <div v-if="Number(product.quantity ?? 0) === 0" class="mt-1 text-sm text-amber-700">
+                  {{ t('cart.notAvailable') }}
                 </div>
-
                 <div v-if="product.sku" class="text-sm text-green-700 text-bold">{{ t('cart.sku') }} {{ product.sku }}</div>
                 <div class="mt-2 text-md text-gray-600">{{ t('product.quantity') }}: {{ qty }}</div>
               </div>
               <div class="text-md text-red-600 font-semibold">{{ formatMoney(unitPrice) }}</div>
+            </div>
+
+            <div v-if="countryBlocked" class="rounded border border-red-200 bg-red-50 p-3 text-red-700 text-sm">
+              {{ countryBlocked.message }}<template v-if="countryBlocked.country"> ({{ countryBlocked.country }})</template>
             </div>
 
             <div class="border-t border-gray-100 pt-3 space-y-1 text-sm">

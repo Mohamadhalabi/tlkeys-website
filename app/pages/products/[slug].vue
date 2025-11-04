@@ -8,7 +8,7 @@ import { useCurrency } from '~/composables/useCurrency'
 import { useCart } from '~/composables/useCart'
 import { useWishlist } from '~/composables/useWishlist'
 import { useAlertStore } from '~/stores/alert'
-
+import { useLocalePath } from '#imports'
 /* components */
 import ProductTabDescription from '~/components/product/tabs/ProductTabDescription.vue'
 import ProductTabReviews from '~/components/product/tabs/ProductTabReviews.vue'
@@ -91,6 +91,7 @@ const t = (key: string, fallback?: string) => {
   return out === key ? (fallback ?? key) : out
 }
 const dir = computed(() => localeProperties.value.dir || 'ltr')
+const localePath = useLocalePath()
 
 const runtime = useRuntimeConfig()
 const API_BASE_URL = runtime.public.API_BASE_URL as string
@@ -160,15 +161,17 @@ async function onBuyNow() {
   const p = product.value
   const query: Record<string, string> = {
     mode: 'buy-now',
-    pid: String(p.id),                 // keep id for convenience
-    pslug: String(p.slug || ''),       // ✅ pass slug too (this is what your API supports)
+    pid: String(p.id),
+    pslug: String(p.slug || ''),
     qty: String(Math.max(1, Number(qty.value || 1))),
   }
   if (requiresSerial.value) query.serial = serial.value.trim()
 
-  await navigateTo({ path: '/custom-checkout', query })
+  // ✅ keeps /tr (or whatever current locale prefix) in the URL
+  await navigateTo({ path: localePath('/custom-checkout'), query })
+  // Alternatively, if you have a named route:
+  // await navigateTo(localePath({ name: 'custom-checkout', query }))
 }
-
 /* helpers */
 // Prefer API slugs, keep them unlocalized; NuxtLinkLocale will add the locale prefix.
 const slugToPath = (s?: string | null) => {
