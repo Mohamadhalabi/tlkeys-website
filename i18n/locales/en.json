@@ -714,6 +714,23 @@
     "keepOrderId": "Keep your order ID for reference.",
     "continueShopping": "Continue shopping",
     "notPaidYet" : "Not Paid Yet"
+  },
+    "vin_to_pin": {
+    "page_title": "Vin To Pin",
+    "title": "Vin Request",
+    "vin_placeholder": "VIN Number",
+    "username_placeholder": "Enter Username",
+    "key_code_placeholder": "Key Code",
+    "pin_code_placeholder": "Pin Code",
+    "get_button": "GET",
+    "loading": "Loading…",
+    "copy_button": "Copy",
+    "invalid_vin": "Invalid VIN entered. Please try again.",
+    "generic_error": "An error occurred. Please try again later.",
+    "today": "Today",
+    "this_month": "This Month",
+    "left_today": "Left Today",
+    "left_month": "Left This Month"
   }
 
 }

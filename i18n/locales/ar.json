@@ -680,6 +680,23 @@
     "keepOrderId": "احتفظ برقم الطلب للرجوع إليه.",
     "continueShopping": "متابعة التسوق",
     "notPaidYet": "في انتظار الدفع أو لم يتم الدفع بعد"
+  },
+    "vin_to_pin": {
+    "page_title": "Vin To Pin",
+    "title": "طلب رقم VIN",
+    "vin_placeholder": "رقم الشاسيه (VIN)",
+    "username_placeholder": "أدخل اسم المستخدم",
+    "key_code_placeholder": "رمز المفتاح",
+    "pin_code_placeholder": "رمز الـ PIN",
+    "get_button": "احصل عليه",
+    "loading": "جارٍ التحميل…",
+    "copy_button": "نسخ",
+    "invalid_vin": "تم إدخال رقم شاسيه غير صالح، يرجى المحاولة مرة أخرى.",
+    "generic_error": "حدث خطأ، يرجى المحاولة لاحقًا.",
+    "today": "اليوم",
+    "this_month": "هذا الشهر",
+    "left_today": "المتبقي اليوم",
+    "left_month": "المتبقي هذا الشهر"
   }
 
 }

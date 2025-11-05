@@ -7,6 +7,7 @@ definePageMeta({
   layout: 'pincode_layout',
   analytics: false, // ⬅️ disable GA4 here
 })
+
 type ApiResponse = {
   error?: string
   message?: string
@@ -16,6 +17,8 @@ type ApiResponse = {
   pin_code?: string | null
   requests_today?: number
   requests_this_month?: number
+  requests_left_today?: number
+  requests_left_month?: number
   available_in_db?: boolean
 }
 
@@ -28,11 +31,13 @@ const isLoading = ref(false)
 const errorMessage = ref<string | null>(null)
 const requestsToday = ref<number | undefined>(undefined)
 const requestsThisMonth = ref<number | undefined>(undefined)
+const requestsLeftToday = ref<number | undefined>(undefined)
+const requestsLeftMonth = ref<number | undefined>(undefined)
 const greenTextState = ref(false) // turn inputs neon-green when condition matches
 
 const { $customApi } = useNuxtApp()
 const { public: { API_BASE_URL, API_KEY, SECRET_KEY } } = useRuntimeConfig()
-const { locale } = (useI18n?.() as any) || { locale: ref('en') }
+const { t, locale } = (useI18n?.() as any) || { t: (s: string) => s, locale: ref('en') }
 
 const currencyCookie = useCookie<string>('currency', { default: () => 'USD', sameSite: 'lax', path: '/' })
 const usernameCookie = useCookie<string | null>('username', { default: () => null, maxAge: 60 * 60 * 12, sameSite: 'lax', path: '/' })
@@ -58,6 +63,8 @@ async function handleSubmit() {
   pinCode.value = ''
   requestsToday.value = undefined
   requestsThisMonth.value = undefined
+  requestsLeftToday.value = undefined
+  requestsLeftMonth.value = undefined
   greenTextState.value = false
   usernameCookie.value = username.value
 
@@ -81,7 +88,7 @@ async function handleSubmit() {
     if (data?.error) {
       errorMessage.value = data.error
     } else if (data?.vin === 'Not Correct Vin') {
-      errorMessage.value = 'Invalid VIN entered. Please try again.'
+      errorMessage.value = t('vin_to_pin.invalid_vin')
     } else {
       keyCode.value = data?.key_code || ''
       pinCode.value = data?.pin_code || ''
@@ -89,8 +96,10 @@ async function handleSubmit() {
       if (data?.available_in_db && username.value === '4immo8110') greenTextState.value = true
     }
 
-    requestsToday.value = data?.requests_today ?? 0
-    requestsThisMonth.value = data?.requests_this_month ?? 0
+    requestsToday.value     = data?.requests_today       ?? 0
+    requestsThisMonth.value = data?.requests_this_month  ?? 0
+    requestsLeftToday.value = data?.requests_left_today  ?? 0
+    requestsLeftMonth.value = data?.requests_left_month  ?? 0
   } catch (e: any) {
     if (e?.data?.errors?.vin?.[0]) {
       errorMessage.value = e.data.errors.vin[0]
@@ -103,7 +112,7 @@ async function handleSubmit() {
     } else if (e?.response?.data?.message) {
       errorMessage.value = e.response.data.message
     } else {
-      errorMessage.value = 'An error occurred. Please try again later.'
+      errorMessage.value = t('vin_to_pin.generic_error')
     }
     keyCode.value = ''
     pinCode.value = ''
@@ -117,21 +126,24 @@ function copyToClipboard() {
   navigator.clipboard.writeText(text).catch(() => {})
 }
 
-useHead({
-  title: 'Vin To Pin',
+useHead(() => ({
+  title: t('vin_to_pin.page_title'),
   meta: [
     { name: 'robots', content: 'noindex, nofollow, noarchive, nosnippet, noimageindex' },
     { name: 'googlebot', content: 'noindex, nofollow, noarchive, nosnippet, noimageindex' },
   ],
-})
+}))
 </script>
 
 <template>
-  <main class="min-h-screen bg-black flex items-start justify-center">
+  <main
+    class="min-h-screen bg-black flex items-start justify-center"
+    :dir="(locale === 'ar' || locale?.value === 'ar') ? 'rtl' : 'ltr'"
+  >
     <div class="w-full max-w-[760px] px-4 m-auto">
       <!-- Title -->
       <h3 class="text-white text-center font-semibold tracking-wide text-[22px] mt-16 mb-6">
-        Vin Request
+        {{ $t('vin_to_pin.title') }}
       </h3>
 
       <!-- Error -->
@@ -151,16 +163,23 @@ useHead({
           aria-live="polite" aria-busy="true"
         >
           <div class="h-12 w-12 rounded-full border-4 border-white/25 border-t-white animate-spin"></div>
-          <span class="sr-only">Loading...</span>
+          <span class="sr-only">{{ $t('vin_to_pin.loading') }}</span>
         </div>
       </transition>
 
       <!-- Counters -->
       <div
-        v-if="requestsToday !== undefined && requestsThisMonth !== undefined"
+        v-if="requestsToday !== undefined
+               && requestsThisMonth !== undefined
+               && requestsLeftToday !== undefined
+               && requestsLeftMonth !== undefined"
         class="mx-auto mb-5 max-w-[680px] text-center text-zinc-400 text-md text-white"
       >
-        Today: {{ requestsToday }} | This Month: {{ requestsThisMonth }}
+        {{ $t('vin_to_pin.today') }}: {{ requestsToday }}
+        |
+        {{ $t('vin_to_pin.this_month') }}: {{ requestsThisMonth }}
+        |
+        {{ $t('vin_to_pin.left_month') }}: {{ requestsLeftMonth }}
       </div>
 
       <!-- Form -->
@@ -172,7 +191,7 @@ useHead({
             class="mx-auto mb-2 max-w-[680px] rounded-md border border-red-400 bg-red-500/10 text-red-200 px-3 py-2 text-sm"
             role="alert"
           >
-            VIN must be exactly 17 characters.
+            {{ $t('vin_to_pin.vin_size') }}
           </div>
           <input
             type="text"
@@ -181,7 +200,7 @@ useHead({
             maxlength="17"
             required
             autocomplete="off"
-            placeholder="VIN Number"
+            :placeholder="$t('vin_to_pin.vin_placeholder')"
             class="pill-input vin-width"
             :class="[
               successState ? 'success-border' : '',
@@ -197,7 +216,7 @@ useHead({
             v-model="username"
             autocomplete="new-password"
             required
-            placeholder="Enter Username"
+            :placeholder="$t('vin_to_pin.username_placeholder')"
             class="pill-input username-width"
             :class="[
               successState ? 'success-border' : '',
@@ -211,7 +230,7 @@ useHead({
           <input
             type="text"
             v-model="keyCode"
-            placeholder="Key Code"
+            :placeholder="$t('vin_to_pin.key_code_placeholder')"
             readonly
             class="pill-input key-width"
             :class="[
@@ -226,7 +245,7 @@ useHead({
           <input
             type="text"
             v-model="pinCode"
-            placeholder="Pin Code"
+            :placeholder="$t('vin_to_pin.pin_code_placeholder')"
             readonly
             class="pill-input pin-width pin-accent"
             :class="[
@@ -243,7 +262,7 @@ useHead({
               <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.25" stroke-width="4"/>
               <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
             </svg>
-            <span>{{ isLoading ? 'Loading…' : 'GET' }}</span>
+            <span>{{ isLoading ? $t('vin_to_pin.loading') : $t('vin_to_pin.get_button') }}</span>
           </button>
 
           <button
@@ -252,7 +271,7 @@ useHead({
             class="copy-button"
             @click="copyToClipboard"
           >
-            Copy
+            {{ $t('vin_to_pin.copy_button') }}
           </button>
         </div>
       </form>
@@ -261,20 +280,20 @@ useHead({
 </template>
 
 <style scoped>
-/* ---------- layout helpers (to mirror your original) ---------- */
+/* ---------- layout helpers ---------- */
 .row-gap { margin: 20px 0; }
 .actions-row {
   display: flex; align-items: center; justify-content: center;
   gap: 14px; margin-top: 26px; flex-wrap: wrap;
 }
 
-/* ---------- EXACT visual style from your screenshot ---------- */
+/* ---------- Visual style ---------- */
 .pill-input {
   height: 56px;
-  background: #E40000;         /* 🔴 red background */
-  border: 2px solid #6b6b6b;    /* subtle gray outline (kept) */
-  color: #f2f2f2;               /* light text */
-  border-radius: 14px;          /* rounded */
+  background: #E40000;         /* red background */
+  border: 2px solid #6b6b6b;
+  color: #f2f2f2;
+  border-radius: 14px;
   outline: none;
   text-align: center;
   font-size: 20px;
@@ -286,25 +305,20 @@ useHead({
 .pill-input::placeholder { color: #f2f2f2; opacity: 0.9; }
 .pill-input:focus { border-color: #9a9a9a; }
 
-/* widths to match proportions in the screenshot */
 .vin-width      { width: 680px; max-width: 92vw; }
 .username-width { width: 420px; max-width: 86vw; }
 .key-width      { width: 320px; max-width: 82vw; }
 .pin-width      { width: 360px; max-width: 84vw; }
 
-/* success = white outline */
 .success-border {
   border-color: #ffffff !important;
   box-shadow: 0 0 0 2px rgba(255,255,255,0.15);
 }
 
-/* green accent for the Pin Code field */
 .pin-accent { box-shadow: 0 0 0 2px rgba(97,195,166,0.35); }
 
-/* optional: neon success text (kept behavior) */
 .green-text { color: #00ff00 !important; }
 
-/* GET button (mint green) */
 .get-button {
   width: 220px; height: 56px;
   background: #5fb99c;
@@ -315,18 +329,15 @@ useHead({
 }
 .get-button:disabled { opacity: 0.7; cursor: not-allowed; }
 
-/* Copy button — subtle border, dark bg */
 .copy-button {
   height: 56px; padding: 0 20px; border-radius: 16px;
   border: 2px solid #5fb99c; background: #222; color: #e7fff6;
   font-weight: 700; letter-spacing: 0.3px;
 }
 
-/* overlay fade */
 .fade-enter-active, .fade-leave-active { transition: opacity .25s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-/* mobile tune */
 @media (max-width: 480px) {
   .pill-input { height: 54px; font-size: 18px; }
   .get-button, .copy-button { height: 54px; font-size: 18px; }
