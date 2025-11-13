@@ -250,12 +250,26 @@ async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAle
       : (appliedCouponCode.value || null)
 
     if (couponToSend) params.set('coupon', couponToSend)
-
-    // send promo choice (mutually exclusive)
     if (selectedPromo.value) params.set('promo', selectedPromo.value)
 
     const res = await $customApi<Quote>(`/checkout/quote?${params.toString()}`)
     quote.value = res
+
+    /* ✅ UAE local shipping = 10$ */
+    if (
+      selectedAddress.value?.country_id === UAE_COUNTRY_ID &&
+      selectedShipping.value === 'domestic' &&
+      quote.value?.summary
+    ) {
+      const currentShip = Number(quote.value.summary.shipping ?? 0)
+      const targetShip = 10
+      const diff = targetShip - currentShip
+
+      quote.value.summary.shipping = targetShip
+      quote.value.summary.total = Number(
+        ((quote.value.summary.total ?? 0) + diff).toFixed(2)
+      )
+    }
 
     // sync selected address and default shipping
     if (!selectedAddressId.value) selectedAddressId.value = res.selected_address_id ?? null
@@ -266,7 +280,6 @@ async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAle
       selectedShipping.value = null
     }
 
-    // sync promo from backend decision (best savings when user didn't choose)
     if (res.promotions?.selected) {
       selectedPromo.value = res.promotions.selected as PromoKey
     }
