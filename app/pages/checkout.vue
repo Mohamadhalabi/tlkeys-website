@@ -399,6 +399,7 @@ async function createOrder() {
     payment_method:  paymentMap[paymentMethod.value],
     coupon_code:     appliedCouponCode.value || null,
     promo:           selectedPromo.value,
+    free_ship:       selectedPromo.value === 'free_ship' ? 1 : 0,
   }
 
   try {
