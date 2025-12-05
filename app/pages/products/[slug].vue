@@ -402,21 +402,51 @@ const rawFallback = computed(() => {
 })
 const unitPrice = computed(() => {
   if (!product.value) return 0
-  if (useEuro.value) return toNum(product.value!.euro_price) || 0
-  // existing logic:
+
+  // ✅ When EUR is forced, apply discount on euro_price
+  if (useEuro.value) {
+    const base = toNum(product.value!.euro_price) ?? 0
+    const dtype = product.value!.discount_type
+    const dval  = toNum(product.value!.discount_value)
+    const hasActive =
+      !!product.value!.discount_active &&
+      (dtype === 'fixed' || dtype === 'percent') &&
+      (dval ?? 0) > 0
+
+    if (!hasActive) return base
+
+    if (dtype === 'fixed') {
+      return Math.max(0, base - (dval as number))
+    }
+
+    if (dtype === 'percent') {
+      return Math.max(0, base * (1 - (dval as number) / 100))
+    }
+
+    return base
+  }
+
+  // 🔻 existing non-EUR logic (unchanged)
   const base = computeUnitPrice(product.value as any, qty.value).unit
   let unit = base > 0 ? base : (rawFallback.value || 0)
+
   const noPromo = unitWithoutDiscount.value
   const dtype = product.value.discount_type
   const dval  = toNum(product.value.discount_value)
-  const hasActive = !!product.value.discount_active && (dtype === 'fixed' || dtype === 'percent') && (dval ?? 0) > 0
+  const hasActive =
+    !!product.value.discount_active &&
+    (dtype === 'fixed' || dtype === 'percent') &&
+    (dval ?? 0) > 0
+
   const helperMissedIt = unit >= noPromo - 1e-9
   if (hasActive && helperMissedIt) {
     if (dtype === 'fixed')   unit = Math.max(0, unit - (dval as number))
     if (dtype === 'percent') unit = Math.max(0, unit * (1 - (dval as number) / 100))
   }
+
   return unit
 })
+
 
 const unitWithoutDiscount = computed(() => {
   if (!product.value) return 0
@@ -441,13 +471,38 @@ const unitWithoutDiscount = computed(() => {
 
 const displayPrice = computed(() => {
   if (!product.value) return { current: 0, old: null as number | null }
+
+  // ✅ EUR path: show discounted euro_price + strike-through base euro_price
   if (useEuro.value) {
-    return { current: toNum(product.value!.euro_price) || 0, old: null }
+    const base = toNum(product.value!.euro_price) ?? 0
+    const dtype = product.value!.discount_type
+    const dval  = toNum(product.value!.discount_value)
+    const hasActive =
+      !!product.value!.discount_active &&
+      (dtype === 'fixed' || dtype === 'percent') &&
+      (dval ?? 0) > 0
+
+    let current = base
+    let old: number | null = null
+
+    if (hasActive && base > 0) {
+      if (dtype === 'fixed') {
+        current = Math.max(0, base - (dval as number))
+      } else if (dtype === 'percent') {
+        current = Math.max(0, base * (1 - (dval as number) / 100))
+      }
+      old = base
+    }
+
+    return { current, old }
   }
+
+  // 🔻 existing non-EUR logic (unchanged)
   const current = unitPrice.value
   const old = current < unitWithoutDiscount.value ? unitWithoutDiscount.value : null
   return { current, old }
 })
+
 const hasDiscountNow    = computed(() => !!displayPrice.value.old && displayPrice.value.old > displayPrice.value.current)
 const discountAmountNow = computed(() => hasDiscountNow.value ? (displayPrice.value.old! - displayPrice.value.current) : 0)
 const hasTablePrice     = computed(() => Array.isArray(product.value?.table_price) && product.value!.table_price!.length > 0)
@@ -504,17 +559,27 @@ async function onAddToCart() {
   const p = product.value
   const unit = unitPrice.value
 
+  // ✅ For EUR override: send the *discounted* EUR unit as euro_price
+  const euroToSend = useEuro.value
+    ? unit // already discounted EUR (see unitPrice computed)
+    : (toNum(p.euro_price) ?? null)
+
   await cart.add(p.id, qty.value, {
     title: p.title,
     image: p.image || p.images?.[0]?.src,
     sku: p.sku || undefined,
     slug: p.slug,
+
+    // unit in "current" display currency (for totals / non-EUR products)
     price: unit,
     regular_price: toNum(p.regular_price),
     sale_price: toNum(p.sale_price),
     table_price: Array.isArray(p.table_price) ? p.table_price : null,
-    euro_price: p.euro_price,
+
+    // ✅ EUR override data for guest cart
+    euro_price: euroToSend,
     display_euro_price: p.display_euro_price,
+
     discount_type: p.discount_type ?? null,
     discount_value: toNum(p.discount_value),
     priceSnapshot: unit,
@@ -522,6 +587,8 @@ async function onAddToCart() {
     serial_number: requiresSerial.value ? [serial.value.trim()] : null,
   })
 }
+
+
 
 async function onToggleWishlist() {
   if (!product.value) return

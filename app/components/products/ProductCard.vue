@@ -47,7 +47,6 @@ const { formatMoney } = useCurrency()
 const runtime = useRuntimeConfig()
 const WHATSAPP_NUMBER = (runtime.public.WHATSAPP_NUMBER as string) || '971504429045'
 
-
 const qty = ref(1)
 const cardEl = ref<HTMLElement | null>(null)
 
@@ -107,36 +106,47 @@ const asProductLike = computed(() => ({
   discount_value: n(props.product.discount_value),
 }))
 
-// const unitWithFallback = computed(() => {
-//   const base = computeUnitPrice(asProductLike.value, qty.value).unit
-//   const t0 = props.product.discount_start_date ? Date.parse(props.product.discount_start_date) : NaN
-//   const t1 = props.product.discount_end_date ? Date.parse(props.product.discount_end_date) : NaN
-//   const now = Date.now()
-//   const inWindow =
-//     (!Number.isFinite(t0) || now >= t0) &&
-//     (!Number.isFinite(t1) || now <= t1)
-
-//   const type = props.product.discount_type
-//   const val  = n(props.product.discount_value)
-
-//   if (!inWindow || !type || !val || val <= 0) return base
-//   if (type === 'fixed')   return Math.max(0, base - val)
-//   if (type === 'percent') return Math.max(0, base * (1 - val / 100))
-//   return base
-// })
-
 /* prices for display */
-// prices for display
 const unit = computed(() => {
   if (useEuro.value) {
-    return Number(n((props.product as any).euro_price) ?? 0)
+    const base = n((props.product as any).euro_price) ?? 0
+    const type = props.product.discount_type
+    const val = n(props.product.discount_value)
+
+    if (!type || !val || val <= 0) {
+      // no discount, just show base euro price
+      return base
+    }
+
+    if (type === 'fixed') {
+      // fixed amount discount in EUR
+      return Math.max(0, base - val)
+    }
+
+    if (type === 'percent') {
+      // percentage discount on EUR price
+      return Math.max(0, base * (1 - val / 100))
+    }
+
+    return base
   }
+
   return computeUnitPrice(asProductLike.value, qty.value).unit
 })
 
 const unitBefore = computed(() => {
-  // when forcing EUR display, don't show a crossed-out price
-  if (useEuro.value) return null
+  // when forcing EUR display, show base euro price as "before" if discount is active
+  if (useEuro.value) {
+    const base = n((props.product as any).euro_price)
+    const type = props.product.discount_type
+    const val = n(props.product.discount_value)
+
+    if (!base || !type || !val || val <= 0) {
+      return null
+    }
+
+    return base
+  }
 
   const forcedBase =
     (typeof props.product.regular_price === 'number' && props.product.regular_price > 0)
@@ -161,6 +171,7 @@ const discountAmount = computed(() => {
   if (!hasDiscount.value) return 0
   return Math.max(0, (unitBefore.value || 0) - unit.value)
 })
+
 /* animated OFF amount */
 const offAnim = ref(0)
 let rafId: number | null = null
@@ -269,12 +280,12 @@ async function onAdd() {
     <!-- IMAGE -->
     <NuxtLinkLocale :to="linkTo" rel="nofollow noopener" class="relative block rounded-t-xl overflow-hidden bg-white">
       <div class="relative w-full aspect-[3/3]">
-      <NuxtImg
-        :src="product.image"
-        :alt="product.name"
-        loading="lazy"
-        class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-      />
+        <NuxtImg
+          :src="product.image"
+          :alt="product.name"
+          loading="lazy"
+          class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
         <div class="pointer-events-none absolute inset-0 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)]"></div>
       </div>
 
@@ -284,7 +295,7 @@ async function onAdd() {
           v-if="hasDiscount && !hidePrice"
           class="inline-flex items-center rounded-full bg-red-600 text-white ring-1 ring-white/20 px-2.5 py-1 text-[11px] font-semibold tracking-wide shadow-lg"
         >
-          {{ formatMoney(Number(offAnim.toFixed(2))) }} {{ _t('common.off', 'OFF') }}
+          {{ formatDisplayMoney(Number(offAnim.toFixed(2))) }} {{ _t('common.off', 'OFF') }}
         </span>
         <span
           v-if="product.freeShipping || product.badgeText"
@@ -342,7 +353,6 @@ async function onAdd() {
           </div>
         </div>
 
-
         <!-- WhatsApp when price hidden -->
         <a
           v-else
@@ -371,11 +381,28 @@ async function onAdd() {
 
         <!-- Qty -->
         <div v-if="showAdd && showQty && !hidePrice && !requiresSerial" class="w-full flex items-center justify-center gap-2">
-          <button type="button" class="w-10 h-10 rounded-md ring-1 ring-black/10 text-gray-700 hover:bg-gray-50 text-base"
-                  @click="qty = Math.max(1, qty - 1)" :aria-label="_t('common.decrease','Decrease quantity')">–</button>
-          <input v-model.number="qty" type="number" min="1" class="w-16 h-10 rounded-md ring-1 ring-black/10 text-center text-sm" />
-          <button type="button" class="w-10 h-10 rounded-md ring-1 ring-black/10 text-gray-700 hover:bg-gray-50 text-base"
-                  @click="qty = qty + 1" :aria-label="_t('common.increase','Increase quantity')">+</button>
+          <button
+            type="button"
+            class="w-10 h-10 rounded-md ring-1 ring-black/10 text-gray-700 hover:bg-gray-50 text-base"
+            @click="qty = Math.max(1, qty - 1)"
+            :aria-label="_t('common.decrease','Decrease quantity')"
+          >
+            –
+          </button>
+          <input
+            v-model.number="qty"
+            type="number"
+            min="1"
+            class="w-16 h-10 rounded-md ring-1 ring-black/10 text-center text-sm"
+          />
+          <button
+            type="button"
+            class="w-10 h-10 rounded-md ring-1 ring-black/10 text-gray-700 hover:bg-gray-50 text-base"
+            @click="qty = qty + 1"
+            :aria-label="_t('common.increase','Increase quantity')"
+          >
+            +
+          </button>
         </div>
 
         <!-- Add to cart (never show when price is hidden) -->
