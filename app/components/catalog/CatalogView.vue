@@ -42,41 +42,134 @@ const isRTL = computed(() => localeProperties.value?.dir === 'rtl')
    Mobile filters (launcher + modal)
    ========================= */
 type KFixed = 'brands' | 'categories' | 'manufacturers' | 'models'
+type ModalKind = KFixed | 'attr'
 
-const activeMobileModal = ref<null | KFixed>(null)
+const activeMobileModal = ref<ModalKind | null>(null)
+const activeAttrSlug = ref<string | null>(null)
+
+/** Open fixed facet modal (brands/categories/manufacturers/models) */
 function openMobileModal(k: KFixed) {
+  activeAttrSlug.value = null
   activeMobileModal.value = k
   state.ui.search[k] = ''
 }
-function closeMobileModal() { activeMobileModal.value = null }
 
-const modalSection = computed(() => {
-  const fac = data.facets.value
-  const k = activeMobileModal.value
-  if (!fac || !k) return null
-  const sections = {
-    brands:        { key: 'brands' as const,        label: t('facets.brands'),        items: fac.brands || [],        list: state.sel.brands },
-    models:        { key: 'models' as const,        label: t('facets.models'),        items: fac.models || [],        list: state.sel.models },
-    categories:    { key: 'categories' as const,    label: t('facets.categories'),    items: fac.categories || [],    list: state.sel.categories },
-    manufacturers: { key: 'manufacturers' as const, label: t('facets.manufacturers'), items: fac.manufacturers || [], list: state.sel.manufacturers },
-  }
-  return sections[k]
-})
-function filteredModalItems(items: Array<{slug:string; name:string}>, key: string) {
-  const q = (state.ui.search[key] || '').toLowerCase()
-  return q ? items.filter(i => i.name.toLowerCase().includes(q) || i.slug.toLowerCase().includes(q)) : items
+/** Open attribute modal (Remote Type, Status, etc) */
+function openAttrModal(slug: string) {
+  activeAttrSlug.value = slug
+  activeMobileModal.value = 'attr'
+  const key = `attr_${slug}`
+  state.ui.search[key] = state.ui.search[key] || ''
 }
+
+function closeMobileModal() {
+  activeMobileModal.value = null
+  activeAttrSlug.value = null
+}
+
+/** Shape of one modal section (either fixed facet or attribute group) */
+type ModalItem = { slug:string; name:string; count?:number }
+type ModalSection = {
+  key: string            // key used for list lookups (brands / attr slug)
+  searchKey: string      // key used in state.ui.search
+  label: string
+  items: ModalItem[]
+  list: string[]
+  isAttr?: boolean
+  attrSlug?: string
+}
+
+const modalSection = computed<ModalSection | null>(() => {
+  const fac = data.facets.value
+  const kind = activeMobileModal.value
+  if (!fac || !kind) return null
+
+  if (kind !== 'attr') {
+    // fixed groups
+    const sections: Record<KFixed, ModalSection> = {
+      brands: {
+        key: 'brands',
+        searchKey: 'brands',
+        label: t('facets.brands') as string,
+        items: fac.brands || [],
+        list: state.sel.brands,
+      },
+      models: {
+        key: 'models',
+        searchKey: 'models',
+        label: t('facets.models') as string,
+        items: fac.models || [],
+        list: state.sel.models,
+      },
+      categories: {
+        key: 'categories',
+        searchKey: 'categories',
+        label: t('facets.categories') as string,
+        items: fac.categories || [],
+        list: state.sel.categories,
+      },
+      manufacturers: {
+        key: 'manufacturers',
+        searchKey: 'manufacturers',
+        label: t('facets.manufacturers') as string,
+        items: fac.manufacturers || [],
+        list: state.sel.manufacturers,
+      },
+    }
+    return sections[kind]
+  }
+
+  // attribute modal
+  const slug = activeAttrSlug.value
+  if (!slug) return null
+  const attr = fac.attributes?.find(a => a.slug === slug)
+  if (!attr) return null
+
+  return {
+    key: slug,
+    searchKey: `attr_${slug}`,
+    label: attr.name || slug,
+    items: attr.items || [],
+    list: state.sel.attributes[slug] || [],
+    isAttr: true,
+    attrSlug: slug,
+  }
+})
+
+function filteredModalItems(items: ModalItem[], searchKey: string) {
+  if (!searchKey) return items
+  const q = (state.ui.search[searchKey] || '').toLowerCase()
+  return q
+    ? items.filter(i =>
+        i.name.toLowerCase().includes(q) ||
+        i.slug.toLowerCase().includes(q)
+      )
+    : items
+}
+
 function applyMobileFilters() {
   state.applyAndResetPage()
   closeMobileModal()
 }
+
 function clearMobileGroup() {
-  const k = activeMobileModal.value
-  if (!k) return
-  if (k === 'brands') state.sel.brands = []
-  else if (k === 'categories') state.sel.categories = []
-  else if (k === 'manufacturers') state.sel.manufacturers = []
-  else state.sel.models = []
+  const kind = activeMobileModal.value
+  if (!kind) return
+
+  if (kind === 'attr') {
+    const slug = activeAttrSlug.value
+    if (!slug) return
+    delete state.sel.attributes[slug]
+  } else if (kind === 'brands') {
+    state.sel.brands = []
+  } else if (kind === 'categories') {
+    state.sel.categories = []
+  } else if (kind === 'manufacturers') {
+    state.sel.manufacturers = []
+  } else {
+    state.sel.models = []
+  }
+
   applyMobileFilters()
 }
 
@@ -105,27 +198,42 @@ const selectedChips = computed(() => {
   state.sel.manufacturers.forEach(s => chips.push({ group:'manufacturers', slug:s, label: mapMan.get(s) || s }))
 
   if (fac?.attributes?.length) {
-    const attrMap = new Map(fac.attributes.map(a => [a.slug, new Map(a.items.map(i => [i.slug, i.name]))]))
+    const attrMap = new Map(
+      fac.attributes.map(a => [a.slug, new Map(a.items.map((i:any) => [i.slug, i.name]))])
+    )
     Object.entries(state.sel.attributes).forEach(([aSlug, subs]) => {
       const nameMap = attrMap.get(aSlug) || new Map()
-      subs.forEach(sub => chips.push({ group:'attr', slug:sub, attrSlug:aSlug, label:nameMap.get(sub) || sub }))
+      ;(subs as string[]).forEach(sub =>
+        chips.push({
+          group: 'attr',
+          slug: sub,
+          attrSlug: aSlug,
+          label: nameMap.get(sub) || sub,
+        })
+      )
     })
   }
   return chips
 })
+
 function removeChip(payload: { group:string; slug:string; attrSlug?:string }) {
   if (payload.group === 'attr' && payload.attrSlug) {
     const list = state.sel.attributes[payload.attrSlug] || []
     const i = list.indexOf(payload.slug); if (i>=0) list.splice(i,1)
     if (!list.length) delete state.sel.attributes[payload.attrSlug]
   } else {
-    const map = { brands: state.sel.brands, models: state.sel.models, categories: state.sel.categories, manufacturers: state.sel.manufacturers } as any
+    const map = {
+      brands: state.sel.brands,
+      models: state.sel.models,
+      categories: state.sel.categories,
+      manufacturers: state.sel.manufacturers,
+    } as any
     const i = map[payload.group].indexOf(payload.slug); if (i>=0) map[payload.group].splice(i,1)
   }
 
   const totalAfter =
     state.sel.brands.length + state.sel.models.length + state.sel.categories.length + state.sel.manufacturers.length +
-    Object.values(state.sel.attributes).reduce((n, a) => n + a.length, 0)
+    Object.values(state.sel.attributes).reduce((n, a:any) => n + a.length, 0)
 
   if (totalAfter === 0 && !state.sel.q?.trim()) {
     clearAllAndGoShop()
@@ -255,6 +363,7 @@ function loadMore(){
       <SelectedChips :chips="selectedChips" @remove="removeChip" class="mb-3" />
 
       <div v-if="data.facets.value" class="flex flex-wrap gap-2">
+        <!-- fixed groups -->
         <button v-if="(data.facets.value.categories?.length || 0) > 0"
                 class="px-3 py-1.5 rounded-full border border-orange-300 text-orange-700 text-sm bg-orange-50"
                 @click="openMobileModal('categories')">
@@ -275,11 +384,25 @@ function loadMore(){
                 @click="openMobileModal('models')">
           {{ t('facets.models') }}
         </button>
+
+        <!-- attribute groups -->
+        <button
+          v-for="attr in (data.facets.value.attributes || [])"
+          :key="attr.slug"
+          class="px-3 py-1.5 rounded-full border border-orange-300 text-orange-700 text-sm bg-orange-50"
+          @click="openAttrModal(attr.slug)"
+        >
+          {{ attr.name }}
+        </button>
       </div>
     </div>
 
     <!-- Sidebar (desktop) -->
-    <aside data-nosnippet class="hidden min-[993px]:block col-span-12 min-[993px]:col-span-3" :class="isRTL ? 'min-[993px]:order-2' : 'min-[993px]:order-1'">
+    <aside
+      data-nosnippet
+      class="hidden min-[993px]:block col-span-12 min-[993px]:col-span-3"
+      :class="isRTL ? 'min-[993px]:order-2' : 'min-[993px]:order-1'"
+    >
       <div class="space-y-4">
         <div class="rounded-2xl border bg-white/80 backdrop-blur p-3 shadow-sm" v-if="selectedChips.length">
           <div class="mb-2 text-sm font-semibold text-gray-700">{{ t('filters.active') }}</div>
@@ -351,7 +474,8 @@ function loadMore(){
           @go="goPage"
         />
 
-        <InfiniteLoader v-else
+        <InfiniteLoader
+          v-else
           :canLoadMore="data.canLoadMore.value"
           :pending="data.pending.value"
           @loadMore="loadMore"
@@ -378,7 +502,7 @@ function loadMore(){
           <div class="p-4">
             <div class="relative mb-3">
               <input
-                v-model="state.ui.search[activeMobileModal!]"
+                v-model="state.ui.search[modalSection?.searchKey || '']"
                 type="search"
                 :placeholder="t('filters.searchPlaceholder', { label: (modalSection?.label || '').toString().toLowerCase() })"
                 class="w-full border rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
@@ -390,7 +514,7 @@ function loadMore(){
 
             <div class="space-y-1.5 max-h-64 overflow-auto pr-1">
               <div
-                v-for="f in (modalSection ? filteredModalItems(modalSection.items, modalSection.key) : [])"
+                v-for="f in (modalSection ? filteredModalItems(modalSection.items, modalSection.searchKey) : [])"
                 :key="f.slug"
                 class="flex items-center justify-between gap-3 rounded-lg px-2 py-2 hover:bg-gray-50"
               >
@@ -398,7 +522,9 @@ function loadMore(){
                   <input
                     type="checkbox"
                     :checked="modalSection?.list.includes(f.slug)"
-                    @change="state.toggle(modalSection!.list as any, f.slug)"
+                    @change="modalSection?.isAttr
+                      ? state.toggleAttr(modalSection.attrSlug!, f.slug)
+                      : state.toggle(modalSection!.list as any, f.slug)"
                     class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-300"
                   />
                   <span class="text-sm text-gray-800 line-clamp-1">{{ f.name }}</span>
@@ -408,18 +534,27 @@ function loadMore(){
             </div>
           </div>
 
-          <div class="p-4 border-t flex items-center justify-between gap-3">
-            <button class="px-4 py-2 rounded-lg border text-gray-700 hover:bg-gray-50" @click="clearMobileGroup">
+          <div class="p-4 border-t flex items-center justify-start gap-3">
+            <button
+              class="px-4 py-2 rounded-lg border text-gray-700 hover:bg-gray-50"
+              @click="clearMobileGroup"
+            >
               {{ t('filters.clear') }}
             </button>
-            <div class="ml-auto flex gap-3">
-              <button class="px-4 py-2 rounded-lg border text-gray-700 hover:bg-gray-50" @click="closeMobileModal">
-                {{ t('common.close') }}
-              </button>
-              <button class="px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600" @click="applyMobileFilters">
-                {{ t('common.apply') }}
-              </button>
-            </div>
+
+            <button
+              class="px-4 py-2 rounded-lg border text-gray-700 hover:bg-gray-50"
+              @click="closeMobileModal"
+            >
+              {{ t('common.close') }}
+            </button>
+
+            <button
+              class="px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600"
+              @click="applyMobileFilters"
+            >
+              {{ t('common.apply') }}
+            </button>
           </div>
         </div>
       </div>
