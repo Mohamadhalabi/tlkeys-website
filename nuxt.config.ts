@@ -29,15 +29,15 @@ const OPENING_HOURS = [ { "@type": "OpeningHoursSpecification", "dayOfWeek": [ "
 // --- i18n (inline on module!) ---
 const i18nOptions = {
   locales: [
-    { code: 'en', iso: 'en-US', dir: 'ltr', file: 'en.json', name: 'English' },
-    { code: 'ar', iso: 'ar-SA', dir: 'rtl', file: 'ar.json', name: 'العربية' },
-    { code: 'es', iso: 'es-ES', dir: 'ltr', file: 'es.json', name: 'Español' },
-    { code: 'fr', iso: 'fr-FR', dir: 'ltr', file: 'fr.json', name: 'Français' },
-    { code: 'ru', iso: 'ru-RU', dir: 'ltr', file: 'ru.json', name: 'Русский' },
-    { code: 'de', iso: 'de-DE', dir: 'ltr', file: 'de.json', name: 'Deutsch' },
-    { code: 'tr', iso: 'tr-TR', dir: 'ltr', file: 'tr.json', name: 'Turkish'},
-    { code: 'pt', iso: 'pt-PT', dir: 'ltr', file: 'pt.json', name: 'Portuguese'},
-    { code: 'it', iso: 'it-IT', dir: 'ltr', file: 'it.json', name: 'Italian'}
+    { code: 'en', iso: 'en', dir: 'ltr', file: 'en.json', name: 'English' },
+    { code: 'ar', iso: 'ar', dir: 'rtl', file: 'ar.json', name: 'العربية' },
+    { code: 'es', iso: 'es', dir: 'ltr', file: 'es.json', name: 'Español' },
+    { code: 'fr', iso: 'fr', dir: 'ltr', file: 'fr.json', name: 'Français' },
+    { code: 'ru', iso: 'ru', dir: 'ltr', file: 'ru.json', name: 'Русский' },
+    { code: 'de', iso: 'de', dir: 'ltr', file: 'de.json', name: 'Deutsch' },
+    { code: 'tr', iso: 'tr', dir: 'ltr', file: 'tr.json', name: 'Turkish'},
+    { code: 'pt', iso: 'pt', dir: 'ltr', file: 'pt.json', name: 'Portuguese'},
+    { code: 'it', iso: 'it', dir: 'ltr', file: 'it.json', name: 'Italian'}
   ],
   defaultLocale: 'en',
   strategy: 'prefix_except_default',
@@ -140,7 +140,7 @@ export default defineNuxtConfig({
             name: siteName,
             url: siteUrl,
             publisher: { '@id': siteUrl },
-            inLanguage: ['en-US', 'ar-SA', 'es-ES', 'fr-FR', 'ru-RU', 'de-DE'],
+            inLanguage: ['en', 'ar', 'es', 'fr', 'ru', 'de','pt','it','tr'],
             potentialAction: {
               '@type': 'SearchAction',
               target: `${siteUrl}/shop?q={search_term_string}`,

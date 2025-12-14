@@ -34,10 +34,10 @@ const defaultLocale = 'en'
 const desiredHreflang: Record<string, string> = {
   en: 'en',
   ar: 'ar',
-  es: 'es-ES',
-  fr: 'fr-FR',
-  ru: 'ru-RU',
-  de: 'de-DE',
+  es: 'es',
+  fr: 'fr',
+  ru: 'ru',
+  de: 'de',
 }
 
 // Join base + path with NO trailing slash (except root)
