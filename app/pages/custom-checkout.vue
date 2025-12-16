@@ -13,6 +13,7 @@ useHead({
 
 const router = useRouter()
 
+/* ---------------- Types ---------------- */
 type Country = { id:number; name:string|Record<string,string>; iso2?:string|null; zone_id?:number|null }
 type ShippingKey = 'dhl'|'fedex'|'aramex'|'ups'
 type ShippingOption = { key:ShippingKey; label:string; price:number; disabled?:boolean }
@@ -51,6 +52,9 @@ const { $customApi } = useNuxtApp()
 const cfg = useRuntimeConfig()
 const alerts = useAlertStore()
 const { formatMoney } = useCurrency()
+
+// --- CONSTANTS ---
+const UAE_COUNTRY_ID = 231 
 
 /* routing / data */
 const pid   = computed(() => String(route.query.pid || ''))
@@ -191,7 +195,9 @@ async function fetchBuyNowQuote() {
       product_id: product.value.id,
       quantity: Math.max(1, Number(qty.value || 1)),
       country_id: Number(selectedCountryId.value),
-      serial: serialFromQuery || null
+      serial: serialFromQuery || null,
+      city: city.value || null,
+      postal_code: postalCode.value || null
     }
     const res = await $customApi<BuyNowQuote>('/buy-now/quote', { method: 'POST', body })
     const data: any = res?.data ?? res
@@ -239,9 +245,33 @@ async function fetchBuyNowQuote() {
   }
 }
 
-watch([qty, selectedCountryId], () => {
+// 2. Debounce logic
+let debounceTimer: any = null
+function debounceQuote() {
+  clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => {
+    if (product.value && selectedCountryId.value) {
+        fetchBuyNowQuote()
+    }
+  }, 600) 
+}
+
+// 3. Main Watcher
+watch([qty, selectedCountryId, city, postalCode], () => {
   countryBlocked.value = null
-  if (product.value && selectedCountryId.value) fetchBuyNowQuote()
+  
+  if (!product.value || !selectedCountryId.value) return;
+
+  const isUAE = Number(selectedCountryId.value) === UAE_COUNTRY_ID
+  const hasDetails = city.value.trim().length > 0 && postalCode.value.trim().length > 0
+
+  if (!isUAE && !hasDetails) {
+      quote.value = null
+      selectedShipping.value = null
+      return
+  }
+
+  debounceQuote()
 })
 
 watch(selectedShipping, () => {
@@ -295,9 +325,11 @@ const feeRate = computed(() => (paymentMethod.value === 'card' || paymentMethod.
 const paymentFee = computed(() => +(subtotal.value * feeRate.value).toFixed(2))
 const grandTotal = computed(() => +(subtotal.value + paymentFee.value).toFixed(2))
 
+// --- FIX: THIS IS THE FUNCTION THAT WAS MISSING ---
 function markInvalid(v: string | number | '') {
   return submitAttempted.value && (!v || String(v).trim() === '')
 }
+// -------------------------------------------------
 
 async function handlePlaceOrder() {
   submitAttempted.value = true
@@ -397,7 +429,6 @@ onMounted(async () => {
 <template>
   <div class="container mx-auto px-4 py-8">
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <!-- LEFT -->
       <section class="lg:col-span-2">
         <div class="rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div class="p-6 border-b border-gray-100 flex items-center gap-4">
@@ -504,7 +535,6 @@ onMounted(async () => {
                 </div>
               </div>
 
-              <!-- Shipping methods -->
               <div class="mt-2">
                 <div class="flex items-center justify-between mb-2">
                   <span class="text-sm text-gray-600">{{ t('checkout.shippingMethod') }}</span>
@@ -512,7 +542,6 @@ onMounted(async () => {
 
                 <div v-if="quoteLoading" class="h-20 rounded bg-gray-100 animate-pulse"></div>
 
-                <!-- BLOCKED BANNER -->
                 <div
                   v-else-if="countryBlocked"
                   class="rounded border border-red-200 bg-red-50 p-3 text-red-700 text-sm"
@@ -529,6 +558,7 @@ onMounted(async () => {
                 <div v-else-if="quoteError" class="rounded border border-red-200 bg-red-50 p-3 text-red-700 text-sm">
                   {{ quoteError }}
                 </div>
+                
                 <div v-else-if="quote?.shipping?.options?.length" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <label
                     v-for="opt in quote.shipping.options"
@@ -542,9 +572,11 @@ onMounted(async () => {
                     <div class="text-xs text-gray-400" v-else>—</div>
                   </label>
                 </div>
+                <div v-else-if="!isFreeShipping && selectedCountryId && selectedCountryId !== 231 && (!city || !postalCode)" class="text-xs text-amber-600 p-2 bg-amber-50 rounded">
+                   {{ t('checkout.enterAddressForShipping') || 'Please enter City and Postal Code to see shipping rates.' }}
+                </div>
               </div>
 
-              <!-- Payment methods -->
               <div class="mt-4">
                 <div class="flex items-center justify-between">
                   <div class="text-sm text-gray-600 mb-2">{{ t('checkout.paymentMethod') }}</div>
@@ -579,7 +611,6 @@ onMounted(async () => {
         </div>
       </section>
 
-      <!-- RIGHT: Summary -->
       <aside class="lg:sticky lg:top-32 h-fit">
         <div class="rounded-2xl border border-gray-200 bg-white shadow-sm p-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-auto">
           <h2 class="text-lg font-semibold text-gray-900 mb-4">{{ t('cart.summary') }}</h2>
