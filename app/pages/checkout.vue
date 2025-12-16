@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useI18n, useRouter, useNuxtApp, definePageMeta, useSeoMeta, useHead, useRuntimeConfig } from '#imports'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { useI18n, useRouter, useNuxtApp, definePageMeta, useSeoMeta, useHead, useRuntimeConfig, useLoadingIndicator } from '#imports'
 import { useAlertStore } from '~/stores/alert'
 
 definePageMeta({ ssr: false })
@@ -17,7 +17,6 @@ type QuoteProduct = {
   weight: number
   image?: string | null
   is_machine?: boolean
-  /** NEW: backend flag per product */
   blocked_in_selected_country?: boolean
 }
 type Address = {
@@ -47,7 +46,6 @@ type Promotions = {
   savings: { free_ship: number; ten_off: number }
   notes: { free_ship: string; ten_off: string }
 }
-/** NEW: checkout_block payload from backend */
 type CheckoutBlock = {
   is_blocked: boolean
   country_id?: number | null
@@ -73,12 +71,12 @@ type Quote = {
   weights: { total_weight_kg:number; machine_weight_kg?:number; zone_id:number|null }
   promotions?: Promotions
   coupon?: CouponResult | null
-  /** NEW */
   checkout_block?: CheckoutBlock | null
 }
 type Country = {
   id: number
   name: string | Record<string,string>
+  code?: string | null 
   iso2?: string | null
   iso3?: string | null
   zone_id?: number | null
@@ -92,8 +90,8 @@ const { t, locale } = useI18n()
 const router = useRouter()
 const runtimeConfig = useRuntimeConfig()
 const alerts = useAlertStore()
+const loadingIndicator = useLoadingIndicator()
 
-/** WhatsApp helper */
 const WHATSAPP_NUMBER = String((runtimeConfig as any)?.public?.whatsappNumber || '905376266092')
 const whatsappLink = computed(() => {
   const msg = t('common.whatsappPrefill') || 'Hello, I need help completing my order.'
@@ -125,15 +123,12 @@ function countryDisplayName(c: Country, loc: string): string {
 const quote = ref<Quote | null>(null)
 const loading = ref(false)
 const creatingOrder = ref(false)
+const isInternalUpdate = ref(false) 
 
-/** Coupon: */
 const couponInput = ref<string>('')
 const appliedCouponCode = ref<string | null>(null)
-
-/** Promotions (mutually exclusive) */
 const selectedPromo = ref<PromoKey>('none')
 
-/** Alert de-dup */
 const lastShownCouponKey = ref<string | null>(null)
 const makeCouponKey = (c?: CouponResult | null) =>
   c ? `${(c.code||'').toUpperCase()}:${c.applied?'1':'0'}:${c.reason||''}:${Number(c.discount_value||0).toFixed(2)}` : null
@@ -143,7 +138,6 @@ const selectedAddressId = ref<number | null>(null)
 const selectedAddress = computed<Address | null>(() => addresses.value.find(a => a.id === selectedAddressId.value) || null)
 
 const selectedShipping = ref<ShippingKey | null>(null)
-
 const paymentMethod = ref<'card'|'paypal'|'transfer' | null>(null)
 const acceptTerms = ref(false)
 
@@ -172,7 +166,7 @@ async function fetchCountries() {
   }
 }
 
-/* ---------------- Shipping options (UAE override) ---------------- */
+/* ---------------- Shipping options ---------------- */
 const shippingOptions = computed<ShippingOption[]>(() => {
   if (selectedAddress.value?.country_id === UAE_COUNTRY_ID) {
     return [
@@ -190,18 +184,33 @@ const addressForm = ref<AddressForm>({})
 const isEditing = computed(() => !!addressForm.value.id)
 
 function openAddressForm(a?: Address) {
-  addressForm.value = a ? { ...a } : {
-    country_id: undefined as any,
-    city: '',
-    street: '',
-    address: '',
-    phone: '',
-    postal_code: '',
-    is_default: false
+  if (a) {
+      // Edit Mode: Copy data directly
+      addressForm.value = { ...a }
+  } else {
+      // New Mode: Empty form
+      addressForm.value = {
+        country_id: undefined as any,
+        city: '',
+        street: '',
+        address: '',
+        phone: '',
+        postal_code: '',
+        is_default: false
+      }
   }
   addressModalOpen.value = true
 }
+
 function closeAddressForm() { addressModalOpen.value = false }
+
+// Clear city ONLY if the user changes the country manually
+watch(() => addressForm.value.country_id, (newId, oldId) => {
+  if (!addressModalOpen.value || !newId) return
+  if (oldId !== undefined && newId !== oldId) {
+     addressForm.value.city = ''
+  }
+})
 
 /* ---------------- Coupon UX ---------------- */
 function showCouponAlertOnce(c: CouponResult | null | undefined) {
@@ -226,23 +235,37 @@ function showCouponAlertOnce(c: CouponResult | null | undefined) {
   }
 }
 
-/* ---------------- API calls ---------------- */
-async function fetchAddresses() {
-  const res = await $customApi<Quote>('/checkout/quote')
-  addresses.value = res?.addresses ?? []
-  selectedAddressId.value = res?.selected_address_id ?? addresses.value[0]?.id ?? null
+async function applyCoupon() {
+    if (!couponInput.value.trim()) return
+    await fetchQuote({ couponOverride: couponInput.value, showCouponAlert: true })
+}
+async function removeCoupon() {
+    couponInput.value = ''
+    appliedCouponCode.value = null
+    await fetchQuote({ couponOverride: '', showCouponAlert: false })
 }
 
-/** fetchQuote
- *  - If you pass {couponOverride}, it will be used for this request only (used by Apply).
- *  - Otherwise, we send appliedCouponCode (if any).
- *  - Also send the selected promo (free_ship | ten_off | none).
- */
+/* ---------------- API calls ---------------- */
+async function fetchAddresses() {
+  const res = await $customApi<Quote>('/checkout/new-quote')
+  addresses.value = res?.addresses ?? []
+  
+  if (!selectedAddressId.value) {
+    selectedAddressId.value = null
+  }
+}
+
 async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAlert?: boolean }) {
+  loadingIndicator.start()
   loading.value = true
+  
   try {
     const params = new URLSearchParams()
-    if (selectedAddressId.value) params.set('address_id', String(selectedAddressId.value))
+    
+    if (selectedAddressId.value) {
+        params.set('address_id', String(selectedAddressId.value))
+    }
+    
     if (selectedShipping.value)  params.set('shipping_method', String(selectedShipping.value))
 
     const couponToSend = (opts && 'couponOverride' in opts)
@@ -252,10 +275,9 @@ async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAle
     if (couponToSend) params.set('coupon', couponToSend)
     if (selectedPromo.value) params.set('promo', selectedPromo.value)
 
-    const res = await $customApi<Quote>(`/checkout/quote?${params.toString()}`)
+    const res = await $customApi<Quote>(`/checkout/new-quote?${params.toString()}`)
     quote.value = res
 
-    /* ✅ UAE local shipping = 10$ */
     if (
       selectedAddress.value?.country_id === UAE_COUNTRY_ID &&
       selectedShipping.value === 'domestic' &&
@@ -264,18 +286,16 @@ async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAle
       const currentShip = Number(quote.value.summary.shipping ?? 0)
       const targetShip = 10
       const diff = targetShip - currentShip
-
       quote.value.summary.shipping = targetShip
-      quote.value.summary.total = Number(
-        ((quote.value.summary.total ?? 0) + diff).toFixed(2)
-      )
+      quote.value.summary.total = Number(((quote.value.summary.total ?? 0) + diff).toFixed(2))
     }
 
-    // sync selected address and default shipping
-    if (!selectedAddressId.value) selectedAddressId.value = res.selected_address_id ?? null
-    if (!selectedShipping.value && res.shipping?.selected) {
+    if (selectedAddressId.value && !selectedShipping.value && res.shipping?.selected) {
+      isInternalUpdate.value = true
       selectedShipping.value = res.shipping.selected as ShippingKey
+      nextTick(() => { isInternalUpdate.value = false })
     }
+    
     if (selectedAddress.value?.country_id === UAE_COUNTRY_ID && selectedShipping.value && !['pick_up','domestic'].includes(selectedShipping.value)) {
       selectedShipping.value = null
     }
@@ -286,44 +306,36 @@ async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAle
 
     if (opts?.showCouponAlert) {
       showCouponAlertOnce(res.coupon)
-      if (!(res.coupon?.applied)) {
+      if (res.coupon?.applied) {
+          appliedCouponCode.value = res.coupon.code
+      } else {
         appliedCouponCode.value = null
       }
     }
   } finally {
     loading.value = false
+    loadingIndicator.finish()
   }
 }
 
 /* ---------------- Blocked-country helpers ---------------- */
-/** Is checkout blocked? */
 const isCheckoutBlocked = computed<boolean>(() => !!quote.value?.checkout_block?.is_blocked)
-/** Country name for message */
 const blockedCountryName = computed<string>(() =>
   (quote.value?.checkout_block?.country_name || selectedAddress.value?.country_name || '') as string
 )
-/** SKU list for message */
 const blockedSkus = computed<string[]>(() => {
   const viaPayload = quote.value?.checkout_block?.violations?.map(v => v.sku).filter(Boolean) ?? []
-  // fallback: derive from products list
   if (viaPayload.length) return viaPayload as string[]
   return (quote.value?.products || [])
     .filter(p => p.blocked_in_selected_country)
     .map(p => String(p.sku || ''))
     .filter(Boolean)
 })
-/** Convenience: list of blocked product_ids to mark in UI */
-const blockedProductIds = computed<Set<number | string>>(() => {
-  const set = new Set<number | string>()
-  ;(quote.value?.products || []).forEach(p => {
-    if (p.blocked_in_selected_country) set.add(p.product_id)
-  })
-  return set
-})
 
 /* ---------------- Save/Delete address ---------------- */
 async function saveAddress() {
   const body = { ...addressForm.value }
+  
   if (!body.country_id || !String(body.city||'').trim() || !String(body.street||'').trim()
       || !String(body.address||'').trim() || !String(body.postal_code||'').trim() || !String(body.phone||'').trim()) {
     alerts.showAlert({
@@ -362,7 +374,7 @@ async function deleteAddress(a: Address) {
   if (!confirm(t('checkout.deleteAddressConfirm') || 'Delete this address?')) return
   await $customApi(`/delete-addresses/${a.id}`, { method: 'POST' })
   await fetchAddresses()
-  if (selectedAddressId.value === a.id) selectedAddressId.value = addresses.value[0]?.id ?? null
+  if (selectedAddressId.value === a.id) selectedAddressId.value = null
   await fetchQuote()
   alerts.showAlert({ type: 'success', title: t('checkout.addressDeleted') || 'Address deleted' })
 }
@@ -400,6 +412,7 @@ async function createOrder() {
     coupon_code:     appliedCouponCode.value || null,
     promo:           selectedPromo.value,
     free_ship:       selectedPromo.value === 'free_ship' ? 1 : 0,
+    // Note: shipping_cost is NOT sent from frontend securely anymore, backend calculates it.
   }
 
   try {
@@ -454,20 +467,6 @@ const displayedProducts = computed(() =>
 const hasMoreProducts = computed(() => allProducts.value.length > COLLAPSE_COUNT)
 const remainingCount = computed(() => Math.max(allProducts.value.length - COLLAPSE_COUNT, 0))
 
-/* ---------------- Step Note (progressive guidance) ---------------- */
-const stepNote = computed<null | { where: 'address'|'shipping'|'payment'; text: string }>(() => {
-  if (!selectedAddressId.value) {
-    return { where: 'address',  text: t('checkout.stepAddress') || 'Please first select / add address' }
-  }
-  if (!selectedShipping.value) {
-    return { where: 'shipping', text: t('checkout.stepShipping') || '2nd step choose your shipping method' }
-  }
-  if (!paymentMethod.value) {
-    return { where: 'payment',  text: t('checkout.stepPayment') || '3rd step choose the payment method' }
-  }
-  return null
-})
-
 /* ---------------- SEO ---------------- */
 const pageTitle = computed(() => {
   const count = allProducts.value.length
@@ -500,19 +499,23 @@ onMounted(async () => {
   await fetchQuote()
 })
 
-watch(selectedAddressId, async () => {
+watch(selectedAddressId, async (newVal) => {
   selectedShipping.value = null
-  await fetchQuote()
+  if (newVal) {
+      await fetchQuote()
+  }
 })
-watch(selectedShipping, async () => {
-  await fetchQuote()
+
+watch(selectedShipping, async (newVal) => {
+  if (isInternalUpdate.value) return
+  if (newVal) {
+      await fetchQuote()
+  }
 })
-// 🔕 NO watcher on couponInput — only apply on button/Enter.
 </script>
 
 <template>
   <main class="container mx-auto px-3 md:px-4 lg:px-6 py-6">
-    <!-- Breadcrumbs -->
     <nav class="text-sm mb-4" aria-label="Breadcrumb">
       <ol class="flex gap-2 text-gray-500">
         <li><NuxtLinkLocale to="/">{{ $t('shop.home') }}</NuxtLinkLocale></li>
@@ -523,7 +526,6 @@ watch(selectedShipping, async () => {
       </ol>
     </nav>
 
-    <!-- NEW: Blocked-country banner -->
     <div
       v-if="isCheckoutBlocked"
       class="mb-4 rounded-2xl border border-rose-200 bg-rose-50 text-rose-900 p-4"
@@ -549,9 +551,7 @@ watch(selectedShipping, async () => {
     </div>
 
     <div v-if="(quote?.products?.length ?? 0) > 0" class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:sticky">
-      <!-- LEFT: Steps -->
       <section class="lg:col-span-8 space-y-6">
-        <!-- Coupon -->
         <div class="rounded-2xl border p-4 bg-white shadow-sm">
           <p class="text-center text-gray-500 mb-2">{{ $t('checkout.IfYouHaveAcoupon') }}</p>
 
@@ -583,7 +583,6 @@ watch(selectedShipping, async () => {
           </div>
         </div>
 
-        <!-- Promotions (mutually exclusive) -->
         <div
           v-if="quote?.promotions && (quote.promotions.eligible.free_ship || quote.promotions.eligible.ten_off)"
           class="rounded-2xl border p-4 bg-white shadow-sm"
@@ -645,7 +644,6 @@ watch(selectedShipping, async () => {
           </p>
         </div>
 
-        <!-- Step Note: Address -->
         <div
           v-if="!selectedAddressId"
           class="rounded-2xl border p-4 bg-amber-50/70 text-amber-900 shadow-sm"
@@ -659,7 +657,6 @@ watch(selectedShipping, async () => {
           </div>
         </div>
 
-        <!-- Step 1: Address -->
         <div class="rounded-2xl border p-4 bg-white shadow-sm">
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-lg font-semibold flex items-center gap-2">
@@ -685,6 +682,7 @@ watch(selectedShipping, async () => {
                 <div class="font-medium">
                   {{ a.country_name || '—' }} <span v-if="a.city">— {{ a.city }}</span>
                 </div>
+
                 <div class="text-sm text-gray-500 break-words">
                   <template v-if="a.street">{{ a.street }}<br /></template>
                   {{ a.address }}
@@ -703,25 +701,17 @@ watch(selectedShipping, async () => {
           </div>
         </div>
 
-        <!-- Step 2: Shipping -->
         <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="(!selectedAddressId || creatingOrder) ? 'opacity-50 pointer-events-none' : ''">
           <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M2 6a2 2 0 012-2h10a2 2 0 012 2v8h-1.18a3 3 0 10-5.64 0H8.82a3 3 0 10-5.64 0H2V6z"/>
-              <path d="M20 8h-2v6h.82a3 3 0 015.64 0H24V12l-2-4z"/>
+              <path d="M2 10h20v8a2 2 0 01-2 2H4a2 2 0 01-2-2v-8zm3 5h6v2H5v-2z"/>
             </svg>
             {{ $t('checkout.shippingMethod') }}
           </h3>
-
-          <!-- Shipping blocked note -->
-          <div
-            v-if="isCheckoutBlocked"
-            class="mb-3 rounded-2xl border p-3 bg-rose-50/80 text-rose-900 shadow-sm text-sm"
-            role="status"
-          >
+          <div v-if="isCheckoutBlocked" class="mb-3 rounded-2xl border p-3 bg-rose-50/80 text-rose-900 shadow-sm text-sm" role="status">
             {{ $t('checkout.shippingBlocked') || 'Shipping options are disabled due to product/country restriction.' }}
           </div>
-
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <label
               v-for="opt in shippingOptions"
@@ -731,12 +721,8 @@ watch(selectedShipping, async () => {
             >
               <input type="radio" class="sr-only" :value="opt.key" v-model="selectedShipping" :disabled="opt.disabled || isCheckoutBlocked" />
               <div class="flex items-center justify-center gap-2">
-                <span v-if="opt.key==='pick_up'" class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
-                  {{ $t('checkout.pickup') || 'Pickup' }}
-                </span>
-                <span v-else-if="opt.key==='domestic'" class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold bg-cyan-100 text-cyan-700 border border-cyan-200">
-                  {{ $t('checkout.localShipping') || 'Local' }}
-                </span>
+                <span v-if="opt.key==='pick_up'" class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">{{ $t('checkout.pickup') }}</span>
+                <span v-else-if="opt.key==='domestic'" class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold bg-cyan-100 text-cyan-700 border border-cyan-200">{{ $t('checkout.localShipping') }}</span>
                 <span v-else-if="opt.key==='dhl'" class="inline-flex items-center rounded px-1.5 py-0.5 text-md font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">DHL</span>
                 <span v-else-if="opt.key==='fedex'" class="inline-flex items-center rounded px-1.5 py-0.5 text-md font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">FEDEX</span>
                 <span v-else-if="opt.key==='aramex'" class="inline-flex items-center rounded px-1.5 py-0.5 text-md font-bold bg-red-100 text-red-700 border border-red-200">ARAMEX</span>
@@ -744,14 +730,10 @@ watch(selectedShipping, async () => {
               </div>
               <div class="text-md font-bold mt-3" v-if="!opt.disabled && !isCheckoutBlocked">{{ money(opt.price) }}$</div>
               <div class="text-xs text-gray-400" v-else>—</div>
-              <div v-if="opt.note && (opt.disabled || isCheckoutBlocked)" class="mt-1 text-[11px] text-gray-500">
-                {{ opt.note }}
-              </div>
             </label>
           </div>
         </div>
 
-        <!-- Step 3: Payment -->
         <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="((!selectedShipping && !isCheckoutBlocked) ? 'opacity-50 pointer-events-none' : '') + (creatingOrder ? ' opacity-50 pointer-events-none' : '')">
           <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -801,12 +783,10 @@ watch(selectedShipping, async () => {
         </div>
       </section>
 
-      <!-- RIGHT: Order Summary -->
       <aside class="lg:col-span-4">
         <div class="rounded-2xl border p-4 bg-white shadow-sm lg:sticky lg:top-6">
           <h3 class="text-lg font-semibold mb-3">{{ $t('checkout.yourOrder') }}</h3>
 
-          <!-- Help note + WhatsApp -->
           <div class="mb-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 flex items-start gap-3">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-6 h-6 shrink-0 text-emerald-600" fill="currentColor" aria-hidden="true">
               <path d="M2 5a3 3 0 013-3h14a3 3 0 013 3v8a3 3 0 01-3 3H9.41L5.7 19.71A1 1 0 014 19v-3H5a3 3 0 01-3-3V5z"/>
@@ -827,7 +807,6 @@ watch(selectedShipping, async () => {
             </div>
           </div>
 
-          <!-- Products list -->
           <ul class="divide-y">
             <li
               v-for="row in displayedProducts"
@@ -849,7 +828,6 @@ watch(selectedShipping, async () => {
                   <div class="font-medium line-clamp-2">{{ row.title }}</div>
                   <div v-if="row.sku" class="text-green-600 font-bold">{{ $t('labels.sku') || 'SKU' }}: {{ row.sku }}</div>
 
-                  <!-- NEW: per-item blocked chip -->
                   <div
                     v-if="row.blocked_in_selected_country"
                     class="mt-1 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 text-rose-700 px-2 py-0.5"
@@ -885,7 +863,6 @@ watch(selectedShipping, async () => {
             </button>
           </div>
 
-          <!-- Totals -->
           <div class="mt-4 space-y-1 text-sm">
             <div class="flex justify-between"><span>{{ $t('checkout.subtotal') }}</span><span>{{ money(quote?.summary?.sub_total) }}$</span></div>
 
@@ -912,7 +889,6 @@ watch(selectedShipping, async () => {
             </div>
           </div>
 
-          <!-- Place order -->
           <div class="mt-5 rounded-2xl border p-4 bg-emerald-50/60">
             <label class="flex items-start gap-2 text-sm text-emerald-900">
               <input type="checkbox" v-model="acceptTerms" class="mt-1 accent-emerald-600" />
@@ -949,12 +925,9 @@ watch(selectedShipping, async () => {
 
     <div v-else class="text-center py-20 text-gray-500">
       {{ $t('checkout.CheckoutNotAvailable') }}
-      <div class="mt-4">
-        <NuxtLinkLocale to="/shop" class="underline">{{ $t('checkout.returnToShop') }}</NuxtLinkLocale>
-      </div>
+      <div class="mt-4"><NuxtLinkLocale to="/shop" class="underline">{{ $t('checkout.returnToShop') }}</NuxtLinkLocale></div>
     </div>
 
-    <!-- Address Modal -->
     <Teleport to="body">
       <div
         v-if="addressModalOpen"
@@ -974,13 +947,21 @@ watch(selectedShipping, async () => {
                   {{ countryDisplayName(c, String($i18n?.locale || locale)) }}
                 </option>
               </select>
-              <p v-if="countriesLoading" class="text-xs text-gray-500 mt-1">{{ $t('loading') || 'Loading' }}…</p>
-              <p v-if="countriesError" class="text-xs text-red-600 mt-1">{{ $t('errors.failedToLoadCountries') || countriesError }}</p>
             </div>
 
             <div>
-              <label class="text-sm block mb-1">{{ $t('checkout.city') }}</label>
-              <input v-model="addressForm.city" type="text" class="w-full rounded-xl border px-3 py-2" required />
+              <label class="text-sm block mb-1">
+                {{ $t('checkout.city') }}
+              </label>
+              
+              <input 
+                v-model="addressForm.city" 
+                type="text" 
+                class="w-full rounded-xl border px-3 py-2"
+                :placeholder="$t('checkout.enterCity') || 'Enter city name'"
+                required 
+                autocomplete="address-level2"
+              />
             </div>
 
             <div>

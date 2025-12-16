@@ -95,14 +95,14 @@ export default defineNuxtPlugin(() => {
   const customApi = $fetch.create({
     baseURL,
     credentials: 'include',
-    retry: 0,
+    retry: 1,
     onRequest({ options }) { build(options) }
   })
 
   const apiV2 = $fetch.create({
     baseURL: `${baseURL}/v2`,
     credentials: 'include',
-    retry: 0,
+    retry: 1,
     onRequest({ options }) { build(options) }
   })
 
