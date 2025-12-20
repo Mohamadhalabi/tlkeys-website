@@ -177,9 +177,11 @@ const shippingOptions = computed<ShippingOption[]>(() => {
   return quote.value?.shipping?.options ?? []
 })
 
-/* ---------------- Address modal ---------------- */
+/* ---------------- Address Form (No Modal) ---------------- */
 type AddressForm = Partial<Address> & { is_default?: boolean }
-const addressModalOpen = ref(false)
+
+// Renamed from addressModalOpen to showAddressForm
+const showAddressForm = ref(false) 
 const addressForm = ref<AddressForm>({})
 const isEditing = computed(() => !!addressForm.value.id)
 
@@ -187,6 +189,7 @@ function openAddressForm(a?: Address) {
   if (a) {
       // Edit Mode: Copy data directly
       addressForm.value = { ...a }
+      isCitySelectedFromList.value = true
   } else {
       // New Mode: Empty form
       addressForm.value = {
@@ -198,19 +201,120 @@ function openAddressForm(a?: Address) {
         postal_code: '',
         is_default: false
       }
+      isCitySelectedFromList.value = false
   }
-  addressModalOpen.value = true
+  showAddressForm.value = true
 }
 
-function closeAddressForm() { addressModalOpen.value = false }
+function closeAddressForm() { 
+  showAddressForm.value = false 
+  citySuggestions.value = [] // Reset autocomplete
+}
 
 // Clear city ONLY if the user changes the country manually
 watch(() => addressForm.value.country_id, (newId, oldId) => {
-  if (!addressModalOpen.value || !newId) return
+  if (!showAddressForm.value || !newId) return
   if (oldId !== undefined && newId !== oldId) {
      addressForm.value.city = ''
+     addressForm.value.postal_code = '' // Clear postal code too
+     citySuggestions.value = []
+     isCitySelectedFromList.value = false
   }
 })
+
+/* ---------------- City Autocomplete (DHL) & Strict Validation ---------------- */
+const citySuggestions = ref<any[]>([])
+const isSearchingCity = ref(false)
+const showCityDropdown = ref(false)
+const isCitySelectedFromList = ref(false)
+let citySearchTimeout: any = null
+
+// Define which countries REQUIRE selection from the list (No typing allowed)
+const STRICT_CITY_COUNTRIES = [UAE_COUNTRY_ID]; // Add others if needed
+
+function handleCityInput(e: Event) {
+  const query = (e.target as HTMLInputElement).value
+  
+  // Reset validity when typing manually
+  isCitySelectedFromList.value = false
+  
+  if (citySearchTimeout) clearTimeout(citySearchTimeout)
+  
+  // Debounce 300ms
+  citySearchTimeout = setTimeout(() => {
+    fetchCitySuggestions(query)
+  }, 300)
+}
+
+async function fetchCitySuggestions(query: string) {
+  if (!query || query.length < 2) {
+    citySuggestions.value = []
+    showCityDropdown.value = false
+    return
+  }
+
+  const countryId = addressForm.value.country_id
+  const selectedCountry = countries.value.find(c => c.id === countryId)
+  
+  // FIX: Robust check for country code (ISO2 or Code)
+  const finalCountryCode = selectedCountry?.iso2 || selectedCountry?.code || (selectedCountry as any)?.iso_code_2
+
+  if (!selectedCountry || !finalCountryCode) {
+    console.warn("City search skipped: No country code found for ID", countryId)
+    return
+  }
+
+  isSearchingCity.value = true
+  
+  try {
+    // Call your proxy backend
+    const res = await $customApi<any[]>('/shipping/city-suggestions', {
+      params: { 
+        city: query, 
+        countryCode: finalCountryCode 
+      }
+    })
+
+    // Filter Duplicates (Unique City Names)
+    const uniqueList: any[] = []
+    const seenCities = new Set()
+
+    if (Array.isArray(res)) {
+      for (const item of res) {
+        const name = (item.city || '').toUpperCase()
+        if (name && !seenCities.has(name)) {
+          seenCities.add(name)
+          uniqueList.push(item)
+        }
+      }
+    }
+
+    citySuggestions.value = uniqueList
+    showCityDropdown.value = uniqueList.length > 0
+
+  } catch (e) {
+    console.error("City fetch error:", e)
+  } finally {
+    isSearchingCity.value = false
+  }
+}
+
+function selectCitySuggestion(item: any) {
+  addressForm.value.city = item.city
+  if (item.postalCode) {
+    addressForm.value.postal_code = item.postalCode
+  }
+  
+  // Mark as strictly valid
+  isCitySelectedFromList.value = true
+  
+  showCityDropdown.value = false
+  citySuggestions.value = []
+}
+
+function closeCityDropdownDelayed() {
+  setTimeout(() => { showCityDropdown.value = false }, 200)
+}
 
 /* ---------------- Coupon UX ---------------- */
 function showCouponAlertOnce(c: CouponResult | null | undefined) {
@@ -246,22 +350,19 @@ async function removeCoupon() {
 }
 
 /* ---------------- API calls ---------------- */
-async function fetchAddresses() {
-  const res = await $customApi<Quote>('/checkout/new-quote')
-  addresses.value = res?.addresses ?? []
-  
-  if (!selectedAddressId.value) {
-    selectedAddressId.value = null
-  }
-}
-
-async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAlert?: boolean }) {
+// Merged logic to handle initial load skipping shipping
+async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAlert?: boolean, initialLoad?: boolean }) {
   loadingIndicator.start()
   loading.value = true
   
   try {
     const params = new URLSearchParams()
     
+    // SKIP SHIPPING FLAG on initial load
+    if (opts?.initialLoad) {
+        params.set('skip_shipping', '1')
+    }
+
     if (selectedAddressId.value) {
         params.set('address_id', String(selectedAddressId.value))
     }
@@ -277,6 +378,16 @@ async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAle
 
     const res = await $customApi<Quote>(`/checkout/new-quote?${params.toString()}`)
     quote.value = res
+
+    // Update addresses from the quote response
+    if (res.addresses) {
+        addresses.value = res.addresses
+    }
+
+    // Auto-select address if not selected
+    if (!selectedAddressId.value && res.selected_address_id) {
+       selectedAddressId.value = res.selected_address_id
+    }
 
     if (
       selectedAddress.value?.country_id === UAE_COUNTRY_ID &&
@@ -335,9 +446,12 @@ const blockedSkus = computed<string[]>(() => {
 /* ---------------- Save/Delete address ---------------- */
 async function saveAddress() {
   const body = { ...addressForm.value }
+  const cId = Number(body.country_id)
+  const isStrictCountry = STRICT_CITY_COUNTRIES.includes(cId)
   
+  // 1. Basic Fields Check
   if (!body.country_id || !String(body.city||'').trim() || !String(body.street||'').trim()
-      || !String(body.address||'').trim() || !String(body.postal_code||'').trim() || !String(body.phone||'').trim()) {
+      || !String(body.address||'').trim() || !String(body.phone||'').trim()) {
     alerts.showAlert({
       type: 'error',
       title: t('checkout.missingFields') || 'Missing fields',
@@ -346,6 +460,27 @@ async function saveAddress() {
     return
   }
 
+  // 2. Strict City Validation
+  if (isStrictCountry && !isCitySelectedFromList.value) {
+     alerts.showAlert({
+      type: 'error',
+      title: 'Invalid City',
+      message: 'For this country, you must select the city from the suggestions list to ensure accurate shipping.'
+    })
+    return;
+  }
+
+  // 3. Postal Code Check
+  if (!isStrictCountry && !String(body.postal_code||'').trim()) {
+     alerts.showAlert({
+      type: 'error',
+      title: t('checkout.missingFields'),
+      message: t('checkout.postalCodeRequired') || 'Postal code is required.'
+    })
+    return;
+  }
+
+  // Proceed with Save
   let savedId: number | null = null
   if (isEditing.value) {
     await $customApi(`/edit-addresses/${body.id}`, { method: 'POST', body })
@@ -363,17 +498,15 @@ async function saveAddress() {
     }
   }
 
-  addressModalOpen.value = false
-  await fetchAddresses()
+  showAddressForm.value = false // Close Form / Show List
   if (selectedAddress.value?.country_id === UAE_COUNTRY_ID) selectedShipping.value = null
-  await fetchQuote()
+  await fetchQuote() // reload addresses and quote
   alerts.showAlert({ type: 'success', title: t('checkout.addressSaved') || 'Address saved' })
 }
 
 async function deleteAddress(a: Address) {
   if (!confirm(t('checkout.deleteAddressConfirm') || 'Delete this address?')) return
   await $customApi(`/delete-addresses/${a.id}`, { method: 'POST' })
-  await fetchAddresses()
   if (selectedAddressId.value === a.id) selectedAddressId.value = null
   await fetchQuote()
   alerts.showAlert({ type: 'success', title: t('checkout.addressDeleted') || 'Address deleted' })
@@ -412,7 +545,6 @@ async function createOrder() {
     coupon_code:     appliedCouponCode.value || null,
     promo:           selectedPromo.value,
     free_ship:       selectedPromo.value === 'free_ship' ? 1 : 0,
-    // Note: shipping_cost is NOT sent from frontend securely anymore, backend calculates it.
   }
 
   try {
@@ -495,13 +627,15 @@ useHead({ meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
 
 /* ---------------- Effects ---------------- */
 onMounted(async () => {
-  await Promise.all([fetchCountries(), fetchAddresses()])
-  await fetchQuote()
+  await fetchCountries()
+  // Call quote with initialLoad=true to SKIP shipping API initially
+  await fetchQuote({ initialLoad: true })
 })
 
 watch(selectedAddressId, async (newVal) => {
   selectedShipping.value = null
   if (newVal) {
+      // This call runs WITHOUT initialLoad, so it WILL fetch shipping
       await fetchQuote()
   }
 })
@@ -645,7 +779,7 @@ watch(selectedShipping, async (newVal) => {
         </div>
 
         <div
-          v-if="!selectedAddressId"
+          v-if="!selectedAddressId && !showAddressForm"
           class="rounded-2xl border p-4 bg-amber-50/70 text-amber-900 shadow-sm"
           role="status"
         >
@@ -665,43 +799,160 @@ watch(selectedShipping, async (newVal) => {
               </svg>
               {{ $t('checkout.addrress') }}
             </h3>
-            <button class="rounded-2xl border px-3 py-2 text-sm hover:bg-gray-50" @click="openAddressForm()" :disabled="creatingOrder">
-              + {{ $t('checkout.addAddress') }}
-            </button>
           </div>
 
-          <div class="grid sm:grid-cols-2 gap-3">
-            <label
-              v-for="a in addresses"
-              :key="a.id"
-              class="rounded-2xl border p-3 cursor-pointer flex gap-3 items-start transition ring-offset-2 bg-white hover:shadow-sm"
-              :class="selectedAddressId === a.id ? 'ring-2 ring-emerald-500' : ''"
-            >
-              <input type="radio" class="mt-1" :value="a.id" v-model="selectedAddressId" :disabled="creatingOrder" />
-              <div class="w-full">
-                <div class="font-medium">
-                  {{ a.country_name || '—' }} <span v-if="a.city">— {{ a.city }}</span>
-                </div>
+          <div v-if="!showAddressForm">
+             <div class="flex justify-end mb-3">
+                <button class="rounded-2xl border px-3 py-2 text-sm hover:bg-gray-50" @click="openAddressForm()" :disabled="creatingOrder">
+                  + {{ $t('checkout.addAddress') }}
+                </button>
+             </div>
 
-                <div class="text-sm text-gray-500 break-words">
-                  <template v-if="a.street">{{ a.street }}<br /></template>
-                  {{ a.address }}
+            <div class="grid sm:grid-cols-2 gap-3">
+              <label
+                v-for="a in addresses"
+                :key="a.id"
+                class="rounded-2xl border p-3 cursor-pointer flex gap-3 items-start transition ring-offset-2 bg-white hover:shadow-sm"
+                :class="selectedAddressId === a.id ? 'ring-2 ring-emerald-500' : ''"
+              >
+                <input type="radio" class="mt-1" :value="a.id" v-model="selectedAddressId" :disabled="creatingOrder" />
+                <div class="w-full">
+                  <div class="font-medium">
+                    {{ a.country_name || '—' }} <span v-if="a.city">— {{ a.city }}</span>
+                  </div>
+
+                  <div class="text-sm text-gray-500 break-words">
+                    <template v-if="a.street">{{ a.street }}<br /></template>
+                    {{ a.address }}
+                  </div>
+                  <div class="text-sm text-gray-500">☎ {{ a.phone }}</div>
+                  <div v-if="a.postal_code" class="text-sm text-gray-500">{{ a.postal_code }}</div>
+                  <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                    <span v-if="a.is_default" class="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 border border-emerald-200">
+                      <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>{{ $t('checkout.default') }}
+                    </span>
+                    <button class="px-2 py-1 rounded border hover:bg-gray-50" @click.stop="openAddressForm(a)" :disabled="creatingOrder">{{ $t('edit') }}</button>
+                    <button class="px-2 py-1 rounded border hover:bg-gray-50" @click.stop="deleteAddress(a)" :disabled="creatingOrder">{{ $t('delete') }}</button>
+                  </div>
                 </div>
-                <div class="text-sm text-gray-500">☎ {{ a.phone }}</div>
-                <div v-if="a.postal_code" class="text-sm text-gray-500">{{ a.postal_code }}</div>
-                <div class="mt-2 flex flex-wrap gap-2 text-xs">
-                  <span v-if="a.is_default" class="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 border border-emerald-200">
-                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>{{ $t('checkout.default') }}
-                  </span>
-                  <button class="px-2 py-1 rounded border hover:bg-gray-50" @click.stop="openAddressForm(a)" :disabled="creatingOrder">{{ $t('edit') }}</button>
-                  <button class="px-2 py-1 rounded border hover:bg-gray-50" @click.stop="deleteAddress(a)" :disabled="creatingOrder">{{ $t('delete') }}</button>
-                </div>
+              </label>
+            </div>
+          </div>
+
+          <div v-else class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+             <h4 class="text-md font-bold mb-3">
+               {{ isEditing ? $t('checkout.editAddress') : $t('checkout.newAddress') }}
+             </h4>
+             <form @submit.prevent="saveAddress" class="space-y-3">
+              <div>
+                <label class="text-sm block mb-1">{{ $t('checkout.country') }}</label>
+                <select v-model.number="addressForm.country_id" class="w-full rounded-xl border px-3 py-2" required>
+                  <option value="">{{ $t('checkout.selectCountry') }}</option>
+                  <option v-for="c in countries" :key="c.id" :value="c.id">
+                    {{ countryDisplayName(c, String($i18n?.locale || locale)) }}
+                  </option>
+                </select>
               </div>
-            </label>
+
+              <div class="relative">
+                <label class="text-sm block mb-1">
+                  {{ $t('checkout.city') }}
+                  <span v-if="STRICT_CITY_COUNTRIES.includes(addressForm.country_id)" class="text-red-500 font-bold">*</span>
+                </label>
+                
+                <div class="relative">
+                  <input 
+                    v-model="addressForm.city" 
+                    type="text" 
+                    class="w-full rounded-xl border px-3 py-2 pr-10"
+                    :class="{
+                      'border-red-500 bg-red-50 focus:ring-red-200': STRICT_CITY_COUNTRIES.includes(addressForm.country_id) && !isCitySelectedFromList && (addressForm.city?.length || 0) > 2,
+                      'border-emerald-500 focus:ring-emerald-200': isCitySelectedFromList
+                    }"
+                    :placeholder="$t('checkout.enterCity') || 'Enter city name'"
+                    required 
+                    autocomplete="off"
+                    @input="handleCityInput"
+                    @focus="citySuggestions.length > 0 ? showCityDropdown = true : null"
+                    @blur="closeCityDropdownDelayed"
+                  />
+                  
+                  <div v-if="isSearchingCity" class="absolute right-3 top-3">
+                    <div class="animate-spin h-4 w-4 border-2 border-orange-500 border-t-transparent rounded-full"></div>
+                  </div>
+
+                  <div v-if="isCitySelectedFromList && !isSearchingCity" class="absolute right-3 top-3 text-emerald-500 pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
+                </div>
+                
+                <p v-if="STRICT_CITY_COUNTRIES.includes(addressForm.country_id) && !isCitySelectedFromList && (addressForm.city?.length || 0) > 2" class="text-xs text-red-500 mt-1">
+                  Please select a valid city from the list.
+                </p>
+
+                <ul 
+                  v-if="showCityDropdown && citySuggestions.length > 0" 
+                  class="absolute z-50 w-full bg-white border border-gray-200 rounded-xl mt-1 shadow-xl max-h-52 overflow-y-auto"
+                >
+                  <li 
+                    v-for="(item, idx) in citySuggestions" 
+                    :key="idx"
+                    @mousedown.prevent="selectCitySuggestion(item)"
+                    class="px-4 py-3 hover:bg-orange-50 cursor-pointer border-b last:border-0 transition-colors"
+                  >
+                    <div class="flex justify-between items-center">
+                      <span class="font-semibold text-gray-800">{{ item.city }}</span>
+                      <span v-if="item.postalCode" class="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded border border-emerald-100">
+                        {{ item.postalCode }}
+                      </span>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <label class="text-sm block mb-1">{{ $t('checkout.street') }}</label>
+                <input v-model="addressForm.street" type="text" class="w-full rounded-xl border px-3 py-2" required />
+              </div>
+
+              <div>
+                <label class="text-sm block mb-1">{{ $t('checkout.address') }}</label>
+                <textarea v-model="addressForm.address" rows="3" class="w-full rounded-xl border px-3 py-2" required></textarea>
+              </div>
+
+              <div>
+                <label class="text-sm block mb-1">
+                  {{ $t('checkout.postalCode') }}
+                  <span v-if="!STRICT_CITY_COUNTRIES.includes(addressForm.country_id)" class="text-red-500">*</span>
+                </label>
+                <input 
+                  v-model="addressForm.postal_code" 
+                  type="text" 
+                  class="w-full rounded-xl border px-3 py-2" 
+                  :required="!STRICT_CITY_COUNTRIES.includes(addressForm.country_id)"
+                />
+              </div>
+
+              <div>
+                <label class="text-sm block mb-1">{{ $t('checkout.phone') }}</label>
+                <input v-model="addressForm.phone" type="text" class="w-full rounded-xl border px-3 py-2" required />
+              </div>
+
+              <label class="inline-flex items-center gap-2 mt-1">
+                <input type="checkbox" v-model="addressForm.is_default" class="accent-emerald-600" />
+                <span class="text-sm">{{ $t('checkout.setAsDefault') }}</span>
+              </label>
+
+              <div class="pt-2 flex justify-end gap-3">
+                <button type="button" class="px-4 py-2 rounded border hover:bg-gray-100 bg-white" @click="closeAddressForm">{{ $t('cancel') }}</button>
+                <button type="submit" class="px-4 py-2 rounded bg-orange-500 text-white hover:bg-emerald-700">{{ $t('save') }}</button>
+              </div>
+            </form>
           </div>
         </div>
 
-        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="(!selectedAddressId || creatingOrder) ? 'opacity-50 pointer-events-none' : ''">
+        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="((!selectedAddressId || creatingOrder || showAddressForm) ? 'opacity-50 pointer-events-none' : '')">
           <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M2 6a2 2 0 012-2h10a2 2 0 012 2v8h-1.18a3 3 0 10-5.64 0H8.82a3 3 0 10-5.64 0H2V6z"/>
@@ -922,80 +1173,5 @@ watch(selectedShipping, async (newVal) => {
         </div>
       </aside>
     </div>
-
-    <div v-else class="text-center py-20 text-gray-500">
-      {{ $t('checkout.CheckoutNotAvailable') }}
-      <div class="mt-4"><NuxtLinkLocale to="/shop" class="underline">{{ $t('checkout.returnToShop') }}</NuxtLinkLocale></div>
-    </div>
-
-    <Teleport to="body">
-      <div
-        v-if="addressModalOpen"
-        class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-3"
-        @click.self="closeAddressForm"
-      >
-        <div class="bg-white w-full sm:max-w-md rounded-xl p-4 sm:p-5 max-h-[85vh] overflow-y-auto shadow-xl" role="dialog" aria-modal="true">
-          <h4 class="text-lg font-semibold mb-3">
-            {{ isEditing ? $t('checkout.editAddress') : $t('checkout.newAddress') }}
-          </h4>
-          <form @submit.prevent="saveAddress" class="space-y-3">
-            <div>
-              <label class="text-sm block mb-1">{{ $t('checkout.country') }}</label>
-              <select v-model.number="addressForm.country_id" class="w-full rounded-xl border px-3 py-2" required>
-                <option value="">{{ $t('checkout.selectCountry') }}</option>
-                <option v-for="c in countries" :key="c.id" :value="c.id">
-                  {{ countryDisplayName(c, String($i18n?.locale || locale)) }}
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <label class="text-sm block mb-1">
-                {{ $t('checkout.city') }}
-              </label>
-              
-              <input 
-                v-model="addressForm.city" 
-                type="text" 
-                class="w-full rounded-xl border px-3 py-2"
-                :placeholder="$t('checkout.enterCity') || 'Enter city name'"
-                required 
-                autocomplete="address-level2"
-              />
-            </div>
-
-            <div>
-              <label class="text-sm block mb-1">{{ $t('checkout.street') }}</label>
-              <input v-model="addressForm.street" type="text" class="w-full rounded-xl border px-3 py-2" required />
-            </div>
-
-            <div>
-              <label class="text-sm block mb-1">{{ $t('checkout.address') }}</label>
-              <textarea v-model="addressForm.address" rows="3" class="w-full rounded-xl border px-3 py-2" required></textarea>
-            </div>
-
-            <div>
-              <label class="text-sm block mb-1">{{ $t('checkout.postalCode') }}</label>
-              <input v-model="addressForm.postal_code" type="text" class="w-full rounded-xl border px-3 py-2" required />
-            </div>
-
-            <div>
-              <label class="text-sm block mb-1">{{ $t('checkout.phone') }}</label>
-              <input v-model="addressForm.phone" type="text" class="w-full rounded-xl border px-3 py-2" required />
-            </div>
-
-            <label class="inline-flex items-center gap-2 mt-1">
-              <input type="checkbox" v-model="addressForm.is_default" class="accent-emerald-600" />
-              <span class="text-sm">{{ $t('checkout.setAsDefault') }}</span>
-            </label>
-
-            <div class="pt-2 flex justify-end gap-3">
-              <button type="button" class="px-4 py-2 rounded border hover:bg-gray-50" @click="closeAddressForm">{{ $t('cancel') }}</button>
-              <button type="submit" class="px-4 py-2 rounded bg-orange-500 text-white hover:bg-emerald-700">{{ $t('save') }}</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </Teleport>
   </main>
 </template>
