@@ -103,6 +103,14 @@ const isString = (v: unknown): v is string => typeof v === 'string' && v.trim() 
 const money = (v: unknown): string => Number(v || 0).toFixed(2)
 const imgSrc = (v: unknown): string | null => (isString(v) ? v : null)
 
+// Helper: Title Case (Madina Al Munawara)
+function toTitleCase(str: string): string {
+  if (!str) return ''
+  return str.toLowerCase().split(' ').map(word => {
+    return word.charAt(0).toUpperCase() + word.slice(1)
+  }).join(' ')
+}
+
 function countryDisplayName(c: Country, loc: string): string {
   try {
     if (typeof c.name === 'string') {
@@ -177,21 +185,34 @@ const shippingOptions = computed<ShippingOption[]>(() => {
   return quote.value?.shipping?.options ?? []
 })
 
-/* ---------------- Address Form (No Modal) ---------------- */
+/* ---------------- Address Form ---------------- */
 type AddressForm = Partial<Address> & { is_default?: boolean }
 
-// Renamed from addressModalOpen to showAddressForm
 const showAddressForm = ref(false) 
 const addressForm = ref<AddressForm>({})
 const isEditing = computed(() => !!addressForm.value.id)
 
+// NEW: Cities Logic (Using CountriesNow API)
+const cityOptions = ref<any[]>([])
+const isLoadingCities = ref(false)
+const citySearch = ref('') 
+const showCityList = ref(false)
+
+// Filter cities based on search
+const filteredCities = computed(() => {
+  if (!citySearch.value) return cityOptions.value
+  const lower = citySearch.value.toLowerCase()
+  return cityOptions.value.filter(c => c.name.toLowerCase().includes(lower))
+})
+
 function openAddressForm(a?: Address) {
   if (a) {
-      // Edit Mode: Copy data directly
+      // Edit Mode
       addressForm.value = { ...a }
-      isCitySelectedFromList.value = true
+      citySearch.value = a.city || '' // Pre-fill search with existing city
+      if(a.country_id) fetchCitiesExternal(a.country_id)
   } else {
-      // New Mode: Empty form
+      // New Mode
       addressForm.value = {
         country_id: undefined as any,
         city: '',
@@ -201,119 +222,130 @@ function openAddressForm(a?: Address) {
         postal_code: '',
         is_default: false
       }
-      isCitySelectedFromList.value = false
+      citySearch.value = ''
+      cityOptions.value = []
   }
   showAddressForm.value = true
 }
 
 function closeAddressForm() { 
   showAddressForm.value = false 
-  citySuggestions.value = [] // Reset autocomplete
+  cityOptions.value = []
+  citySearch.value = ''
 }
 
-// Clear city ONLY if the user changes the country manually
+// Watch Country Change
 watch(() => addressForm.value.country_id, (newId, oldId) => {
-  if (!showAddressForm.value || !newId) return
+  if (!showAddressForm.value) return
   if (oldId !== undefined && newId !== oldId) {
      addressForm.value.city = ''
-     addressForm.value.postal_code = '' // Clear postal code too
-     citySuggestions.value = []
-     isCitySelectedFromList.value = false
+     citySearch.value = ''
+     addressForm.value.postal_code = '' 
+  }
+
+  // Fetch Cities
+  if (newId) {
+    fetchCitiesExternal(newId)
+  } else {
+    cityOptions.value = []
   }
 })
 
-/* ---------------- City Autocomplete (DHL) & Strict Validation ---------------- */
-const citySuggestions = ref<any[]>([])
-const isSearchingCity = ref(false)
-const showCityDropdown = ref(false)
-const isCitySelectedFromList = ref(false)
-let citySearchTimeout: any = null
-
-// Define which countries REQUIRE selection from the list (No typing allowed)
-const STRICT_CITY_COUNTRIES = [UAE_COUNTRY_ID]; // Add others if needed
-
-function handleCityInput(e: Event) {
-  const query = (e.target as HTMLInputElement).value
-  
-  // Reset validity when typing manually
-  isCitySelectedFromList.value = false
-  
-  if (citySearchTimeout) clearTimeout(citySearchTimeout)
-  
-  // Debounce 300ms
-  citySearchTimeout = setTimeout(() => {
-    fetchCitySuggestions(query)
-  }, 300)
-}
-
-async function fetchCitySuggestions(query: string) {
-  if (!query || query.length < 2) {
-    citySuggestions.value = []
-    showCityDropdown.value = false
-    return
-  }
-
-  const countryId = addressForm.value.country_id
-  const selectedCountry = countries.value.find(c => c.id === countryId)
-  
-  // FIX: Robust check for country code (ISO2 or Code)
-  const finalCountryCode = selectedCountry?.iso2 || selectedCountry?.code || (selectedCountry as any)?.iso_code_2
-
-  if (!selectedCountry || !finalCountryCode) {
-    console.warn("City search skipped: No country code found for ID", countryId)
-    return
-  }
-
-  isSearchingCity.value = true
+// UPDATED: Fetch Cities from CountriesNow API
+async function fetchCitiesExternal(countryId: number) {
+  isLoadingCities.value = true
+  cityOptions.value = []
   
   try {
-    // Call your proxy backend
-    const res = await $customApi<any[]>('/shipping/city-suggestions', {
-      params: { 
-        city: query, 
-        countryCode: finalCountryCode 
-      }
-    })
+    // 1. Find the selected country object to get its Name (string)
+    const countryObj = countries.value.find(c => c.id === countryId)
+    if (!countryObj) return
 
-    // Filter Duplicates (Unique City Names)
-    const uniqueList: any[] = []
-    const seenCities = new Set()
-
-    if (Array.isArray(res)) {
-      for (const item of res) {
-        const name = (item.city || '').toUpperCase()
-        if (name && !seenCities.has(name)) {
-          seenCities.add(name)
-          uniqueList.push(item)
+    // 2. Extract clean English Name for the API
+    let cleanCountryName = ''
+    if (typeof countryObj.name === 'string') {
+        // Try parsing if it's a JSON string, otherwise use as is
+        try {
+            const parsed = JSON.parse(countryObj.name)
+            cleanCountryName = parsed.en || Object.values(parsed)[0]
+        } catch {
+            cleanCountryName = countryObj.name
         }
-      }
+    } else if (countryObj.name && typeof countryObj.name === 'object') {
+        cleanCountryName = (countryObj.name as any).en || Object.values(countryObj.name)[0]
+    }
+    
+    if (!cleanCountryName) return
+
+    // 3. Call CountriesNow API
+    const response = await fetch('https://countriesnow.space/api/v0.1/countries/cities', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ country: cleanCountryName })
+    })
+    
+    const json = await response.json()
+    
+    // 4. Process response (data is array of strings)
+    if (!json.error && Array.isArray(json.data)) {
+        // Transform ["City", "City2"] -> [{id:1, name:"City"}, {id:2, name:"City2"}]
+        // We use map to create the object structure your UI expects
+        const uniqueMap = new Map()
+        
+        json.data.forEach((cityName: string, index: number) => {
+            if(!cityName) return
+            const niceName = toTitleCase(cityName.trim())
+            const key = niceName.toLowerCase()
+            
+            if(!uniqueMap.has(key)) {
+                uniqueMap.set(key, { 
+                    id: index, // Fake ID, not important for string storage
+                    name: niceName 
+                })
+            }
+        })
+        
+        cityOptions.value = Array.from(uniqueMap.values())
     }
 
-    citySuggestions.value = uniqueList
-    showCityDropdown.value = uniqueList.length > 0
-
   } catch (e) {
-    console.error("City fetch error:", e)
+    console.error("Failed to load cities from external API", e)
+    // Optional: add a generic 'Other' option or leave empty to allow manual typing
   } finally {
-    isSearchingCity.value = false
+    isLoadingCities.value = false
   }
 }
 
-function selectCitySuggestion(item: any) {
-  addressForm.value.city = item.city
-  if (item.postalCode) {
-    addressForm.value.postal_code = item.postalCode
-  }
-  
-  // Mark as strictly valid
-  isCitySelectedFromList.value = true
-  
-  showCityDropdown.value = false
-  citySuggestions.value = []
+// Select City from Dropdown
+function selectCity(city: any) {
+  addressForm.value.city = city.name
+  citySearch.value = city.name
+  showCityList.value = false
 }
 
-function closeCityDropdownDelayed() {
-  setTimeout(() => { showCityDropdown.value = false }, 200)
+// Handle Blur
+function onCityBlur() {
+  setTimeout(() => {
+    // Check if exact match exists in list
+    const match = cityOptions.value.find(c => c.name.toLowerCase() === citySearch.value.trim().toLowerCase())
+    
+    if (match) {
+       // Found specific city object
+       addressForm.value.city = match.name
+       citySearch.value = match.name
+    } else {
+       // NOT FOUND in list. 
+       // Logic Update: Since this is a 3rd party API, it might miss some cities.
+       // We allow the user's manual input if they typed something.
+       const typed = citySearch.value.trim()
+       if(typed.length > 0) {
+           addressForm.value.city = toTitleCase(typed)
+       } else {
+           addressForm.value.city = ''
+       }
+    }
+    showCityList.value = false
+  }, 200)
 }
 
 /* ---------------- Coupon UX ---------------- */
@@ -350,7 +382,6 @@ async function removeCoupon() {
 }
 
 /* ---------------- API calls ---------------- */
-// Merged logic to handle initial load skipping shipping
 async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAlert?: boolean, initialLoad?: boolean }) {
   loadingIndicator.start()
   loading.value = true
@@ -358,7 +389,6 @@ async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAle
   try {
     const params = new URLSearchParams()
     
-    // SKIP SHIPPING FLAG on initial load
     if (opts?.initialLoad) {
         params.set('skip_shipping', '1')
     }
@@ -379,12 +409,10 @@ async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAle
     const res = await $customApi<Quote>(`/checkout/new-quote?${params.toString()}`)
     quote.value = res
 
-    // Update addresses from the quote response
     if (res.addresses) {
         addresses.value = res.addresses
     }
 
-    // Auto-select address if not selected
     if (!selectedAddressId.value && res.selected_address_id) {
        selectedAddressId.value = res.selected_address_id
     }
@@ -446,8 +474,6 @@ const blockedSkus = computed<string[]>(() => {
 /* ---------------- Save/Delete address ---------------- */
 async function saveAddress() {
   const body = { ...addressForm.value }
-  const cId = Number(body.country_id)
-  const isStrictCountry = STRICT_CITY_COUNTRIES.includes(cId)
   
   // 1. Basic Fields Check
   if (!body.country_id || !String(body.city||'').trim() || !String(body.street||'').trim()
@@ -460,26 +486,9 @@ async function saveAddress() {
     return
   }
 
-  // 2. Strict City Validation
-  if (isStrictCountry && !isCitySelectedFromList.value) {
-     alerts.showAlert({
-      type: 'error',
-      title: 'Invalid City',
-      message: 'For this country, you must select the city from the suggestions list to ensure accurate shipping.'
-    })
-    return;
-  }
-
-  // 3. Postal Code Check
-  if (!isStrictCountry && !String(body.postal_code||'').trim()) {
-     alerts.showAlert({
-      type: 'error',
-      title: t('checkout.missingFields'),
-      message: t('checkout.postalCodeRequired') || 'Postal code is required.'
-    })
-    return;
-  }
-
+  // 2. Strict City Validation Check REMOVED
+  // Since we use external API, we allow manual entry if user typed something valid
+  
   // Proceed with Save
   let savedId: number | null = null
   if (isEditing.value) {
@@ -628,14 +637,12 @@ useHead({ meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
 /* ---------------- Effects ---------------- */
 onMounted(async () => {
   await fetchCountries()
-  // Call quote with initialLoad=true to SKIP shipping API initially
   await fetchQuote({ initialLoad: true })
 })
 
 watch(selectedAddressId, async (newVal) => {
   selectedShipping.value = null
   if (newVal) {
-      // This call runs WITHOUT initialLoad, so it WILL fetch shipping
       await fetchQuote()
   }
 })
@@ -857,60 +864,58 @@ watch(selectedShipping, async (newVal) => {
               <div class="relative">
                 <label class="text-sm block mb-1">
                   {{ $t('checkout.city') }}
-                  <span v-if="STRICT_CITY_COUNTRIES.includes(addressForm.country_id)" class="text-red-500 font-bold">*</span>
+                  <span class="text-red-500">*</span>
                 </label>
                 
                 <div class="relative">
                   <input 
-                    v-model="addressForm.city" 
-                    type="text" 
-                    class="w-full rounded-xl border px-3 py-2 pr-10"
-                    :class="{
-                      'border-red-500 bg-red-50 focus:ring-red-200': STRICT_CITY_COUNTRIES.includes(addressForm.country_id) && !isCitySelectedFromList && (addressForm.city?.length || 0) > 2,
-                      'border-emerald-500 focus:ring-emerald-200': isCitySelectedFromList
-                    }"
-                    :placeholder="$t('checkout.enterCity') || 'Enter city name'"
-                    required 
+                    type="text"
+                    v-model="citySearch"
+                    @focus="showCityList = true"
+                    @blur="onCityBlur"
+                    class="w-full rounded-xl border px-3 py-2 pr-10 bg-white"
+                    :placeholder="isLoadingCities ? 'Loading cities...' : ($t('checkout.selectCity') || 'Select city...')"
+                    :disabled="!addressForm.country_id || isLoadingCities"
                     autocomplete="off"
-                    @input="handleCityInput"
-                    @focus="citySuggestions.length > 0 ? showCityDropdown = true : null"
-                    @blur="closeCityDropdownDelayed"
+                    required
                   />
-                  
-                  <div v-if="isSearchingCity" class="absolute right-3 top-3">
-                    <div class="animate-spin h-4 w-4 border-2 border-orange-500 border-t-transparent rounded-full"></div>
-                  </div>
 
-                  <div v-if="isCitySelectedFromList && !isSearchingCity" class="absolute right-3 top-3 text-emerald-500 pointer-events-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                  <div v-if="isLoadingCities" class="absolute right-3 top-2.5">
+                    <svg class="animate-spin h-5 w-5 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
                     </svg>
                   </div>
-                </div>
-                
-                <p v-if="STRICT_CITY_COUNTRIES.includes(addressForm.country_id) && !isCitySelectedFromList && (addressForm.city?.length || 0) > 2" class="text-xs text-red-500 mt-1">
-                  Please select a valid city from the list.
-                </p>
+                  <div v-else class="absolute right-3 top-3 pointer-events-none text-gray-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </div>
 
-                <ul 
-                  v-if="showCityDropdown && citySuggestions.length > 0" 
-                  class="absolute z-50 w-full bg-white border border-gray-200 rounded-xl mt-1 shadow-xl max-h-52 overflow-y-auto"
-                >
-                  <li 
-                    v-for="(item, idx) in citySuggestions" 
-                    :key="idx"
-                    @mousedown.prevent="selectCitySuggestion(item)"
-                    class="px-4 py-3 hover:bg-orange-50 cursor-pointer border-b last:border-0 transition-colors"
+                  <ul 
+                    v-if="showCityList && !isLoadingCities && cityOptions.length > 0" 
+                    class="absolute z-50 mt-1 w-full bg-white shadow-lg max-h-60 rounded-xl py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm"
                   >
-                    <div class="flex justify-between items-center">
-                      <span class="font-semibold text-gray-800">{{ item.city }}</span>
-                      <span v-if="item.postalCode" class="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded border border-emerald-100">
-                        {{ item.postalCode }}
+                    <li 
+                      v-for="city in filteredCities" 
+                      :key="city.id"
+                      @mousedown.prevent="selectCity(city)"
+                      class="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-orange-50 text-gray-900"
+                    >
+                      <span class="block truncate font-normal" :class="{ 'font-semibold': addressForm.city === city.name }">
+                        {{ city.name }}
                       </span>
-                    </div>
-                  </li>
-                </ul>
+                      <span v-if="addressForm.city === city.name" class="absolute inset-y-0 right-0 flex items-center pr-4 text-orange-600">
+                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        </svg>
+                      </span>
+                    </li>
+                    <li v-if="filteredCities.length === 0" class="px-3 py-2 text-gray-500 text-sm">
+                       No results. You can type manually.
+                    </li>
+                  </ul>
+                </div>
               </div>
+
               <div>
                 <label class="text-sm block mb-1">{{ $t('checkout.street') }}</label>
                 <input v-model="addressForm.street" type="text" class="w-full rounded-xl border px-3 py-2" required />
@@ -924,13 +929,11 @@ watch(selectedShipping, async (newVal) => {
               <div>
                 <label class="text-sm block mb-1">
                   {{ $t('checkout.postalCode') }}
-                  <span v-if="!STRICT_CITY_COUNTRIES.includes(addressForm.country_id)" class="text-red-500">*</span>
                 </label>
                 <input 
                   v-model="addressForm.postal_code" 
                   type="text" 
                   class="w-full rounded-xl border px-3 py-2" 
-                  :required="!STRICT_CITY_COUNTRIES.includes(addressForm.country_id)"
                 />
               </div>
 
