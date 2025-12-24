@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useI18n, useRouter, useNuxtApp, definePageMeta, useSeoMeta, useHead, useRuntimeConfig, useLoadingIndicator } from '#imports'
 import { useAlertStore } from '~/stores/alert'
 
-definePageMeta({ ssr: false })
+definePageMeta({ ssr: true })
 
 /* ---------------- Types ---------------- */
 type QuoteProduct = {
