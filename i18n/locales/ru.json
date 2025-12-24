@@ -37,6 +37,8 @@
     }
   },
   "common": {
+    "prev": "Назад",
+    "next": "Вперед",
     "aboutUs": "О нас",
     "clear": "Очистить",
     "sending": "Отправка…",
@@ -445,6 +447,9 @@
     "current_password": "Текущий пароль неверный"
   },
   "account": {
+    "orders": {
+      "pageOf": "Страница {current} из {total}"
+    },
     "pageTitle": "Аккаунт",
     "profile": {
       "title": "Данные профиля",

@@ -38,6 +38,8 @@
   },
   
   "common": {
+    "prev": "Geri",
+    "next": "İleri",
     "aboutUs": "Hakkımızda",
     "clear": "Temizle",
     "sending": "Gönderiliyor",
@@ -444,6 +446,9 @@
     "current_password": "Mevcut parola yanlış"
   },
   "account": {
+    "orders": {
+      "pageOf": "Sayfa {current} / {total}"
+    },
     "pageTitle": "Hesap",
     "profile": {
       "title": "Profil Bilgileri",

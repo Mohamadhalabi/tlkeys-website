@@ -38,6 +38,8 @@
   },
   
   "common" : {
+    "prev": "Prev",
+    "next": "Next",
     "aboutUs" : "About us",
     "clear" : "Clear",
     "sending": "Sending",
@@ -446,6 +448,10 @@
     "current_password" : "The current password is incorrect"
   },
   "account": {
+
+    "orders": {
+      "pageOf": "Page {current} of {total}"
+    },
     "pageTitle": "Acccount",
     "profile": {
       "title": "Profile details",

@@ -38,6 +38,8 @@
   },
 
   "common": {
+    "prev": "Precedente",
+    "next": "Successivo",
     "aboutUs": "Chi siamo",
     "clear": "Cancella",
     "sending": "Invio in corso",
@@ -464,6 +466,9 @@
   },
 
   "account": {
+    "orders": {
+      "pageOf": "Pagina {current} di {total}"
+    },
     "pageTitle": "Account",
     "profile": {
       "title": "Dettagli profilo",

@@ -37,6 +37,8 @@
     }
   },
   "common": {
+    "prev": "Anterior",
+    "next": "Próximo",
     "aboutUs": "Sobre nós",
     "clear": "Limpar",
     "sending": "Enviando",
@@ -444,6 +446,9 @@
     "current_password": "A senha atual está incorrecta"
   },
   "account": {
+    "orders": {
+      "pageOf": "Página {current} de {total}"
+    },
     "pageTitle": "Conta",
     "profile": {
       "title": "Detalhes do Perfil",

@@ -37,6 +37,8 @@
     }
   },
   "common": {
+    "prev": "Précédent",
+    "next": "Suivant",
     "aboutUs": "À propos de nous",
     "clear": "Effacer",
     "sending": "Envoi",
@@ -445,6 +447,9 @@
     "current_password": "Le mot de passe actuel est incorrect"
   },
   "account": {
+    "orders": {
+      "pageOf": "Page {current} sur {total}"
+    },
     "pageTitle": "Compte",
     "profile": {
       "title": "Détails du profil",

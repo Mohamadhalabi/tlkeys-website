@@ -37,6 +37,8 @@
     }
   },
   "common": {
+    "prev": "السابق",
+    "next": "التالي",
     "aboutUs": "من نحن",
     "clear": "مسح",
     "sending": "جارٍ الإرسال",
@@ -445,6 +447,9 @@
     "current_password": "كلمة المرور الحالية غير صحيحة"
   },
   "account": {
+    "orders": {
+      "pageOf": "صفحة {current} من {total}"
+    },
     "pageTitle": "الحساب",
     "profile": {
       "title": "تفاصيل الملف الشخصي",
