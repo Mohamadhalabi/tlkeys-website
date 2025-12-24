@@ -127,6 +127,11 @@
   "downloads": "التنزيلات",
   "pinCodes": "رمز PIN",
   "checkout": {
+    "orderPreferences": "تفضيلات الطلب",
+    "orderNote": "ملاحظة الطلب",
+    "enterNote": "أي تعليمات خاصة...",
+    "shipmentValue": "قيمة الشحنة المصرح بها ($)",
+    "shipmentValueHelper": "يمكنك استخدام هذا الحقل لتغيير قيمة الشحنة لتجنب دفع رسوم جمركية مرتفعة.",
     "enterCity": "اختر مدينة من القائمة",
     "invalidCity": "مدينة غير صالحة",
     "invalidCityUpdateMessage": "المدينة المختارة غير صالحة. يرجى تعديل العنوان واختيار مدينة من القائمة.",

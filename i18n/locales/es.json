@@ -127,6 +127,11 @@
   "downloads": "Descargas",
   "pinCodes": "Código PIN",
   "checkout": {
+    "orderPreferences": "Preferencias del pedido",
+    "orderNote": "Nota del pedido",
+    "enterNote": "Instrucciones especiales...",
+    "shipmentValue": "Valor declarado del envío ($)",
+    "shipmentValueHelper": "Puede utilizar este campo para modificar el valor del envío y evitar pagar demasiados impuestos de aduana.",
     "enterCity": "Seleccione una ciudad de la lista",
     "invalidCity": "Ciudad no válida",
     "invalidCityUpdateMessage": "La ciudad seleccionada no es válida. Por favor, edite la dirección y seleccione una ciudad de la lista.",

@@ -137,6 +137,10 @@ const couponInput = ref<string>('')
 const appliedCouponCode = ref<string | null>(null)
 const selectedPromo = ref<PromoKey>('none')
 
+// New Order Preferences
+const orderNote = ref('')
+const customShipmentValue = ref<number | string>('')
+
 const lastShownCouponKey = ref<string | null>(null)
 const makeCouponKey = (c?: CouponResult | null) =>
   c ? `${(c.code||'').toUpperCase()}:${c.applied?'1':'0'}:${c.reason||''}:${Number(c.discount_value||0).toFixed(2)}` : null
@@ -554,6 +558,8 @@ async function createOrder() {
     coupon_code:     appliedCouponCode.value || null,
     promo:           selectedPromo.value,
     free_ship:       selectedPromo.value === 'free_ship' ? 1 : 0,
+    note:            orderNote.value,               // ✅ Added Note
+    shipment_value:  customShipmentValue.value,     // ✅ Added Shipment Value
   }
 
   try {
@@ -653,6 +659,13 @@ watch(selectedShipping, async (newVal) => {
       await fetchQuote()
   }
 })
+
+// ✅ Watch quote summary to set default shipment value
+watch(() => quote.value?.summary?.sub_total, (newVal) => {
+  if (newVal !== undefined && customShipmentValue.value === '') {
+    customShipmentValue.value = newVal
+  }
+}, { immediate: true })
 </script>
 
 <template>
@@ -1036,6 +1049,42 @@ watch(selectedShipping, async (newVal) => {
             </div>
           </div>
         </div>
+
+        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="creatingOrder ? 'opacity-50 pointer-events-none' : ''">
+          <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-600" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 3H14.82C14.4 1.84 13.3 1 12 1C10.7 1 9.6 1.84 9.18 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM12 3C12.55 3 13 3.45 13 4C13 4.55 12.55 5 12 5C11.45 5 11 4.55 11 4C11 3.45 11.45 3 12 3ZM7 7H17V9H7V7ZM7 11H17V13H7V11ZM7 15H14V17H7V15Z"/>
+            </svg>
+            {{ $t('checkout.orderPreferences') || 'Order Preferences' }}
+          </h3>
+          
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ $t('checkout.orderNote') || 'Order Note' }}</label>
+              <textarea 
+                v-model="orderNote" 
+                rows="2" 
+                class="w-full rounded-xl border px-3 py-2" 
+                :placeholder="$t('checkout.enterNote') || 'Any special instructions...'"
+              ></textarea>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-1">{{ $t('checkout.shipmentValue') || 'Declared Shipment Value ($)' }}</label>
+              <input 
+                v-model="customShipmentValue" 
+                type="number" 
+                min="0"
+                step="0.01"
+                class="w-full rounded-xl border px-3 py-2"
+              />
+              <p class="mt-1 text-xs text-gray-500">
+                {{ $t('checkout.shipmentValueHelper') }}
+              </p>
+            </div>
+          </div>
+        </div>
+
       </section>
 
       <aside class="lg:col-span-4">

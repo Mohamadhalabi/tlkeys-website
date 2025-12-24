@@ -127,6 +127,11 @@
   "downloads": "Téléchargements",
   "pinCodes": "Code PIN",
   "checkout": {
+    "orderPreferences": "Préférences de commande",
+    "orderNote": "Note de commande",
+    "enterNote": "Instructions spéciales...",
+    "shipmentValue": "Valeur déclarée de l'expédition ($)",
+    "shipmentValueHelper": "Vous pouvez utiliser ce champ pour modifier la valeur de l'expédition afin d'éviter des frais de douane trop élevés.",
     "enterCity": "Sélectionnez une ville dans la liste",
     "invalidCity": "Ville invalide",
     "invalidCityUpdateMessage": "La ville sélectionnée est invalide. Veuillez modifier l'adresse et sélectionner une ville dans la liste.",

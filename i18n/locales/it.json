@@ -132,6 +132,11 @@
   "pinCodes": "Codici PIN",
 
   "checkout": {
+    "orderPreferences": "Preferenze dell'ordine",
+    "orderNote": "Nota sull'ordine",
+    "enterNote": "Istruzioni speciali...",
+    "shipmentValue": "Valore dichiarato della spedizione ($)",
+    "shipmentValueHelper": "Puoi utilizzare questo campo per modificare il valore della spedizione ed evitare dazi doganali troppo elevati.",
     "enterCity": "Seleziona una città dall'elenco",
     "invalidCity": "Città non valida",
     "invalidCityUpdateMessage": "La città selezionata non è valida. Modifica l'indirizzo e seleziona una città dall'elenco.",

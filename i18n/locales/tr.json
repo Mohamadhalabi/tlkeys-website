@@ -128,6 +128,11 @@
   "downloads": "İndirilenler",
   "pinCodes": "PIN Kodları",
   "checkout": {
+    "orderPreferences": "Sipariş Tercihleri",
+    "orderNote": "Sipariş Notu",
+    "enterNote": "Özel talimatlar...",
+    "shipmentValue": "Beyan Edilen Gönderi Değeri ($)",
+    "shipmentValueHelper": "Gümrük vergilerini düşürmek için bu alanı kullanarak gönderi değerini değiştirebilirsiniz.",
     "enterCity": "Listeden bir şehir seçin",
     "invalidCity": "Geçersiz Şehir",
     "invalidCityUpdateMessage": "Seçilen şehir geçersiz. Lütfen adresi düzenleyin ve listeden bir şehir seçin.",

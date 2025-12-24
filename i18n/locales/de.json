@@ -127,6 +127,11 @@
   "downloads": "Downloads",
   "pinCodes": "PIN-Code",
   "checkout": {
+    "orderPreferences": "Bestellpräferenzen",
+    "orderNote": "Anmerkung zur Bestellung",
+    "enterNote": "Besondere Anweisungen...",
+    "shipmentValue": "Deklarierter Warenwert ($)",
+    "shipmentValueHelper": "Sie können dieses Feld nutzen, um den Warenwert zu ändern und so hohe Zollgebühren zu vermeiden.",
     "enterCity": "Wählen Sie eine Stadt aus der Liste",
     "invalidCity": "Ungültige Stadt",
     "invalidCityUpdateMessage": "Die ausgewählte Stadt ist ungültig. Bitte bearbeiten Sie die Adresse und wählen Sie eine Stadt aus der Liste.",

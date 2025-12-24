@@ -128,6 +128,11 @@
   "downloads" : "Downloads",
   "pinCodes" : "Pin Code",
   "checkout": {
+    "orderPreferences": "Order Preferences",
+    "orderNote": "Order Note",
+    "enterNote": "Any special instructions...",
+    "shipmentValue": "Declared Shipment Value ($)",
+    "shipmentValueHelper": "You can use this input to change the shipment value to avoid paying too much customs.",
     "enterCity" : "Select a City From The List",
     "invalidCity": "Invalid City",
     "invalidCityUpdateMessage": "The selected city is invalid. Please edit the address and select a city from the list.",

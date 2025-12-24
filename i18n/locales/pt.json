@@ -127,6 +127,11 @@
   "downloads": "Transferências",
   "pinCodes": "Códigos PIN",
   "checkout": {
+    "orderPreferences": "Preferências do pedido",
+    "orderNote": "Nota do pedido",
+    "enterNote": "Instruções especiais...",
+    "shipmentValue": "Valor declarado de envio ($)",
+    "shipmentValueHelper": "Você pode usar este campo para alterar o valor do envio e evitar pagar taxas alfandegárias muito altas.",
     "enterCity": "Selecione uma cidade da lista",
     "invalidCity": "Cidade inválida",
     "invalidCityUpdateMessage": "A cidade selecionada é inválida. Por favor, edite o endereço e selecione uma cidade da lista.",
