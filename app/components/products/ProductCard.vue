@@ -278,7 +278,7 @@ async function onAdd() {
     class="group h-full rounded-xl bg-white ring-1 ring-black/5 shadow-sm hover:shadow-[0_35px_35px_rgba(0,0,0,0.15)] transition overflow-hidden flex flex-col"
   >
     <!-- IMAGE -->
-    <NuxtLinkLocale :to="linkTo" rel="nofollow noopener" class="relative block rounded-t-xl overflow-hidden bg-white">
+    <NuxtLinkLocale :to="linkTo" class="relative block rounded-t-xl overflow-hidden bg-white">
       <div class="relative w-full aspect-[3/3]">
         <NuxtImg
           :src="product.image"
@@ -329,7 +329,6 @@ async function onAdd() {
         </div>
 
         <NuxtLinkLocale
-          rel="nofollow noopener"
           :to="linkTo"
           class="block mt-1 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-300"
         >
