@@ -10,7 +10,7 @@ type InitialFilters = {
 }
 
 const managedKeys = ['brands','categories','manufacturers','models','q','search','sort','page','per_page','attributes'] as const
-const flagKeys = ['offers','promotion','free-shipping','bundled','new-arrival'] as const
+const flagKeys = ['offers','promotion','free-shipping','bundled','new-arrival','lowest-price-guaranteed'] as const
 const SHOP_PATH = '/shop'
 
 function parseCsv(v: unknown): string[] {

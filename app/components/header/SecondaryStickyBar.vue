@@ -1,5 +1,4 @@
 <template>
-  <!-- Sits right under the main nav using its measured height -->
   <nav
     class="sticky z-40 border-b border-gray-200 text-gray-900 supports-[backdrop-filter]:bg-white/80 backdrop-blur-sm overflow-x-hidden"
     :class="scrolled ? 'bg-white/90 shadow-[0_1px_0_0_rgba(0,0,0,0.03)]' : 'bg-white/70'"
@@ -12,22 +11,35 @@
             :to="item.to"
             :aria-current="isActive(item.key) ? 'page' : undefined"
             class="group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-md
-                   text-[15px] md:text-[16px] font-semibold hover:text-gray-900
-                   transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+                   text-[15px] md:text-[16px] font-semibold transition-colors 
+                   focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
             :class="[
+              /* Active State */
               isActive(item.key) ? 'text-orange-700' : '',
-              item.key === 'new-arrival' ? 'text-orange-700 hover:text-orange-800' : 'text-gray-700'
+              
+              /* Specific Styling Logic */
+              item.key === 'hot-deals' 
+                ? (isActive(item.key) ? 'text-rose-700' : 'text-rose-600 hover:text-rose-800')
+                : (item.key === 'new-arrival' ? 'text-orange-700 hover:text-orange-800' : 'text-gray-700 hover:text-gray-900')
             ]"
           >
-            <!-- SVG icon -->
-            <Icon :name="item.key" class="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
+            <Icon 
+              :name="item.key" 
+              class="w-[18px] h-[18px] shrink-0"
+              :class="{ 'animate-pulse': item.key === 'hot-deals' }" 
+              aria-hidden="true" 
+            />
+            
             <span class="whitespace-nowrap">{{ item.label }}</span>
 
-            <!-- slim underline kept inside the link box -->
             <span
               class="pointer-events-none absolute left-2 right-2 bottom-0 h-[2px]
-                     bg-orange-500 rounded-full transition-opacity duration-200"
-              :class="isActive(item.key) ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'"
+                     rounded-full transition-opacity duration-200"
+              :class="[
+                isActive(item.key) ? 'opacity-100' : 'opacity-0 group-hover:opacity-60',
+                /* Change underline color for hot deals */
+                item.key === 'hot-deals' ? 'bg-rose-500' : 'bg-orange-500'
+              ]"
               aria-hidden="true"
             />
           </NuxtLinkLocale>
@@ -46,8 +58,9 @@ const { t } = useI18n()
 const localePath = useLocalePath()
 
 /* ----------------- Links (translated labels, same slugs) ------------- */
-// use a computed so labels react to locale changes
 const items = computed(() => ([
+  // 1. ADDED HOT DEALS HERE AT THE BEGINNING
+  { key: 'hot-deals',     label: t('subnav.hotdeals',      'Hot Deals'),     to: '/shop?lowest-price-guaranteed' },
   { key: 'offers',        label: t('subnav.offers',        'Offers'),        to: '/shop?offers' },
   { key: 'promotion',     label: t('subnav.promotion',     'Promotion'),     to: '/shop?promotion' },
   { key: 'free-shipping', label: t('subnav.freeShipping',  'Free Shipping'), to: '/shop?free-shipping' },
@@ -56,7 +69,6 @@ const items = computed(() => ([
 ]))
 
 /* ----------------- Active when on /shop and flag exists -------------- */
-// compare against the locale-aware /shop so it works on /es/shop as well
 const isActive = (slug: string) =>
   route.path === localePath('/shop') && (slug in route.query)
 
@@ -71,7 +83,6 @@ onMounted(() => {
 onBeforeUnmount(() => { if (onScroll) window.removeEventListener('scroll', onScroll) })
 
 /* ----------------- Icon component (inline SVGs) ---------------------- */
-/* stroke follows currentColor so it inherits the link color */
 const Icon = defineComponent({
   name: 'Icon',
   props: { name: { type: String, required: true } },
@@ -80,7 +91,14 @@ const Icon = defineComponent({
 
     return () => {
       switch (props.name) {
-        /* % badge = Offers */
+        
+        /* 🔥 HOT DEALS ICON */
+        case 'hot-deals':
+          return h('svg', { ...common, ...attrs }, [
+             // Fire/Flame shape
+             h('path', { d: 'M12 2c0 0-3 2.5-3 6 0 2.5 2 4.5 4 4.5 1 0 1.5-.5 1.5-1 0 2.5-2.5 4-4.5 4-3 0-5.5-2.5-5.5-5.5 0-.5.05-1 .15-1.5-1.3.8-2.15 2.3-2.15 4 0 3.5 3 6.5 6.5 6.5s6.5-3 6.5-6.5c0-4-3.5-7-3.5-10.5z' })
+          ])
+
         case 'offers':
           return h('svg', { ...common, ...attrs }, [
             h('circle', { cx: 12, cy: 12, r: 9 }),
@@ -89,7 +107,6 @@ const Icon = defineComponent({
             h('circle', { cx: 15, cy: 15, r: 1.25, fill: 'currentColor', stroke: 'none' }),
           ])
 
-        /* Gift = Promotion */
         case 'promotion':
           return h('svg', { ...common, ...attrs }, [
             h('rect', { x: 3, y: 8.5, width: 18, height: 11, rx: 2 }),
@@ -98,7 +115,6 @@ const Icon = defineComponent({
             h('path', { d: 'M16.5 6c0-1.38-1.12-2.5-2.5-2.5S12 6 12 6s2.5 0 4.5 0z' }),
           ])
 
-        /* Truck = Free Shipping */
         case 'free-shipping':
           return h('svg', { ...common, ...attrs }, [
             h('path', { d: 'M2 13V6a2 2 0 0 1 2-2h9v9' }),
@@ -108,7 +124,6 @@ const Icon = defineComponent({
             h('path', { d: 'M9 17h6' }),
           ])
 
-        /* Stacked boxes = Bundles */
         case 'bundled':
           return h('svg', { ...common, ...attrs }, [
             h('rect', { x: 3, y: 12, width: 8, height: 8, rx: 1.5 }),
@@ -117,7 +132,6 @@ const Icon = defineComponent({
             h('path', { d: 'M11 16h-4M21 16h-4M16 8h-4' }),
           ])
 
-        /* Sparkles = New Arrival */
         case 'new-arrival':
           return h('svg', { ...common, ...attrs }, [
             h('path', { d: 'M12 3l1.6 3.6L17 8.2l-3.4 1.6L12 13l-1.6-3.2L7 8.2l3.4-1.6L12 3z' }),
