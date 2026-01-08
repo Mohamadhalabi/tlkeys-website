@@ -1,5 +1,7 @@
 {
-  "site": { "name": "Techno Lock Keys Trading" },
+  "site": {
+    "name": "Techno Lock Keys Trading"
+  },
   "header": {
     "home": "Accueil"
   },
@@ -205,14 +207,18 @@
     "localShipping": "Livraison locale",
     "itemNotAvailableForCountry": "Article non disponible pour ce pays",
     "shippingBlocked": "Expédition bloquée"
-
   },
   "edit": "Modifier",
   "delete": "Supprimer",
   "cancel": "Annuler",
   "save": "Enregistrer",
-  "shop": { "home": "Accueil" },
-  "dashboard": { "cart": "Panier", "checkout": "Paiement" },
+  "shop": {
+    "home": "Accueil"
+  },
+  "dashboard": {
+    "cart": "Panier",
+    "checkout": "Paiement"
+  },
   "about": {
     "seoTitle": "À propos de nous | Techno Lock Keys Trading",
     "seoDescription": "Techno Lock Keys est un leader des solutions de serrurerie automobile—clés, télécommandes, diagnostic, machines de taillage, appareils de programmation, porte-clés, clés transpondeur et émulateurs.",
@@ -548,7 +554,10 @@
     "shortNote": "La quantité choisie pour le produit « {sku} » n’est pas disponible pour le moment, mais nous tenterons de l’obtenir pour vous.",
     "notAvailable": "La quantité sélectionnée n’est actuellement pas disponible, mais nous essaierons de l’obtenir pour vous. Si ce n’est pas possible, nous procéderons à un remboursement."
   },
-  "breadcrumbs": { "home": "Accueil", "shop": "Boutique" },
+  "breadcrumbs": {
+    "home": "Accueil",
+    "shop": "Boutique"
+  },
   "pagination": {
     "firstAria": "Première page",
     "prevAria": "Page précédente",
@@ -588,6 +597,9 @@
     "contactOnWhatsApp": "Contacter sur WhatsApp"
   },
   "product": {
+    "availableVersions": "Versions disponibles",
+    "selected": "Sélectionné",
+    "viewDetails": "Voir les détails",
     "compatibility": "Compatibilité",
     "contactOnWhatsApp": "Nous contacter",
     "whatsappMessage": "Puis-je avoir plus d’informations et le prix pour « {title} »{sku} ?",
@@ -625,8 +637,14 @@
     "yearRange": "Année (De–À)",
     "empty": "Aucune donnée de compatibilité"
   },
-  "actions": { "addToCart": "AJOUTER AU PANIER" },
-  "a11y": { "decreaseQty": "Diminuer la quantité", "increaseQty": "Augmenter la quantité", "quantity": "Quantité" },
+  "actions": {
+    "addToCart": "AJOUTER AU PANIER"
+  },
+  "a11y": {
+    "decreaseQty": "Diminuer la quantité",
+    "increaseQty": "Augmenter la quantité",
+    "quantity": "Quantité"
+  },
   "sortBy": "Trier par",
   "perPage": "Par page",
   "menu": {
@@ -640,7 +658,7 @@
     "promotion": "Promotion",
     "freeShipping": "Livraison gratuite",
     "bundles": "Packs",
-    "hotdeals": "Bons Plans"    
+    "hotdeals": "Bons Plans"
   },
   "loading": "Chargement",
   "coupon": {
@@ -657,50 +675,47 @@
     "close": "Fermer",
     "openCoupon": "Ouvrir le coupon"
   },
-    "tabs": {
-      "dashboard": "Tableau de bord",
-      "accountDetails": "Détails du compte",
-      "editPassword": "Modifier mon mot de passe",
-      "myOrders": "Mes commandes",
-      "myWallet": "Mon portefeuille",
-      "myCoupons": "Mes coupons",
-      "myAddresses": "Mes adresses",
-      "myReview": "Mon avis",
-      "whatsNew": "Nouveautés",
-      "cart": "Panier",
-      "description": "Description",
-      "reviews": "Avis",
-      "faq": "FAQ",
-      "videos": "Vidéos",
-      "contact": "Nous contacter"
-    },
-
+  "tabs": {
+    "dashboard": "Tableau de bord",
+    "accountDetails": "Détails du compte",
+    "editPassword": "Modifier mon mot de passe",
+    "myOrders": "Mes commandes",
+    "myWallet": "Mon portefeuille",
+    "myCoupons": "Mes coupons",
+    "myAddresses": "Mes adresses",
+    "myReview": "Mon avis",
+    "whatsNew": "Nouveautés",
+    "cart": "Panier",
+    "description": "Description",
+    "reviews": "Avis",
+    "faq": "FAQ",
+    "videos": "Vidéos",
+    "contact": "Nous contacter"
+  },
   "completeCustomOrder": {
-  "title": "Terminer la commande",
-  "loading": "Chargement de votre commande…",
-  "errorTitle": "Impossible de charger votre commande",
-  "tryAgain": "Réessayer",
-  "goHome": "Accueil",
-  "paymentFailed": "Paiement échoué ou annulé",
-  "thanks": "Merci ! Votre commande est confirmée",
-  "orderId": "ID de commande",
-  "placedOn": "Passée le",
-  "status": "Statut",
-  "youWillReceiveEmail": "Vous recevrez bientôt un e-mail avec les prochaines étapes.",
-  "orderDetails": "Détails de la commande",
-  "subtotal": "Sous-total",
-  "shipping": "Livraison",
-  "total": "Total",
-  "payment": "Paiement",
-  "bankTransfer": "Vous avez choisi un virement bancaire. Nous avons enregistré votre commande — veuillez suivre les instructions envoyées par e-mail.",
-  "payNow": "Payer maintenant",
-  "whatsNext": "Et ensuite ?",
-  "tryAnotherPayment": "Essayez un autre mode de paiement.",
-  "weWillNotify": "Nous vous informerons par e-mail lorsque l’état de votre commande changera.",
-  "keepOrderId": "Conservez votre numéro de commande pour référence.",
-  "continueShopping": "Continuer vos achats",
-  "notPaidYet": "Paiement en attente ou non effectué"
-
-}
-
+    "title": "Terminer la commande",
+    "loading": "Chargement de votre commande…",
+    "errorTitle": "Impossible de charger votre commande",
+    "tryAgain": "Réessayer",
+    "goHome": "Accueil",
+    "paymentFailed": "Paiement échoué ou annulé",
+    "thanks": "Merci ! Votre commande est confirmée",
+    "orderId": "ID de commande",
+    "placedOn": "Passée le",
+    "status": "Statut",
+    "youWillReceiveEmail": "Vous recevrez bientôt un e-mail avec les prochaines étapes.",
+    "orderDetails": "Détails de la commande",
+    "subtotal": "Sous-total",
+    "shipping": "Livraison",
+    "total": "Total",
+    "payment": "Paiement",
+    "bankTransfer": "Vous avez choisi un virement bancaire. Nous avons enregistré votre commande — veuillez suivre les instructions envoyées par e-mail.",
+    "payNow": "Payer maintenant",
+    "whatsNext": "Et ensuite ?",
+    "tryAnotherPayment": "Essayez un autre mode de paiement.",
+    "weWillNotify": "Nous vous informerons par e-mail lorsque l’état de votre commande changera.",
+    "keepOrderId": "Conservez votre numéro de commande pour référence.",
+    "continueShopping": "Continuer vos achats",
+    "notPaidYet": "Paiement en attente ou non effectué"
+  }
 }

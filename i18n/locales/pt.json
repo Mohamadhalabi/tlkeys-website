@@ -1,5 +1,7 @@
 {
-  "site": { "name": "Techno Lock Keys Trading" },
+  "site": {
+    "name": "Techno Lock Keys Trading"
+  },
   "header": {
     "home": "Início"
   },
@@ -210,8 +212,13 @@
   "delete": "Eliminar",
   "cancel": "Cancelar",
   "save": "Guardar",
-  "shop": { "home": "Início" },
-  "dashboard": { "cart": "Carrinho", "checkout": "Finalizar compra" },
+  "shop": {
+    "home": "Início"
+  },
+  "dashboard": {
+    "cart": "Carrinho",
+    "checkout": "Finalizar compra"
+  },
   "about": {
     "seoTitle": "Sobre Nós | Techno Lock Keys Trading",
     "seoDescription": "A Techno Lock Keys é uma empresa líder em soluções para serralheiros automotivos — chaves, controles remotos, diagnóstico, máquinas de corte, dispositivos de programação, transponders, e emuladores.",
@@ -547,7 +554,10 @@
     "shortNote": "A quantidade seleccionada para o produto \"{sku}\" não está actualmente disponível, mas tentaremos obtê-la para si.",
     "notAvailable": "A quantidade selecionada não está disponível no momento, mas tentaremos obtê-la para você. Se não for possível, emitiremos um reembolso."
   },
-  "breadcrumbs": { "home": "Início", "shop": "Loja" },
+  "breadcrumbs": {
+    "home": "Início",
+    "shop": "Loja"
+  },
   "pagination": {
     "firstAria": "Primeira página",
     "prevAria": "Página anterior",
@@ -587,6 +597,9 @@
     "contactOnWhatsApp": "Contacte no WhatsApp"
   },
   "product": {
+    "availableVersions": "Versões Disponíveis",
+    "selected": "Selecionado",
+    "viewDetails": "Ver Detalhes",
     "compatibility": "Compatibilidade",
     "contactOnWhatsApp": "Contacte-nos",
     "whatsappMessage": "Posso obter mais informações e preço para \"{title}\"{sku}?",
@@ -624,8 +637,14 @@
     "yearRange": "Ano (De–Para)",
     "empty": "Sem dados de compatibilidade"
   },
-  "actions": { "addToCart": "ADICIONAR AO CARRINHO" },
-  "a11y": { "decreaseQty": "Diminuir quantidade", "increaseQty": "Aumentar quantidade", "quantity": "Quantidade" },
+  "actions": {
+    "addToCart": "ADICIONAR AO CARRINHO"
+  },
+  "a11y": {
+    "decreaseQty": "Diminuir quantidade",
+    "increaseQty": "Aumentar quantidade",
+    "quantity": "Quantidade"
+  },
   "sortBy": "Ordenar por",
   "perPage": "Por página",
   "menu": {
@@ -709,30 +728,29 @@
     "loadingProduct": "Carregando produto…"
   },
   "completeCustomOrder": {
-  "title": "Concluir pedido",
-  "loading": "Carregando seu pedido…",
-  "errorTitle": "Não foi possível carregar seu pedido",
-  "tryAgain": "Tentar novamente",
-  "goHome": "Página inicial",
-  "paymentFailed": "Pagamento falhou ou foi cancelado",
-  "thanks": "Obrigado! Seu pedido foi confirmado",
-  "orderId": "ID do pedido",
-  "placedOn": "Realizado em",
-  "status": "Status",
-  "youWillReceiveEmail": "Você receberá um e-mail com as próximas etapas em breve.",
-  "orderDetails": "Detalhes do pedido",
-  "subtotal": "Subtotal",
-  "shipping": "Envio",
-  "total": "Total",
-  "payment": "Pagamento",
-  "bankTransfer": "Você escolheu transferência bancária. Salvamos seu pedido — siga as instruções enviadas por e-mail.",
-  "payNow": "Pagar agora",
-  "whatsNext": "O que vem a seguir?",
-  "tryAnotherPayment": "Tente outro método de pagamento.",
-  "weWillNotify": "Enviaremos um e-mail quando o status do pedido mudar.",
-  "keepOrderId": "Guarde o ID do pedido para referência.",
-  "continueShopping": "Continuar comprando",
-  "notPaidYet": "Pagamento pendente ou não efetuado"
-}
-
+    "title": "Concluir pedido",
+    "loading": "Carregando seu pedido…",
+    "errorTitle": "Não foi possível carregar seu pedido",
+    "tryAgain": "Tentar novamente",
+    "goHome": "Página inicial",
+    "paymentFailed": "Pagamento falhou ou foi cancelado",
+    "thanks": "Obrigado! Seu pedido foi confirmado",
+    "orderId": "ID do pedido",
+    "placedOn": "Realizado em",
+    "status": "Status",
+    "youWillReceiveEmail": "Você receberá um e-mail com as próximas etapas em breve.",
+    "orderDetails": "Detalhes do pedido",
+    "subtotal": "Subtotal",
+    "shipping": "Envio",
+    "total": "Total",
+    "payment": "Pagamento",
+    "bankTransfer": "Você escolheu transferência bancária. Salvamos seu pedido — siga as instruções enviadas por e-mail.",
+    "payNow": "Pagar agora",
+    "whatsNext": "O que vem a seguir?",
+    "tryAnotherPayment": "Tente outro método de pagamento.",
+    "weWillNotify": "Enviaremos um e-mail quando o status do pedido mudar.",
+    "keepOrderId": "Guarde o ID do pedido para referência.",
+    "continueShopping": "Continuar comprando",
+    "notPaidYet": "Pagamento pendente ou não efetuado"
+  }
 }

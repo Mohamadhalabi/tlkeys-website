@@ -1,5 +1,7 @@
 {
-  "site": { "name": "Techno Lock Keys Trading" },
+  "site": {
+    "name": "Techno Lock Keys Trading"
+  },
   "header": {
     "home": "Home"
   },
@@ -36,7 +38,6 @@
       "immobilizerSmartBox": "Scatola Intelligente Immobilizer"
     }
   },
-
   "common": {
     "prev": "Precedente",
     "next": "Successivo",
@@ -68,7 +69,6 @@
     "productImageAlt": "Immagine del prodotto",
     "img": "IMG"
   },
-
   "auth": {
     "loginRegister": "Accedi / Registrati",
     "logout": "Esci",
@@ -101,11 +101,9 @@
       "errorFallback": "Controlla i campi del form."
     }
   },
-
   "badges": {
     "freeShipping": "Spedizione gratuita"
   },
-
   "searchPlaceholder": "Sto cercando",
   "myAccount": "Il mio account",
   "cars": "Auto",
@@ -130,7 +128,6 @@
   "devicesMachines": "Dispositivi & Macchinari",
   "downloads": "Download",
   "pinCodes": "Codici PIN",
-
   "checkout": {
     "orderPreferences": "Preferenze dell'ordine",
     "orderNote": "Nota sull'ordine",
@@ -211,15 +208,17 @@
     "itemNotAvailableForCountry": "Articolo non disponibile per il paese",
     "shippingBlocked": "Spedizione bloccata"
   },
-
   "edit": "Modifica",
   "delete": "Elimina",
   "cancel": "Annulla",
   "save": "Salva",
-
-  "shop": { "home": "Home" },
-  "dashboard": { "cart": "Carrello", "checkout": "Checkout" },
-
+  "shop": {
+    "home": "Home"
+  },
+  "dashboard": {
+    "cart": "Carrello",
+    "checkout": "Checkout"
+  },
   "about": {
     "seoTitle": "Chi Siamo | Techno Lock Keys Trading",
     "seoDescription": "Techno Lock Keys è leader in soluzioni per serraturai automobilistici—chiavi, telecomandi, diagnostica, macchine da taglio, dispositivi di programmazione, portachiavi, chiavi transponder ed emulatori.",
@@ -253,7 +252,6 @@
     "support": "Supporto esperto",
     "weOfferSupport": "Assistenza rapida e multilingue da tecnici esperti."
   },
-
   "contact": {
     "seoTitle": "Contattaci | Techno Lock Keys Trading",
     "seoDescription": "Mettiti in contatto con Techno Lock Keys per richieste, supporto e opportunità commerciali. Trova contatti e filiali nel mondo.",
@@ -280,7 +278,6 @@
     "alertSuccessTitle": "Messaggio inviato",
     "alertSuccessBody": "Grazie! Il tuo messaggio è stato inviato."
   },
-
   "deliveryinfo": {
     "seoTitle": "Informazioni di Consegna | Techno Lock Keys Trading",
     "seoDescription": "Scopri come gli ordini vengono elaborati, imballati, spediti e consegnati. Tempi, tracking, costi e note importanti.",
@@ -327,7 +324,6 @@
     "willNot": "non richiederemo mai pagamenti tramite link email. Paga solo dal nostro sito ufficiale.",
     "ifYouHaveAnyQuestion": "Per qualsiasi domanda, contatta il nostro supporto—siamo qui per aiutarti."
   },
-
   "privacypolicy": {
     "title": "Informativa sulla Privacy",
     "seoTitle": "Privacy Policy | Techno Lock Keys",
@@ -366,7 +362,6 @@
     "phoneNumber": "numero di telefono",
     "trust": "La tua fiducia è importante—lavoriamo per mantenere i tuoi dati al sicuro."
   },
-
   "terms": {
     "title": "Termini & Condizioni",
     "seoTitle": "Termini & Condizioni | Techno Lock Keys",
@@ -397,7 +392,6 @@
     "IfYouHave": "Per domande su questi Termini, contattaci via",
     "email": "email"
   },
-
   "return": {
     "short_title": "Politica di Reso",
     "title": "Politica di Reso & Rimborso",
@@ -427,7 +421,6 @@
     "Shipping": "Spedizione",
     "dependingon": "I tempi di consegna del cambio possono variare in base alla località. Le spese di spedizione non sono rimborsabili salvo nostro errore."
   },
-
   "links": {
     "about": "Chi siamo",
     "contact": "Contattaci",
@@ -436,17 +429,14 @@
     "terms": "Termini & Condizioni",
     "returns": "Politica di Reso"
   },
-
   "footer": {
     "about": "Fondata nel 1997, {company} è il tuo partner di fiducia per la serratura automobilistica da oltre due decenni. Offriamo soluzioni professionali e affidabili—dal taglio chiavi ai sistemi di sicurezza avanzati—per la tua tranquillità.",
     "contact": "Contatto",
     "copyright": "© {year} {company}. Tutti i diritti riservati."
   },
-
   "products": {
     "home": "Home"
   },
-
   "labels": {
     "products": "Prodotti",
     "sku": "SKU",
@@ -454,7 +444,6 @@
     "manufacturers": "Produttori",
     "brands": "Brand"
   },
-
   "pincode": {
     "pincode": "Codice PIN",
     "pincodeoffline": "Codici PIN Offline",
@@ -465,11 +454,9 @@
     "ogTitle": "Codice PIN — Online & Offline",
     "ogDescription": "Soluzioni di codice PIN auto con checkout sicuro e supporto esperto di Techno Lock Keys."
   },
-
   "validation": {
     "current_password": "La password attuale è errata"
   },
-
   "account": {
     "orders": {
       "pageOf": "Pagina {current} di {total}"
@@ -530,14 +517,12 @@
       "failedToLoadCountries": "Caricamento paesi non riuscito"
     }
   },
-
   "bank": {
     "name": "ADCB",
     "account": "Conto",
     "iban": "IBAN",
     "bic": "BIC"
   },
-
   "cart": {
     "cart": "Carrello",
     "title": "Carrello",
@@ -569,9 +554,10 @@
     "shortNote": "La quantità selezionata per il prodotto \"{sku}\" non è al momento disponibile, ma proveremo a reperirla.",
     "notAvailable": "La quantità selezionata non è attualmente disponibile, ma cercheremo di procurarla per te. Se non sarà possibile, emetteremo un rimborso."
   },
-
-  "breadcrumbs": { "home": "Home", "shop": "Negozio" },
-
+  "breadcrumbs": {
+    "home": "Home",
+    "shop": "Negozio"
+  },
   "pagination": {
     "firstAria": "Prima pagina",
     "prevAria": "Pagina precedente",
@@ -583,14 +569,12 @@
     "goTo": "Vai a",
     "go": "Vai"
   },
-
   "facets": {
     "categories": "Categorie",
     "manufacturers": "Produttori",
     "brands": "Brand",
     "models": "Modelli"
   },
-
   "filters": {
     "selectedSuffix": "Selezionato",
     "searchPlaceholder": "Cerca",
@@ -602,20 +586,20 @@
     "categories": "Categorie",
     "manufacturers": "Produttori"
   },
-
   "sort": {
     "priceLowHigh": "Prezzo: dal più basso",
     "priceHighLow": "Prezzo: dal più alto",
     "newToOld": "Dal nuovo al vecchio",
     "oldToNew": "Dal vecchio al nuovo"
   },
-
   "search": {
     "askAboutProduct": "Posso avere più informazioni e prezzo per \"{title}{sku}\"?",
     "contactOnWhatsApp": "Contatta su WhatsApp"
   },
-
   "product": {
+    "availableVersions": "Versioni disponibili",
+    "selected": "Selezionato",
+    "viewDetails": "Visualizza dettagli",
     "compatibility": "Compatibilità",
     "contactOnWhatsApp": "Contattaci",
     "whatsappMessage": "Posso avere più informazioni e prezzo per \"{title}\"{sku}?",
@@ -647,27 +631,28 @@
     "serialNumber": "Numero di serie",
     "serialRequiredHint": "Obbligatorio per questo prodotto."
   },
-
   "compatibility": {
     "brand": "Marca",
     "model": "Modello",
     "yearRange": "Anno (Da–A)",
     "empty": "Nessun dato di compatibilità"
   },
-
-  "actions": { "addToCart": "AGGIUNGI AL CARRELLO" },
-  "a11y": { "decreaseQty": "Diminuisci quantità", "increaseQty": "Aumenta quantità", "quantity": "Quantità" },
-
+  "actions": {
+    "addToCart": "AGGIUNGI AL CARRELLO"
+  },
+  "a11y": {
+    "decreaseQty": "Diminuisci quantità",
+    "increaseQty": "Aumenta quantità",
+    "quantity": "Quantità"
+  },
   "sortBy": "Ordina per",
   "perPage": "Per pagina",
-
   "menu": {
     "cart": "Carrello",
     "wishlist": "Lista desideri",
     "account": "Account",
     "logIn": "Accedi"
   },
-
   "subnav": {
     "offers": "Offerte",
     "promotion": "Promozione",
@@ -676,9 +661,7 @@
     "newArrival": "Nuovo arrivo",
     "hotdeals": "Super Offerte"
   },
-
   "loading": "Caricamento",
-
   "coupon": {
     "label": "Sconto",
     "title": "Sconto di benvenuto solo per te!",
@@ -689,12 +672,11 @@
     "line1": "Usa questo codice al checkout:",
     "ok": "Ok"
   },
-
   "aria": {
     "close": "Chiudi",
     "openCoupon": "Apri coupon"
   },
-    "tabs": {
+  "tabs": {
     "dashboard": "Pannello di Controllo",
     "accountDetails": "Dettagli Account",
     "editPassword": "Modifica la Mia Password",
@@ -710,11 +692,11 @@
     "faq": "Domande Frequenti",
     "videos": "Video",
     "contact": "Contattaci"
-    },
-    "buynow": {
+  },
+  "buynow": {
     "meta": {
-        "title": "Acquista Ora — Checkout",
-        "description": "Pagamento sicuro per un singolo prodotto. Inserisci il tuo indirizzo, scegli la spedizione e paga con carta, PayPal o bonifico bancario."
+      "title": "Acquista Ora — Checkout",
+      "description": "Pagamento sicuro per un singolo prodotto. Inserisci il tuo indirizzo, scegli la spedizione e paga con carta, PayPal o bonifico bancario."
     },
     "title": "Checkout",
     "email": "Email",
@@ -744,32 +726,31 @@
     "placeOrder": "Effettua Ordine",
     "back": "Indietro",
     "loadingProduct": "Caricamento prodotto…"
-    },
-    "completeCustomOrder": {
-  "title": "Completa l’ordine",
-  "loading": "Caricamento del tuo ordine…",
-  "errorTitle": "Impossibile caricare l’ordine",
-  "tryAgain": "Riprova",
-  "goHome": "Home",
-  "paymentFailed": "Pagamento fallito o annullato",
-  "thanks": "Grazie! Il tuo ordine è confermato",
-  "orderId": "ID ordine",
-  "placedOn": "Effettuato il",
-  "status": "Stato",
-  "youWillReceiveEmail": "Riceverai presto un’e-mail con i prossimi passaggi.",
-  "orderDetails": "Dettagli dell’ordine",
-  "subtotal": "Subtotale",
-  "shipping": "Spedizione",
-  "total": "Totale",
-  "payment": "Pagamento",
-  "bankTransfer": "Hai scelto il bonifico bancario. Abbiamo salvato il tuo ordine — segui le istruzioni inviate via e-mail.",
-  "payNow": "Paga ora",
-  "whatsNext": "Cosa succede dopo?",
-  "tryAnotherPayment": "Prova un altro metodo di pagamento.",
-  "weWillNotify": "Ti informeremo via e-mail quando lo stato dell’ordine cambierà.",
-  "keepOrderId": "Conserva l’ID dell’ordine per riferimento.",
-  "continueShopping": "Continua a fare acquisti",
-  "notPaidYet": "Pagamento in sospeso o non effettuato"
-}
-
+  },
+  "completeCustomOrder": {
+    "title": "Completa l’ordine",
+    "loading": "Caricamento del tuo ordine…",
+    "errorTitle": "Impossibile caricare l’ordine",
+    "tryAgain": "Riprova",
+    "goHome": "Home",
+    "paymentFailed": "Pagamento fallito o annullato",
+    "thanks": "Grazie! Il tuo ordine è confermato",
+    "orderId": "ID ordine",
+    "placedOn": "Effettuato il",
+    "status": "Stato",
+    "youWillReceiveEmail": "Riceverai presto un’e-mail con i prossimi passaggi.",
+    "orderDetails": "Dettagli dell’ordine",
+    "subtotal": "Subtotale",
+    "shipping": "Spedizione",
+    "total": "Totale",
+    "payment": "Pagamento",
+    "bankTransfer": "Hai scelto il bonifico bancario. Abbiamo salvato il tuo ordine — segui le istruzioni inviate via e-mail.",
+    "payNow": "Paga ora",
+    "whatsNext": "Cosa succede dopo?",
+    "tryAnotherPayment": "Prova un altro metodo di pagamento.",
+    "weWillNotify": "Ti informeremo via e-mail quando lo stato dell’ordine cambierà.",
+    "keepOrderId": "Conserva l’ID dell’ordine per riferimento.",
+    "continueShopping": "Continua a fare acquisti",
+    "notPaidYet": "Pagamento in sospeso o non effettuato"
+  }
 }

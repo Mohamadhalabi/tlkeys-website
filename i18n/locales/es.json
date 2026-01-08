@@ -1,5 +1,7 @@
 {
-  "site": { "name": "Techno Lock Keys Trading" },
+  "site": {
+    "name": "Techno Lock Keys Trading"
+  },
   "header": {
     "home": "Inicio"
   },
@@ -205,14 +207,18 @@
     "localShipping": "Envío local",
     "itemNotAvailableForCountry": "Artículo no disponible para este país",
     "shippingBlocked": "Envío bloqueado"
-
   },
   "edit": "Editar",
   "delete": "Eliminar",
   "cancel": "Cancelar",
   "save": "Guardar",
-  "shop": { "home": "Inicio" },
-  "dashboard": { "cart": "Carrito", "checkout": "Finalizar compra" },
+  "shop": {
+    "home": "Inicio"
+  },
+  "dashboard": {
+    "cart": "Carrito",
+    "checkout": "Finalizar compra"
+  },
   "about": {
     "seoTitle": "Sobre Nosotros | Techno Lock Keys Trading",
     "seoDescription": "Techno Lock Keys es líder en soluciones de cerrajería automotriz—llaves, mandos, diagnóstico, máquinas de corte, dispositivos de programación, llaveros, transpondedores y emuladores.",
@@ -548,7 +554,10 @@
     "shortNote": "La cantidad seleccionada para el producto \"{sku}\" no está disponible actualmente, pero intentaremos conseguirla para ti.",
     "notAvailable": "La cantidad seleccionada no está disponible actualmente, pero intentaremos conseguirla para usted. Si no es posible, emitiremos un reembolso."
   },
-  "breadcrumbs": { "home": "Inicio", "shop": "Tienda" },
+  "breadcrumbs": {
+    "home": "Inicio",
+    "shop": "Tienda"
+  },
   "pagination": {
     "firstAria": "Primera página",
     "prevAria": "Página anterior",
@@ -588,6 +597,9 @@
     "contactOnWhatsApp": "Contactar por WhatsApp"
   },
   "product": {
+    "availableVersions": "Versiones disponibles",
+    "selected": "Seleccionado",
+    "viewDetails": "Ver detalles",
     "compatibility": "Compatibilidad",
     "contactOnWhatsApp": "Contáctanos",
     "whatsappMessage": "¿Puedo obtener más información y precio de \"{title}\"{sku}?",
@@ -625,8 +637,14 @@
     "yearRange": "Año (Desde–Hasta)",
     "empty": "Sin datos de compatibilidad"
   },
-  "actions": { "addToCart": "AÑADIR AL CARRITO" },
-  "a11y": { "decreaseQty": "Disminuir cantidad", "increaseQty": "Aumentar cantidad", "quantity": "Cantidad" },
+  "actions": {
+    "addToCart": "AÑADIR AL CARRITO"
+  },
+  "a11y": {
+    "decreaseQty": "Disminuir cantidad",
+    "increaseQty": "Aumentar cantidad",
+    "quantity": "Cantidad"
+  },
   "sortBy": "Ordenar por",
   "perPage": "Por página",
   "menu": {
@@ -658,50 +676,47 @@
     "close": "Cerrar",
     "openCoupon": "Abrir cupón"
   },
-      "tabs": {
-      "dashboard": "Panel",
-      "accountDetails": "Detalles de la cuenta",
-      "editPassword": "Editar mi contraseña",
-      "myOrders": "Mis pedidos",
-      "myWallet": "Mi monedero",
-      "myCoupons": "Mis cupones",
-      "myAddresses": "Mis direcciones",
-      "myReview": "Mi reseña",
-      "whatsNew": "Novedades",
-      "cart": "Carrito",
-      "description": "Descripción",
-      "reviews": "Reseñas",
-      "faq": "FAQ",
-      "videos": "Videos",
-      "contact": "Contáctanos"
-    },
-
+  "tabs": {
+    "dashboard": "Panel",
+    "accountDetails": "Detalles de la cuenta",
+    "editPassword": "Editar mi contraseña",
+    "myOrders": "Mis pedidos",
+    "myWallet": "Mi monedero",
+    "myCoupons": "Mis cupones",
+    "myAddresses": "Mis direcciones",
+    "myReview": "Mi reseña",
+    "whatsNew": "Novedades",
+    "cart": "Carrito",
+    "description": "Descripción",
+    "reviews": "Reseñas",
+    "faq": "FAQ",
+    "videos": "Videos",
+    "contact": "Contáctanos"
+  },
   "completeCustomOrder": {
-  "title": "Completar pedido",
-  "loading": "Cargando tu pedido…",
-  "errorTitle": "No se pudo cargar tu pedido",
-  "tryAgain": "Intentar de nuevo",
-  "goHome": "Inicio",
-  "paymentFailed": "El pago falló o fue cancelado",
-  "thanks": "¡Gracias! Tu pedido está confirmado",
-  "orderId": "ID de pedido",
-  "placedOn": "Realizado el",
-  "status": "Estado",
-  "youWillReceiveEmail": "Recibirás un correo electrónico con los próximos pasos.",
-  "orderDetails": "Detalles del pedido",
-  "subtotal": "Subtotal",
-  "shipping": "Envío",
-  "total": "Total",
-  "payment": "Pago",
-  "bankTransfer": "Has elegido transferencia bancaria. Hemos guardado tu pedido — sigue las instrucciones enviadas a tu correo electrónico.",
-  "payNow": "Pagar ahora",
-  "whatsNext": "¿Qué sigue?",
-  "tryAnotherPayment": "Prueba otro método de pago.",
-  "weWillNotify": "Te notificaremos por correo electrónico cuando cambie el estado de tu pedido.",
-  "keepOrderId": "Guarda tu número de pedido para referencia.",
-  "continueShopping": "Seguir comprando",
-  "notPaidYet": "Pago pendiente o no realizado"
-
-}
-
+    "title": "Completar pedido",
+    "loading": "Cargando tu pedido…",
+    "errorTitle": "No se pudo cargar tu pedido",
+    "tryAgain": "Intentar de nuevo",
+    "goHome": "Inicio",
+    "paymentFailed": "El pago falló o fue cancelado",
+    "thanks": "¡Gracias! Tu pedido está confirmado",
+    "orderId": "ID de pedido",
+    "placedOn": "Realizado el",
+    "status": "Estado",
+    "youWillReceiveEmail": "Recibirás un correo electrónico con los próximos pasos.",
+    "orderDetails": "Detalles del pedido",
+    "subtotal": "Subtotal",
+    "shipping": "Envío",
+    "total": "Total",
+    "payment": "Pago",
+    "bankTransfer": "Has elegido transferencia bancaria. Hemos guardado tu pedido — sigue las instrucciones enviadas a tu correo electrónico.",
+    "payNow": "Pagar ahora",
+    "whatsNext": "¿Qué sigue?",
+    "tryAnotherPayment": "Prueba otro método de pago.",
+    "weWillNotify": "Te notificaremos por correo electrónico cuando cambie el estado de tu pedido.",
+    "keepOrderId": "Guarda tu número de pedido para referencia.",
+    "continueShopping": "Seguir comprando",
+    "notPaidYet": "Pago pendiente o no realizado"
+  }
 }

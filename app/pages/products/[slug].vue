@@ -81,6 +81,8 @@ type Product = {
   videos?: VideoItem[] | null
   requires_serial?: boolean | null
   canonical_slug?: string | null
+  /* 🟢 ADDED: related_versions field */
+  related_versions?: MiniProduct[]
 }
 
 /* ---------------- Base setup ---------------- */
@@ -126,7 +128,6 @@ function waLinkForProduct(p?: Product | null) {
   return `https://api.whatsapp.com/send?phone=${encodeURIComponent(WHATSAPP_NUMBER)}&text=${encodeURIComponent(msg)}`
 }
 
-
 // make absolute using SITE_URL base (same as canonical/og:url)
 const abs = (u?: string | null) => {
   if (!u) return ''
@@ -146,7 +147,6 @@ const primaryImageAbs = computed(() => {
 const showBuyNow = computed(() => showAddToCartUI.value)
 const buying = ref(false)
 
-// in your product page <script setup> (onBuyNow)
 async function onBuyNow() {
   if (!product.value || !showBuyNow.value) return
   if (requiresSerial.value && serial.value.trim() === '') {
@@ -167,17 +167,15 @@ async function onBuyNow() {
   }
   if (requiresSerial.value) query.serial = serial.value.trim()
 
-  // ✅ keeps /tr (or whatever current locale prefix) in the URL
   await navigateTo({ path: localePath('/custom-checkout'), query })
-  // Alternatively, if you have a named route:
-  // await navigateTo(localePath({ name: 'custom-checkout', query }))
 }
-/* helpers */
-// Prefer API slugs, keep them unlocalized; NuxtLinkLocale will add the locale prefix.
+
+/* ---------------- URL / PATH HELPERS ---------------- */
+// 🟢 FIXED: Forces "/products/" prefix for product links
 const slugToPath = (s?: string | null) => {
-  if (!s) return '/'
+  if (!s) return '/products/'
   const cleaned = String(s).trim().replace(/^\/+/, '')
-  return `/${encodeURIComponent(cleaned)}`
+  return `/products/${encodeURIComponent(cleaned)}`
 }
 
 const normAlt = (alt: any, title: string) => {
@@ -208,13 +206,15 @@ const nameToPath = (s?: string | null) => {
 
 /* urgency + discount helpers */
 const now = ref(Date.now())
+
 /* ---------------- SSR fetch & normalize ---------------- */
 const { data: ssr, pending: loading, error } = await useAsyncData(
   () => `product:${slug.value}`,
   async () => {
     const endpoint =
       `${API_BASE_URL}/products/slug/${encodeURIComponent(slug.value)}` +
-      `?include=images,table_price,description,reviews,categories,manufacturers,brands,meta_title,meta_description,discount,accessories,bundles,attributes,faq,videos,compatibility`
+      // 🟢 ADDED: related_versions to the include list
+      `?include=images,table_price,description,reviews,categories,manufacturers,brands,meta_title,meta_description,discount,accessories,bundles,attributes,faq,videos,compatibility,related_versions`
 
     try {
       const res = await $customApi(endpoint)
@@ -293,7 +293,10 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
           : [],
         videos: Array.isArray(videosRaw)
           ? videosRaw.map((x: any) => ({ title: x.title ?? null, url: String(x.url ?? x.link ?? '') }))
-          : []
+          : [],
+        
+        /* 🟢 ADDED: Mapping the versions from response */
+        related_versions: Array.isArray(data.related_versions) ? data.related_versions : []
       }
 
       return product
@@ -315,7 +318,6 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
 
 /**
  * ⬇️ CRITICAL: On SSR, rethrow the error so Nuxt sets the HTTP status
- * (404 for missing slug, 410 for disabled/soft-deleted).
  */
 if (process.server && error.value) {
   const statusCode    = (error.value as any)?.statusCode ?? (error.value as any)?.status ?? 500
@@ -350,7 +352,11 @@ const breadcrumb = computed(() => {
   const cat     = primaryCategory.value
   const catLabel = (cat?.name || (cat as any)?.title || '') as string
   if (catLabel) {
-    const catTo = cat?.slug ? slugToPath(cat.slug as string) : nameToPath(catLabel || '')
+    // 🟢 We use slugToPath which forces /products/ prefix, OR use a custom logic for category URLs if they differ
+    // For now, assuming you might want category pages to be /category/slug or similar. 
+    // If you want categories to also just be /slug, use slugToPath.
+    // If you want categories to be /category/slug, use a specific logic:
+    const catTo = cat?.slug ? `/category/${encodeURIComponent(cat.slug)}` : nameToPath(catLabel || '')
     items.push({ label: catLabel, to: catTo })
   }
   items.push({ label: product.value?.short_title || product.value?.title || t('product.product','Product') })
@@ -366,7 +372,8 @@ function makeLinks<T extends { slug?: string; name?: string; title?: string }>(
   for (const row of src || []) {
     const label = (row.name ?? (row as any)?.title ?? '').trim()
     if (!label) continue
-    const to = row.slug ? slugToPath(row.slug) : nameToPath(label)
+    // For filters, you might link to search page
+    const to = row.slug ? `/products?brand=${encodeURIComponent(row.slug)}` : nameToPath(label)
     const key = to.toLowerCase()
     if (seen.has(key)) continue
     seen.add(key)
@@ -403,7 +410,6 @@ const rawFallback = computed(() => {
 const unitPrice = computed(() => {
   if (!product.value) return 0
 
-  // ✅ When EUR is forced, apply discount on euro_price
   if (useEuro.value) {
     const base = toNum(product.value!.euro_price) ?? 0
     const dtype = product.value!.discount_type
@@ -426,7 +432,6 @@ const unitPrice = computed(() => {
     return base
   }
 
-  // 🔻 existing non-EUR logic (unchanged)
   const base = computeUnitPrice(product.value as any, qty.value).unit
   let unit = base > 0 ? base : (rawFallback.value || 0)
 
@@ -450,7 +455,7 @@ const unitPrice = computed(() => {
 
 const unitWithoutDiscount = computed(() => {
   if (!product.value) return 0
-  if (useEuro.value) return 0 // not used when EUR is forced
+  if (useEuro.value) return 0 
   const forcedBase =
     (typeof product.value.regular_price === 'number' && product.value.regular_price > 0)
       ? product.value.regular_price
@@ -472,7 +477,6 @@ const unitWithoutDiscount = computed(() => {
 const displayPrice = computed(() => {
   if (!product.value) return { current: 0, old: null as number | null }
 
-  // ✅ EUR path: show discounted euro_price + strike-through base euro_price
   if (useEuro.value) {
     const base = toNum(product.value!.euro_price) ?? 0
     const dtype = product.value!.discount_type
@@ -497,7 +501,6 @@ const displayPrice = computed(() => {
     return { current, old }
   }
 
-  // 🔻 existing non-EUR logic (unchanged)
   const current = unitPrice.value
   const old = current < unitWithoutDiscount.value ? unitWithoutDiscount.value : null
   return { current, old }
@@ -559,9 +562,8 @@ async function onAddToCart() {
   const p = product.value
   const unit = unitPrice.value
 
-  // ✅ For EUR override: send the *discounted* EUR unit as euro_price
   const euroToSend = useEuro.value
-    ? unit // already discounted EUR (see unitPrice computed)
+    ? unit 
     : (toNum(p.euro_price) ?? null)
 
   await cart.add(p.id, qty.value, {
@@ -570,13 +572,11 @@ async function onAddToCart() {
     sku: p.sku || undefined,
     slug: p.slug,
 
-    // unit in "current" display currency (for totals / non-EUR products)
     price: unit,
     regular_price: toNum(p.regular_price),
     sale_price: toNum(p.sale_price),
     table_price: Array.isArray(p.table_price) ? p.table_price : null,
 
-    // ✅ EUR override data for guest cart
     euro_price: euroToSend,
     display_euro_price: p.display_euro_price,
 
@@ -587,8 +587,6 @@ async function onAddToCart() {
     serial_number: requiresSerial.value ? [serial.value.trim()] : null,
   })
 }
-
-
 
 async function onToggleWishlist() {
   if (!product.value) return
@@ -630,7 +628,6 @@ const TAB_DEFS = [
 
 type TabKey = typeof TAB_DEFS[number]['key']
 
-// labels react to locale changes + safe fallback text
 const tabs = computed(() =>
   TAB_DEFS.map(d => ({ key: d.key, label: t(d.k, d.fb) }))
 )
@@ -643,12 +640,11 @@ const canonicalSlug = computed(
   () => product.value?.canonical_slug || product.value?.slug || slug.value
 )
 
-// Replace only the last path segment (the product slug) but keep locale/parents
 const canonicalPath = computed(() => {
   const want = String(canonicalSlug.value || '').trim()
   if (!want) return route.path
-  // route.path doesn't include query/hash; safe to replace last segment
-  return route.path.replace(/\/[^/]+$/, `/${encodeURIComponent(want)}`)
+  // 🟢 Force /products/ into the canonical url as well
+  return `/products/${encodeURIComponent(want)}`
 })
 
 const canonicalAbsUrl = computed(() => baseSiteUrl.value + canonicalPath.value)
@@ -662,7 +658,6 @@ useHead(() => {
   const title = p?.meta_title || (p?.title || '')
   const desc  = p?.meta_description || stripHtml(p?.description || '')
 
-  // Use the canonical hero URL everywhere
   const primary = primaryImageAbs.value || ''
   const gallery = primary
     ? [primary, ...((p?.images || []).slice(1).map(i => abs(i.src)))]
@@ -671,7 +666,6 @@ useHead(() => {
   const primaryW = p?.images?.[0]?.w || 1200
   const primaryH = p?.images?.[0]?.h || 1200
 
-  // Reviews / rating (unchanged)
   let aggregateRating: any = null
   const reviewsLd =
     Array.isArray(p?.reviews) && p!.reviews!.length
@@ -732,7 +726,7 @@ useHead(() => {
     '@id': absUrl.value + '#product',
     name: title,
     description: desc,
-    image: gallery.length ? gallery : undefined, // preferred image FIRST
+    image: gallery.length ? gallery : undefined, 
     sku: p.sku || undefined,
     brand: brandName ? { '@type': 'Brand', name: brandName } : undefined,
     category:
@@ -888,7 +882,6 @@ watch(() => product.value?.id, () => {
 
 <template>
   <div class="container mx-auto px-4 py-8 lg:py-10" :dir="dir">
-    <!-- Breadcrumb -->
     <nav aria-label="Breadcrumb" class="mb-5">
       <ol class="flex flex-wrap items-center gap-1 text-sm text-gray-500">
         <li v-for="(c, i) in breadcrumb" :key="i" class="flex items-center gap-1">
@@ -901,7 +894,6 @@ watch(() => product.value?.id, () => {
       </ol>
     </nav>
 
-    <!-- Loading -->
     <div v-if="loading" class="animate-pulse space-y-6">
       <div class="h-7 w-2/3 bg-gray-200 rounded"></div>
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
@@ -914,11 +906,8 @@ watch(() => product.value?.id, () => {
       </div>
     </div>
 
-    <!-- Product -->
     <div v-else-if="product" class="space-y-8">
-      <!-- Two column layout -->
       <section class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
-        <!-- Gallery with overlay -->
         <div class="lg:order-1">
           <ProductGallery
             :images="product.images"
@@ -931,10 +920,8 @@ watch(() => product.value?.id, () => {
           />
         </div>
 
-        <!-- Details -->
         <div class="lg:order-2">
           <div class="lg:sticky lg:top-24 space-y-6">
-            <!-- Title / meta -->
             <div class="rounded-2xl border border-gray-200 bg-white/90 backdrop-blur p-6 shadow-sm">
               <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-gray-900">
                 {{ product.title }}
@@ -949,7 +936,6 @@ watch(() => product.value?.id, () => {
                 </span>
               </div>
 
-              <!-- chips -->
               <div class="mt-5 space-y-3 text-sm">
                 <div v-if="categoryLinks.length">
                   <div class="mb-1 text-gray-500">{{ t('labels.categories','Categories') }}</div>
@@ -981,12 +967,9 @@ watch(() => product.value?.id, () => {
               </div>
             </div>
 
-            <!-- Price / CTA card -->
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- LEFT: price + qty + actions -->
                 <div :class="hasTablePrice ? '' : 'lg:col-span-2'">
-                  <!-- Price -->
                   <div v-if="showPriceBlock" class="flex items-end gap-3">
                     <span class="text-[28px] md:text-4xl text-red-600 font-bold tracking-tight">
                       {{ formatDisplayMoney(displayPrice.current) }}
@@ -995,7 +978,61 @@ watch(() => product.value?.id, () => {
                       {{ formatDisplayMoney(displayPrice.old) }}
                     </span>
                   </div>
-                  <!-- WhatsApp CTA -->
+
+                  <div v-if="product.related_versions && product.related_versions.length > 0" class="mt-6 mb-6">
+                    <p class="mb-3 text-sm font-medium text-gray-700">
+                      {{ t('product.availableVersions', 'Available Versions:') }}
+                    </p>
+                    
+                    <div class="flex flex-wrap gap-3">
+                      <div class="relative w-full sm:w-auto min-w-[160px] max-w-[240px] rounded-xl border-2 border-orange-500 bg-orange-50 p-4 cursor-default transition-all shadow-sm ring-1 ring-orange-200">
+                        <div class="absolute -top-2.5 left-3 bg-orange-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white rounded">
+                          {{ t('product.selected', 'Selected') }}
+                        </div>
+                        
+                        <div class="flex items-center gap-4">
+                          <img 
+                            :src="product.images?.[0]?.src || '/images/placeholder.webp'" 
+                            class="h-16 w-16 rounded-lg object-contain border border-orange-200 bg-white p-1" 
+                            alt=""
+                          >
+                          <div class="flex flex-col">
+                            <span class="text-xs font-bold text-orange-900 line-clamp-4 leading-tight">
+                              {{ product.short_title || product.title }}
+                            </span>
+                            <span class="mt-1 text-sm font-bold text-orange-700">
+                              {{ formatDisplayMoney(displayPrice.current) }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <NuxtLinkLocale
+                        v-for="ver in product.related_versions"
+                        :key="ver.id"
+                        :to="slugToPath(ver.slug)"
+                        class="group relative w-full sm:w-auto min-w-[160px] max-w-[240px] rounded-xl border border-gray-200 bg-white p-4 hover:border-blue-400 hover:shadow-md transition-all"
+                      >
+                        <div class="flex items-center gap-4">
+                          <img 
+                            :src="ver.image || '/images/placeholder.webp'" 
+                            class="h-16 w-16 rounded-lg object-contain border border-gray-100 bg-gray-50 p-1 group-hover:opacity-80 transition" 
+                            :alt="ver.title"
+                          >
+                          <div class="flex flex-col">
+                            <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 line-clamp-4 leading-tight transition">
+                              {{ ver.title }}
+                            </span>
+                            <div class="mt-1 flex gap-2 text-xs">
+                                <span class="text-sm font-semibold text-gray-900">
+                                  {{ formatDisplayMoney(ver.sale_price || ver.price || ver.regular_price) }}
+                                </span>
+                            </div>
+                          </div>
+                        </div>
+                      </NuxtLinkLocale>
+                    </div>
+                  </div>
                   <a
                     v-if="hidePrice || isPinCodeOffline"
                     :href="waLinkForProduct(product)"
@@ -1010,7 +1047,6 @@ watch(() => product.value?.id, () => {
                     {{ _t('search.contactOnWhatsApp','Contact on WhatsApp') }}
                   </a>
 
-                  <!-- Qty -->
                   <div v-if="showQtyUI" class="mt-5 flex flex-wrap items-center gap-3" data-nosnippet>
                     <div class="inline-flex items-stretch rounded-xl border border-gray-300 bg-white overflow-hidden">
                       <button
@@ -1040,7 +1076,6 @@ watch(() => product.value?.id, () => {
                     <span class="text-sm text-gray-500">{{ _t('product.min','Min:') }} {{ minQty }}</span>
                   </div>
 
-                  <!-- Serial -->
                   <div v-if="requiresSerial && showQtyUI" class="mt-3">
                     <label class="block text-sm font-medium text-gray-700 mb-1">{{ _t('product.serial','Serial Number') }}</label>
                     <input
@@ -1052,7 +1087,6 @@ watch(() => product.value?.id, () => {
                     <p v-if="!serial" class="mt-1 text-xs text-gray-500">{{ _t('product.serialRequired','Required for this product.') }}</p>
                   </div>
 
-                  <!-- Actions -->
                   <div class="mt-5 flex flex-wrap items-center gap-3" data-nosnippet>
                     <button
                       v-if="showAddToCartUI"
@@ -1098,7 +1132,6 @@ watch(() => product.value?.id, () => {
                   </div>
                 </div>
 
-                <!-- RIGHT: tier table -->
                 <div v-if="hasTablePrice" class="lg:pl-6 lg:border-l border-gray-100">
                   <ProductPriceTable
                     :rows="product!.table_price!"
@@ -1114,19 +1147,14 @@ watch(() => product.value?.id, () => {
         </div>
       </section>
 
-      <!-- Accessories -->
       <ProductRelatedGrid v-if="product?.accessories?.length" :title="t('product.accessories','Accessories')" :items="product!.accessories!" />
 
-      <!-- Bundle products -->
       <ProductRelatedGrid v-if="product?.bundles?.length" class="mt-4" :title="t('product.bundleProducts','Bundle Products')" :items="product!.bundles!" />
 
-      <!-- Specifications -->
       <ProductAttributesTable v-if="product?.attributes?.length" :groups="product!.attributes!" />
 
-      <!-- Compatibility -->
       <ProductCompatibilityTable v-if="product?.compatibility?.length" :rows="product!.compatibility!" :title="t('product.compatibility','Compatibility')" />
 
-      <!-- Tabs -->
       <section class="mt-6">
         <div class="rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div class="flex flex-wrap gap-1 px-2 py-2 bg-gray-50/70">
@@ -1159,7 +1187,6 @@ watch(() => product.value?.id, () => {
         </div>
       </section>
 
-      <!-- Related Products (lazy) -->
       <div ref="relatedSentinel"></div>
       <section class="mt-8">
         <div v-if="relatedLoading" class="mx-auto max-w-screen-2xl px-3 sm:px-4">
@@ -1187,7 +1214,6 @@ watch(() => product.value?.id, () => {
       </section>
     </div>
 
-    <!-- Client-only error fallback (for CSR navigations). SSR errors are rethrown above. -->
     <div v-else>
       <ClientOnly>
         <div v-if="error" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">

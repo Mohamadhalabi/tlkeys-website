@@ -1,7 +1,9 @@
 {
-  "site": { "name": "Techno Lock Keys Trading" },
-  "header" : {
-    "home" :"Home"
+  "site": {
+    "name": "Techno Lock Keys Trading"
+  },
+  "header": {
+    "home": "Home"
   },
   "home": {
     "meta": {
@@ -36,21 +38,20 @@
       "immobilizerSmartBox": "Immobilizer Smart Box"
     }
   },
-  
-  "common" : {
+  "common": {
     "prev": "Prev",
     "next": "Next",
-    "aboutUs" : "About us",
-    "clear" : "Clear",
+    "aboutUs": "About us",
+    "clear": "Clear",
     "sending": "Sending",
-    "home" : "Home",
-    "helpNote" : "Need help at checkout? Chat with us on WhatsApp",
+    "home": "Home",
+    "helpNote": "Need help at checkout? Chat with us on WhatsApp",
     "whatsappPrefill": "Hi, I need help completing my order",
-    "contactUs" :"Contact Us",
+    "contactUs": "Contact Us",
     "loading": "Loading…",
-    "comingSoon" : "Coming soon...",
+    "comingSoon": "Coming soon...",
     "tryAgain": "Try again.",
-    "close": "Close", 
+    "close": "Close",
     "apply": "Apply",
     "email": "Email",
     "emailAddress": "Email address",
@@ -70,7 +71,7 @@
   },
   "auth": {
     "loginRegister": "Login / Register",
-    "logout" : "Logout",
+    "logout": "Logout",
     "login": {
       "title": "Login",
       "emailPlaceholder": "Your Email",
@@ -100,8 +101,8 @@
       "errorFallback": "Please review the form."
     }
   },
-  "badges":{
-    "freeShipping" :"Free Shipping"
+  "badges": {
+    "freeShipping": "Free Shipping"
   },
   "searchPlaceholder": "I'm searching for",
   "myAccount": "My Account",
@@ -117,23 +118,23 @@
   "carRemotes": "Car remotes...",
   "keyCuttingMachines": "Key cutting machines...",
   "logIn": "Log in",
-    "wishlist": {
+  "wishlist": {
     "add": "Add to Wishlist",
     "remove": "Remove from Wishlist",
     "saving": "Saving…",
     "wishlist": "Wishlist"
   },
-  "softwareTokens" : "Software & Tokens",
-  "devicesMachines" : "Devices & Machines",
-  "downloads" : "Downloads",
-  "pinCodes" : "Pin Code",
+  "softwareTokens": "Software & Tokens",
+  "devicesMachines": "Devices & Machines",
+  "downloads": "Downloads",
+  "pinCodes": "Pin Code",
   "checkout": {
     "orderPreferences": "Order Preferences",
     "orderNote": "Order Note",
     "enterNote": "Any special instructions...",
     "shipmentValue": "Declared Shipment Value ($)",
     "shipmentValueHelper": "You can use this input to change the shipment value to avoid paying too much customs.",
-    "enterCity" : "Select a City From The List",
+    "enterCity": "Select a City From The List",
     "invalidCity": "Invalid City",
     "invalidCityUpdateMessage": "The selected city is invalid. Please edit the address and select a city from the list.",
     "invalidAddressTitle": "Invalid Address",
@@ -143,10 +144,10 @@
     "noMatchingCities": "No matches found",
     "validatingAddress": "Validating Address...",
     "blockedButtonTitle": "Remove restricted items or change the country to continue",
-    "promotions" : "Promotions",
+    "promotions": "Promotions",
     "freeShipTitle": "Free Shipping",
-    "tenOffTitle" : "10% OFF!",
-    "noPromo" : "No Promo",
+    "tenOffTitle": "10% OFF!",
+    "noPromo": "No Promo",
     "IfYouHaveAcoupon": "If you have a coupon, you can apply it below.",
     "enterCouponCode": "Enter coupon code",
     "couponCode": "Coupon code",
@@ -204,75 +205,80 @@
     "bankTransfer": "Bank transfer",
     "pickup": "Pickup",
     "localShipping": "Local shipping",
-    "itemNotAvailableForCountry" : "Item Not Available For Country",
-    "shippingBlocked" : "Shipping Blocked"
+    "itemNotAvailableForCountry": "Item Not Available For Country",
+    "shippingBlocked": "Shipping Blocked"
   },
   "edit": "Edit",
   "delete": "Delete",
   "cancel": "Cancel",
   "save": "Save",
-  "shop": { "home": "Home" },
-  "dashboard": { "cart": "Cart", "checkout": "Checkout" },
+  "shop": {
+    "home": "Home"
+  },
+  "dashboard": {
+    "cart": "Cart",
+    "checkout": "Checkout"
+  },
   "about": {
-      "seoTitle": "About Us | Techno Lock Keys Trading",
-      "seoDescription": "Techno Lock Keys is a leader in automotive locksmith solutions—keys, remotes, diagnostics, cutting machines, programming devices, fobs, transponder keys, and emulators.",
-      "ogTitle": "Techno Lock Keys Trading — About Us",
-      "ogDescription": "Trusted partner for automotive locksmiths worldwide. Discover our story, vision, and the solutions we provide.",
-      "aboutTechnoLock": "About Techno Lock Keys",
-      "creativeTeam": "A Creative Team Driving Secure Mobility",
-      "securedBusiness": "We build reliable, secure solutions for automotive locksmiths and workshops.",
-      "WasEstablished": "Founded to make key programming and diagnostics simpler, faster, and more accessible.",
-      "hasBeenStriving": "Since day one, we’ve focused on quality products, expert support, and fair pricing.",
-      "contactUs": "Contact Us",
-      "futureGoal": "Our Future Goals",
-      "weWantToLead": "We Aim to Lead with Innovation & Service",
-      "increaseMarket": "Increase market coverage with curated products and strategic partnerships.",
-      "improveCustomer": "Improve customer experience through faster delivery and localized support.",
-      "streamline": "Streamline operations to reduce lead times and optimize costs.",
-      "imlpementEco": "Implement eco-friendly practices across packaging and logistics.",
-      "FosterApostive": "Foster a positive culture of continuous learning and customer centricity.",
-      "whatweoffer": "What We Offer",
-      "ourComprehensive": "Our Comprehensive Services & Solutions",
-      "veryConvinent": "Convenient Purchasing",
-      "ourCompanyOffer": "Global shipping, secure checkout, transparent pricing, and reliable warranties.",
-      "keyprogramming": "Key Programming",
-      "weAreSpecialist": "Specialists in programming tools, software, and training resources.",
-      "carKey": "Car Keys & Remotes",
-      "weHaveTheExperience": "Extensive range of OEM & aftermarket keys, shells, and remotes.",
-      "lostKey": "Lost Key Solutions",
-      "ifYouHave": "Complete kits and guidance to recover from all-keys-lost scenarios.",
-      "softwareUpdate": "Software & Firmware",
-      "weOfferSoftware": "Up-to-date software, firmware files, and expert instructions.",
-      "support": "Expert Support",
-      "weOfferSupport": "Quick, multilingual support from experienced technicians."
+    "seoTitle": "About Us | Techno Lock Keys Trading",
+    "seoDescription": "Techno Lock Keys is a leader in automotive locksmith solutions—keys, remotes, diagnostics, cutting machines, programming devices, fobs, transponder keys, and emulators.",
+    "ogTitle": "Techno Lock Keys Trading — About Us",
+    "ogDescription": "Trusted partner for automotive locksmiths worldwide. Discover our story, vision, and the solutions we provide.",
+    "aboutTechnoLock": "About Techno Lock Keys",
+    "creativeTeam": "A Creative Team Driving Secure Mobility",
+    "securedBusiness": "We build reliable, secure solutions for automotive locksmiths and workshops.",
+    "WasEstablished": "Founded to make key programming and diagnostics simpler, faster, and more accessible.",
+    "hasBeenStriving": "Since day one, we’ve focused on quality products, expert support, and fair pricing.",
+    "contactUs": "Contact Us",
+    "futureGoal": "Our Future Goals",
+    "weWantToLead": "We Aim to Lead with Innovation & Service",
+    "increaseMarket": "Increase market coverage with curated products and strategic partnerships.",
+    "improveCustomer": "Improve customer experience through faster delivery and localized support.",
+    "streamline": "Streamline operations to reduce lead times and optimize costs.",
+    "imlpementEco": "Implement eco-friendly practices across packaging and logistics.",
+    "FosterApostive": "Foster a positive culture of continuous learning and customer centricity.",
+    "whatweoffer": "What We Offer",
+    "ourComprehensive": "Our Comprehensive Services & Solutions",
+    "veryConvinent": "Convenient Purchasing",
+    "ourCompanyOffer": "Global shipping, secure checkout, transparent pricing, and reliable warranties.",
+    "keyprogramming": "Key Programming",
+    "weAreSpecialist": "Specialists in programming tools, software, and training resources.",
+    "carKey": "Car Keys & Remotes",
+    "weHaveTheExperience": "Extensive range of OEM & aftermarket keys, shells, and remotes.",
+    "lostKey": "Lost Key Solutions",
+    "ifYouHave": "Complete kits and guidance to recover from all-keys-lost scenarios.",
+    "softwareUpdate": "Software & Firmware",
+    "weOfferSoftware": "Up-to-date software, firmware files, and expert instructions.",
+    "support": "Expert Support",
+    "weOfferSupport": "Quick, multilingual support from experienced technicians."
   },
-  "contact" : {
-      "seoTitle": "Contact Us | Techno Lock Keys Trading",
-      "seoDescription": "Get in touch with Techno Lock Keys for inquiries, support, and business opportunities. Find our contact details and branch offices worldwide.",
-      "ogTitle": "Contact Techno Lock Keys Trading",
-      "ogDescription": "Reach out to Techno Lock Keys Trading for support, sales inquiries, and branch details across UAE, Saudi Arabia, USA, and Turkey.",
-      "leave": "Leave a",
-      "message": "Message",
-      "name": "Your Name",
-      "email": "Your Email",
-      "subject": "Subject",
-      "contact": "Contact",
-      "whatsappPrefill": "Hello, I want to inquire about the product with SKU: {sku}",
-      "details": "Details",
-      "sendMessage": "Send Message",
-      "ourBranches": "Our Branches",
-      "address": "Address",
-      "Mobile": "Mobile",
-      "uaeAddress": "Industrial No. 5, behind Maliah Road, Shop No. 8, Sharjah, UAE",
-      "ksaAddress": "Riyadh, Saudi Arabia",
-      "usaAddress": "New Jersey, United States of America",
-      "turkeyAddress": "Mersin, Turkey",
-      "sent": "Your message has been sent successfully!",
-      "error": "There was an error sending your message. Please try again.",
-      "alertSuccessTitle": "Message sent",
-      "alertSuccessBody": "Thanks! Your message has been sent."
+  "contact": {
+    "seoTitle": "Contact Us | Techno Lock Keys Trading",
+    "seoDescription": "Get in touch with Techno Lock Keys for inquiries, support, and business opportunities. Find our contact details and branch offices worldwide.",
+    "ogTitle": "Contact Techno Lock Keys Trading",
+    "ogDescription": "Reach out to Techno Lock Keys Trading for support, sales inquiries, and branch details across UAE, Saudi Arabia, USA, and Turkey.",
+    "leave": "Leave a",
+    "message": "Message",
+    "name": "Your Name",
+    "email": "Your Email",
+    "subject": "Subject",
+    "contact": "Contact",
+    "whatsappPrefill": "Hello, I want to inquire about the product with SKU: {sku}",
+    "details": "Details",
+    "sendMessage": "Send Message",
+    "ourBranches": "Our Branches",
+    "address": "Address",
+    "Mobile": "Mobile",
+    "uaeAddress": "Industrial No. 5, behind Maliah Road, Shop No. 8, Sharjah, UAE",
+    "ksaAddress": "Riyadh, Saudi Arabia",
+    "usaAddress": "New Jersey, United States of America",
+    "turkeyAddress": "Mersin, Turkey",
+    "sent": "Your message has been sent successfully!",
+    "error": "There was an error sending your message. Please try again.",
+    "alertSuccessTitle": "Message sent",
+    "alertSuccessBody": "Thanks! Your message has been sent."
   },
-  "deliveryinfo" :{
+  "deliveryinfo": {
     "seoTitle": "Delivery Information | Techno Lock Keys Trading",
     "seoDescription": "Learn how orders are processed, packed, shipped, and delivered. Includes timelines, tracking, fees, and important notes.",
     "ogTitle": "How We Deliver Your Order",
@@ -318,7 +324,7 @@
     "willNot": "will never request payments via email links. Only pay through our official website.",
     "ifYouHaveAnyQuestion": "If you have any questions, contact our support team—we’re happy to help."
   },
-    "privacypolicy": {
+  "privacypolicy": {
     "title": "Privacy Policy",
     "seoTitle": "Privacy Policy | Techno Lock Keys",
     "seoDescription": "Read how Techno Lock Keys collects, uses, and protects your personal information on tlkeys.com.",
@@ -356,7 +362,6 @@
     "phoneNumber": "phone number",
     "trust": "Your trust matters to us—we strive to keep your data safe and private."
   },
-
   "terms": {
     "title": "Terms & Conditions",
     "seoTitle": "Terms & Conditions | Techno Lock Keys",
@@ -429,7 +434,7 @@
     "contact": "Contact",
     "copyright": "© {year} {company}. All rights reserved."
   },
-    "products": {
+  "products": {
     "home": "Home"
   },
   "labels": {
@@ -450,10 +455,9 @@
     "ogDescription": "Automotive PIN code solutions with secure checkout and expert support from Techno Lock Keys."
   },
   "validation": {
-    "current_password" : "The current password is incorrect"
+    "current_password": "The current password is incorrect"
   },
   "account": {
-
     "orders": {
       "pageOf": "Page {current} of {total}"
     },
@@ -513,7 +517,7 @@
       "failedToLoadCountries": "Failed to load countries"
     }
   },
-    "bank": {
+  "bank": {
     "name": "ADCB",
     "account": "Account",
     "iban": "IBAN",
@@ -533,7 +537,7 @@
     "checkout": "Checkout",
     "loginNotice": "Log in or create an account to checkout.",
     "sku": "SKU:",
-    "serial_number":"Serial Number",
+    "serial_number": "Serial Number",
     "unit": "Unit:",
     "addToCart": "Add to Cart",
     "adding": "Adding…",
@@ -548,48 +552,54 @@
       "clearFailedTitle": "Clear cart failed"
     },
     "shortNote": "The selected quantity for product \"{sku}\" is currently not available, but we will try to get it for you.",
-    "notAvailable" : "The selected quantity is currently not available, but we’ll try to get it for you. If we’re unable to, we’ll issue a refund."
+    "notAvailable": "The selected quantity is currently not available, but we’ll try to get it for you. If we’re unable to, we’ll issue a refund."
   },
-  "breadcrumbs": { "home": "Home", "shop": "Shop" },
+  "breadcrumbs": {
+    "home": "Home",
+    "shop": "Shop"
+  },
   "pagination": {
     "firstAria": "First page",
     "prevAria": "Previous page",
     "nextAria": "Next page",
     "lastAria": "Last page",
     "jumpAria": "Jump pages",
-    "showing" : "Showing",
-    "of" : "of",
-    "goTo" : "Go To",
-    "go" : "Go"
+    "showing": "Showing",
+    "of": "of",
+    "goTo": "Go To",
+    "go": "Go"
   },
-  "facets":{
-    "categories":"Categories",
-    "manufacturers":"Manufacturers",
-    "brands" : "Brands",
-    "models" : "Models"
+  "facets": {
+    "categories": "Categories",
+    "manufacturers": "Manufacturers",
+    "brands": "Brands",
+    "models": "Models"
   },
-  "filters":{
-    "selectedSuffix" : "Selected",
-    "searchPlaceholder" :"Search",
-    "clearAll":"Clear All",
+  "filters": {
+    "selectedSuffix": "Selected",
+    "searchPlaceholder": "Search",
+    "clearAll": "Clear All",
     "active": "Active Filters",
-    "clear" : "Clear",
+    "clear": "Clear",
     "brands": "Brands",
     "models": "Models",
     "categories": "Categories",
     "manufacturers": "Manufacturers"
   },
-  "sort" : {
-    "priceLowHigh" : "Price Low To High",
-    "priceHighLow" : "Price High To Low",
+  "sort": {
+    "priceLowHigh": "Price Low To High",
+    "priceHighLow": "Price High To Low",
     "newToOld": "New To Old",
-    "oldToNew" : "Old To New"
+    "oldToNew": "Old To New"
   },
-  "search" : {
+  "search": {
     "askAboutProduct": "Can I get more information and price for \"{title}{sku}\"?",
     "contactOnWhatsApp": "Contact on WhatsApp"
   },
-    "product": {
+  "product": {
+    "availableVersions": "Available Versions",
+    "selected": "Selected",
+    "viewDetails": "View Details",
     "compatibility": "Compatibility",
     "contactOnWhatsApp": "Contact Us",
     "whatsappMessage": "Can I get more information and price for \"{title}\"{sku}?",
@@ -621,23 +631,29 @@
     "serialNumber": "Serial Number",
     "serialRequiredHint": "Required for this product."
   },
-    "compatibility": {
+  "compatibility": {
     "brand": "Brand",
     "model": "Model",
     "yearRange": "Year (From–To)",
     "empty": "No compatibility data"
   },
-  "actions": { "addToCart": "ADD TO CART" },
-  "a11y": { "decreaseQty": "Decrease quantity", "increaseQty": "Increase quantity", "quantity": "Quantity" },
-  "sortBy" : "Sort By",
+  "actions": {
+    "addToCart": "ADD TO CART"
+  },
+  "a11y": {
+    "decreaseQty": "Decrease quantity",
+    "increaseQty": "Increase quantity",
+    "quantity": "Quantity"
+  },
+  "sortBy": "Sort By",
   "perPage": "Per page",
   "menu": {
-    "cart" :"Cart",
+    "cart": "Cart",
     "wishlist": "Wishlist",
-    "account" : "Account",
-    "logIn" :"Log In"
+    "account": "Account",
+    "logIn": "Log In"
   },
-    "subnav": {
+  "subnav": {
     "offers": "Offers",
     "promotion": "Promotion",
     "freeShipping": "Free Shipping",
@@ -646,7 +662,7 @@
     "hotdeals": "Hot Deals"
   },
   "loading": "Loading",
-    "coupon": {
+  "coupon": {
     "label": "Discount",
     "title": "Welcome discount just for you!",
     "useCode": "Use code",
@@ -660,23 +676,23 @@
     "close": "Close",
     "openCoupon": "Open coupon"
   },
-      "tabs": {
-      "dashboard": "Dashboard",
-      "accountDetails": "Account Details",
-      "editPassword": "Edit My Password",
-      "myOrders": "My Orders",
-      "myWallet": "My Wallet",
-      "myCoupons": "My Coupons",
-      "myAddresses": "My Addresses",
-      "myReview": "My Review",
-      "whatsNew": "What New",
-      "cart": "Cart",
-      "description": "Description",
-      "reviews": "Reviews",
-      "faq": "FAQ",
-      "videos": "Videos",
-      "contact": "Contact Us"
-    },
+  "tabs": {
+    "dashboard": "Dashboard",
+    "accountDetails": "Account Details",
+    "editPassword": "Edit My Password",
+    "myOrders": "My Orders",
+    "myWallet": "My Wallet",
+    "myCoupons": "My Coupons",
+    "myAddresses": "My Addresses",
+    "myReview": "My Review",
+    "whatsNew": "What New",
+    "cart": "Cart",
+    "description": "Description",
+    "reviews": "Reviews",
+    "faq": "FAQ",
+    "videos": "Videos",
+    "contact": "Contact Us"
+  },
   "buynow": {
     "meta": {
       "title": "Buy Now — Checkout",
@@ -711,7 +727,7 @@
     "back": "Back",
     "loadingProduct": "Loading product…"
   },
-    "completeCustomOrder": {
+  "completeCustomOrder": {
     "title": "Complete order",
     "loading": "Loading your order…",
     "errorTitle": "Couldn’t load your order",
@@ -735,9 +751,9 @@
     "weWillNotify": "We’ll notify you by email when your order status changes.",
     "keepOrderId": "Keep your order ID for reference.",
     "continueShopping": "Continue shopping",
-    "notPaidYet" : "Not Paid Yet"
+    "notPaidYet": "Not Paid Yet"
   },
-    "vin_to_pin": {
+  "vin_to_pin": {
     "page_title": "Vin To Pin",
     "title": "Vin Request",
     "vin_placeholder": "VIN Number",
@@ -754,5 +770,4 @@
     "left_today": "Left Today",
     "left_month": "Left"
   }
-
 }

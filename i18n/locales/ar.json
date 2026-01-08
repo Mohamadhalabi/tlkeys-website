@@ -1,5 +1,7 @@
 {
-  "site": { "name": "Techno Lock Keys Trading" },
+  "site": {
+    "name": "Techno Lock Keys Trading"
+  },
   "header": {
     "home": "الرئيسية"
   },
@@ -205,14 +207,18 @@
     "localShipping": "شحن محلي",
     "itemNotAvailableForCountry": "العنصر غير متاح لهذا البلد",
     "shippingBlocked": "الشحن محظور"
-
   },
   "edit": "تعديل",
   "delete": "حذف",
   "cancel": "إلغاء",
   "save": "حفظ",
-  "shop": { "home": "الرئيسية" },
-  "dashboard": { "cart": "السلة", "checkout": "الدفع" },
+  "shop": {
+    "home": "الرئيسية"
+  },
+  "dashboard": {
+    "cart": "السلة",
+    "checkout": "الدفع"
+  },
   "about": {
     "seoTitle": "من نحن | Techno Lock Keys Trading",
     "seoDescription": "تعتبر Techno Lock Keys رائدة في حلول السّيراج للسيارات—مفاتيح، ريموتات، تشخيص، ماكينات القص، أجهزة البرمجة، فوب، مفاتيح ترانسبوندر ومحاكيات.",
@@ -548,7 +554,10 @@
     "shortNote": "الكمية المحددة للمنتج \"{sku}\" غير متوفرة حاليًا، لكننا سنحاول توفيرها لك.",
     "notAvailable": "الكمية المحددة غير متوفرة حالياً، لكننا سنحاول توفيرها لك. إذا لم نتمكن من ذلك، سنقوم بإصدار استرداد."
   },
-  "breadcrumbs": { "home": "الرئيسية", "shop": "المتجر" },
+  "breadcrumbs": {
+    "home": "الرئيسية",
+    "shop": "المتجر"
+  },
   "pagination": {
     "firstAria": "الصفحة الأولى",
     "prevAria": "الصفحة السابقة",
@@ -588,6 +597,9 @@
     "contactOnWhatsApp": "التواصل عبر واتساب"
   },
   "product": {
+    "availableVersions": "الإصدارات المتاحة",
+    "selected": "محدد",
+    "viewDetails": "عرض التفاصيل",
     "compatibility": "التوافق",
     "contactOnWhatsApp": "اتصل بنا",
     "whatsappMessage": "هل يمكنني الحصول على مزيد من المعلومات والسعر لـ \"{title}\"{sku}؟",
@@ -625,8 +637,14 @@
     "yearRange": "السنة (من–إلى)",
     "empty": "لا توجد بيانات توافق"
   },
-  "actions": { "addToCart": "إضافة إلى السلة" },
-  "a11y": { "decreaseQty": "تقليل الكمية", "increaseQty": "زيادة الكمية", "quantity": "الكمية" },
+  "actions": {
+    "addToCart": "إضافة إلى السلة"
+  },
+  "a11y": {
+    "decreaseQty": "تقليل الكمية",
+    "increaseQty": "زيادة الكمية",
+    "quantity": "الكمية"
+  },
   "sortBy": "ترتيب حسب",
   "perPage": "لكل صفحة",
   "menu": {
@@ -658,25 +676,24 @@
     "close": "إغلاق",
     "openCoupon": "فتح الكوبون"
   },
-   "tabs": {
-      "dashboard": "لوحة التحكم",
-      "accountDetails": "تفاصيل الحساب",
-      "editPassword": "تعديل كلمة المرور",
-      "myOrders": "طلباتي",
-      "myWallet": "محفظتي",
-      "myCoupons": "كوبوناتي",
-      "myAddresses": "عناويني",
-      "myReview": "تقييمي",
-      "whatsNew": "ما الجديد",
-      "cart": "السلة",
-      "description": "الوصف",
-      "reviews": "التقييمات",
-      "faq": "الأسئلة الشائعة",
-      "videos": "فيديوهات",
-      "contact": "اتصل بنا"
-    },
-
-    "completeCustomOrder": {
+  "tabs": {
+    "dashboard": "لوحة التحكم",
+    "accountDetails": "تفاصيل الحساب",
+    "editPassword": "تعديل كلمة المرور",
+    "myOrders": "طلباتي",
+    "myWallet": "محفظتي",
+    "myCoupons": "كوبوناتي",
+    "myAddresses": "عناويني",
+    "myReview": "تقييمي",
+    "whatsNew": "ما الجديد",
+    "cart": "السلة",
+    "description": "الوصف",
+    "reviews": "التقييمات",
+    "faq": "الأسئلة الشائعة",
+    "videos": "فيديوهات",
+    "contact": "اتصل بنا"
+  },
+  "completeCustomOrder": {
     "title": "إتمام الطلب",
     "loading": "جارٍ تحميل طلبك...",
     "errorTitle": "تعذر تحميل طلبك",
@@ -702,7 +719,7 @@
     "continueShopping": "متابعة التسوق",
     "notPaidYet": "في انتظار الدفع أو لم يتم الدفع بعد"
   },
-    "vin_to_pin": {
+  "vin_to_pin": {
     "page_title": "Vin To Pin",
     "title": "طلب رقم VIN",
     "vin_placeholder": "رقم الشاسيه (VIN)",
@@ -719,5 +736,4 @@
     "left_today": "المتبقي اليوم",
     "left_month": "المتبقي"
   }
-
 }

@@ -1,5 +1,7 @@
 {
-  "site": { "name": "Techno Lock Keys Trading" },
+  "site": {
+    "name": "Techno Lock Keys Trading"
+  },
   "header": {
     "home": "Ana Sayfa"
   },
@@ -36,7 +38,6 @@
       "immobilizerSmartBox": "İmmobilizer Akıllı Kutusu"
     }
   },
-  
   "common": {
     "prev": "Geri",
     "next": "İleri",
@@ -206,14 +207,18 @@
     "localShipping": "Yerel gönderim",
     "itemNotAvailableForCountry": "Ürün bu ülke için mevcut değil",
     "shippingBlocked": "Gönderim engellendi"
-
   },
   "edit": "Düzenle",
   "delete": "Sil",
   "cancel": "İptal",
   "save": "Kaydet",
-  "shop": { "home": "Ana Sayfa" },
-  "dashboard": { "cart": "Sepet", "checkout": "Ödeme" },
+  "shop": {
+    "home": "Ana Sayfa"
+  },
+  "dashboard": {
+    "cart": "Sepet",
+    "checkout": "Ödeme"
+  },
   "about": {
     "seoTitle": "Hakkımızda | Techno Lock Keys Trading",
     "seoDescription": "Techno Lock Keys, otomotiv çilingir çözümlerinde liderdir — anahtarlar, kumandalar, tanı cihazları, kırma makineleri, programlama cihazları, anahtarlar, transponder anahtarlar ve emülatörler.",
@@ -357,7 +362,6 @@
     "phoneNumber": "telefon numarası",
     "trust": "Güveniniz bizim için önemli—verilerinizi güvenli ve özel tutmak için çalışıyoruz."
   },
-
   "terms": {
     "title": "Şartlar & Koşullar",
     "seoTitle": "Şartlar & Koşullar | Techno Lock Keys",
@@ -547,7 +551,10 @@
     "shortNote": "“{sku}” ürününün seçilen adedi şu anda mevcut değil, ancak sizin için temin etmeye çalışacağız.",
     "notAvailable": "Seçilen miktar şu anda mevcut değil, ancak sizin için temin etmeye çalışacağız. Eğer temin edemezsek, geri ödeme yapacağız."
   },
-  "breadcrumbs": { "home": "Ana Sayfa", "shop": "Mağaza" },
+  "breadcrumbs": {
+    "home": "Ana Sayfa",
+    "shop": "Mağaza"
+  },
   "pagination": {
     "firstAria": "İlk sayfa",
     "prevAria": "Önceki sayfa",
@@ -587,6 +594,9 @@
     "contactOnWhatsApp": "WhatsApp’tan iletişime geç"
   },
   "product": {
+    "availableVersions": "Mevcut Sürümler",
+    "selected": "Seçildi",
+    "viewDetails": "Detayları Gör",
     "compatibility": "Uyumluluk",
     "contactOnWhatsApp": "İletişime Geçin",
     "whatsappMessage": "\"{title}\"{sku} için daha fazla bilgi ve fiyat alabilir miyim?",
@@ -624,8 +634,14 @@
     "yearRange": "Yıl (Başlangıç–Bitiş)",
     "empty": "Uyumluluk bilgisi yok"
   },
-  "actions": { "addToCart": "SEPETE EKLE" },
-  "a11y": { "decreaseQty": "Adedi azalt", "increaseQty": "Adedi artır", "quantity": "Adet" },
+  "actions": {
+    "addToCart": "SEPETE EKLE"
+  },
+  "a11y": {
+    "decreaseQty": "Adedi azalt",
+    "increaseQty": "Adedi artır",
+    "quantity": "Adet"
+  },
   "sortBy": "Sırala",
   "perPage": "Sayfa başına",
   "menu": {
@@ -709,30 +725,29 @@
     "loadingProduct": "Ürün yükleniyor…"
   },
   "completeCustomOrder": {
-  "title": "Siparişi tamamla",
-  "loading": "Siparişiniz yükleniyor…",
-  "errorTitle": "Siparişiniz yüklenemedi",
-  "tryAgain": "Tekrar dene",
-  "goHome": "Ana sayfa",
-  "paymentFailed": "Ödeme başarısız oldu veya iptal edildi",
-  "thanks": "Teşekkürler! Siparişiniz onaylandı",
-  "orderId": "Sipariş Numarası",
-  "placedOn": "Tarih",
-  "status": "Durum",
-  "youWillReceiveEmail": "Kısa süre içinde sonraki adımlar için bir e-posta alacaksınız.",
-  "orderDetails": "Sipariş detayları",
-  "subtotal": "Ara toplam",
-  "shipping": "Kargo",
-  "total": "Toplam",
-  "payment": "Ödeme",
-  "bankTransfer": "Banka havalesi seçtiniz. Siparişiniz kaydedildi — lütfen e-postayla gönderilen talimatları izleyin.",
-  "payNow": "Şimdi öde",
-  "whatsNext": "Sırada ne var?",
-  "tryAnotherPayment": "Başka bir ödeme yöntemi deneyin.",
-  "weWillNotify": "Sipariş durumunuz değiştiğinde size e-posta ile bildireceğiz.",
-  "keepOrderId": "Referans için sipariş numaranızı saklayın.",
-  "continueShopping": "Alışverişe devam et",
-  "notPaidYet": "Ödeme beklemede veya henüz yapılmadı"
-}
-
+    "title": "Siparişi tamamla",
+    "loading": "Siparişiniz yükleniyor…",
+    "errorTitle": "Siparişiniz yüklenemedi",
+    "tryAgain": "Tekrar dene",
+    "goHome": "Ana sayfa",
+    "paymentFailed": "Ödeme başarısız oldu veya iptal edildi",
+    "thanks": "Teşekkürler! Siparişiniz onaylandı",
+    "orderId": "Sipariş Numarası",
+    "placedOn": "Tarih",
+    "status": "Durum",
+    "youWillReceiveEmail": "Kısa süre içinde sonraki adımlar için bir e-posta alacaksınız.",
+    "orderDetails": "Sipariş detayları",
+    "subtotal": "Ara toplam",
+    "shipping": "Kargo",
+    "total": "Toplam",
+    "payment": "Ödeme",
+    "bankTransfer": "Banka havalesi seçtiniz. Siparişiniz kaydedildi — lütfen e-postayla gönderilen talimatları izleyin.",
+    "payNow": "Şimdi öde",
+    "whatsNext": "Sırada ne var?",
+    "tryAnotherPayment": "Başka bir ödeme yöntemi deneyin.",
+    "weWillNotify": "Sipariş durumunuz değiştiğinde size e-posta ile bildireceğiz.",
+    "keepOrderId": "Referans için sipariş numaranızı saklayın.",
+    "continueShopping": "Alışverişe devam et",
+    "notPaidYet": "Ödeme beklemede veya henüz yapılmadı"
+  }
 }

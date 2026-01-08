@@ -99,9 +99,9 @@ async function toggle(p: MiniProduct) {
               <!-- TEXT: title, sku, price -->
               <div class="flex-1 min-w-0 md:pr-4">
                 <NuxtLinkLocale :to="p.slug ? `/products/${p.slug}` : '#'" class="block">
-                  <h4 class="text-base md:text-lg font-bold text-gray-900 line-clamp-2 hover:underline">
+                  <h3 class="text-base md:text-lg font-bold text-gray-900 line-clamp-2 hover:underline">
                     {{ p.title }}
-                  </h4>
+                  </h3>
                 </NuxtLinkLocale>
 
                 <div v-if="p.sku" class="mt-1 text-xs md:text-lg text-green-600 font-semibold">
