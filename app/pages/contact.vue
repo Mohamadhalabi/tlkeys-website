@@ -236,10 +236,6 @@
             <NuxtImg src="/images/flags/turkey-flag.webp" alt="Turkey flag" width="200" class="rounded-md" />
             <div class="text-center sm:text-left">
               <p>{{ t('contact.address') }}: {{ t('contact.turkeyAddress') }}</p>
-              <p class="mt-1">
-                {{ t('contact.Mobile') }}:
-                <a href="tel:+905531468475" class="text-orange-700 hover:underline">+90 553 146 84 75</a>
-              </p>
             </div>
           </div>
         </article>
