@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ProductGrid from '~/components/products/ProductGrid.vue'
 import Breadcrumbs from '~/components/catalog/Breadcrumbs.vue'
@@ -182,37 +182,97 @@ const facetOrder = computed(() => {
   return ['brands', ...(sel.brands.length? ['models']:[]), 'manufacturers','categories'] as const
 })
 
-/* ============ selected chips ============ */
+/* ============ selected chips (FIFO) ============ */
+const selectionHistory = ref<Array<{ group:string; slug:string; attrSlug?:string }>>([])
+
+// Watch state.sel deep to maintain history
+watch(()=> state.sel, (newVal) => {
+  // 1. Gather all current active items
+  const currentSet = new Set<string>()
+  const addItem = (id:string) => currentSet.add(id)
+
+  newVal.brands.forEach(s => addItem(`brands:${s}`))
+  newVal.models.forEach(s => addItem(`models:${s}`))
+  newVal.categories.forEach(s => addItem(`categories:${s}`))
+  newVal.manufacturers.forEach(s => addItem(`manufacturers:${s}`))
+  Object.entries(newVal.attributes).forEach(([aSlug, list]) => {
+    (list as string[]).forEach(s => addItem(`attr:${aSlug}:${s}`))
+  })
+
+  // 2. Prune history (remove items no longer active)
+  selectionHistory.value = selectionHistory.value.filter(h => {
+    const key = h.group === 'attr' ? `attr:${h.attrSlug}:${h.slug}` : `${h.group}:${h.slug}`
+    return currentSet.has(key)
+  })
+
+  // 3. Append new items (items in currentSet but not in history)
+  // Define helper to check existence in history
+  const inHistory = (key:string) => {
+    return selectionHistory.value.some(h => {
+       const k = h.group === 'attr' ? `attr:${h.attrSlug}:${h.slug}` : `${h.group}:${h.slug}`
+       return k === key
+    })
+  }
+
+  // Check each group and append if missing
+  newVal.brands.forEach(s => {
+    if(!inHistory(`brands:${s}`)) selectionHistory.value.push({ group:'brands', slug:s })
+  })
+  newVal.models.forEach(s => {
+    if(!inHistory(`models:${s}`)) selectionHistory.value.push({ group:'models', slug:s })
+  })
+  newVal.categories.forEach(s => {
+    if(!inHistory(`categories:${s}`)) selectionHistory.value.push({ group:'categories', slug:s })
+  })
+  newVal.manufacturers.forEach(s => {
+    if(!inHistory(`manufacturers:${s}`)) selectionHistory.value.push({ group:'manufacturers', slug:s })
+  })
+  Object.entries(newVal.attributes).forEach(([aSlug, list]) => {
+    (list as string[]).forEach(s => {
+      if(!inHistory(`attr:${aSlug}:${s}`)) selectionHistory.value.push({ group:'attr', slug:s, attrSlug:aSlug })
+    })
+  })
+
+}, { deep: true, immediate: true })
+
 const selectedChips = computed(() => {
   const chips: Array<{ group:any; slug:string; label:string; attrSlug?:string }> = []
   const fac = data.facets?.value
   const labelFrom = (arr?: any[]) => new Map((arr||[]).map(i => [i.slug, i.name]))
+  
   const mapB = labelFrom(fac?.brands)
   const mapMdl = labelFrom(fac?.models)
   const mapC = labelFrom(fac?.categories)
   const mapMan = labelFrom(fac?.manufacturers)
-
-  state.sel.brands.forEach(s => chips.push({ group:'brands', slug:s, label: mapB.get(s) || s }))
-  state.sel.models.forEach(s => chips.push({ group:'models', slug:s, label: mapMdl.get(s) || s }))
-  state.sel.categories.forEach(s => chips.push({ group:'categories', slug:s, label: mapC.get(s) || s }))
-  state.sel.manufacturers.forEach(s => chips.push({ group:'manufacturers', slug:s, label: mapMan.get(s) || s }))
-
+  
+  // Pre-compute attribute maps
+  const attrMap = new Map<string, Map<string,string>>()
   if (fac?.attributes?.length) {
-    const attrMap = new Map(
-      fac.attributes.map(a => [a.slug, new Map(a.items.map((i:any) => [i.slug, i.name]))])
-    )
-    Object.entries(state.sel.attributes).forEach(([aSlug, subs]) => {
-      const nameMap = attrMap.get(aSlug) || new Map()
-      ;(subs as string[]).forEach(sub =>
-        chips.push({
-          group: 'attr',
-          slug: sub,
-          attrSlug: aSlug,
-          label: nameMap.get(sub) || sub,
-        })
-      )
-    })
+     fac.attributes.forEach(a => {
+       attrMap.set(a.slug, new Map(a.items.map((i:any) => [i.slug, i.name])))
+     })
   }
+
+  // Iterate based on HISTORY
+  selectionHistory.value.forEach(h => {
+    let label = h.slug
+    if (h.group === 'brands') label = mapB.get(h.slug) || h.slug
+    else if (h.group === 'models') label = mapMdl.get(h.slug) || h.slug
+    else if (h.group === 'categories') label = mapC.get(h.slug) || h.slug
+    else if (h.group === 'manufacturers') label = mapMan.get(h.slug) || h.slug
+    else if (h.group === 'attr' && h.attrSlug) {
+      const subMap = attrMap.get(h.attrSlug)
+      label = subMap?.get(h.slug) || h.slug
+    }
+
+    chips.push({
+      group: h.group,
+      slug: h.slug,
+      attrSlug: h.attrSlug,
+      label
+    })
+  })
+
   return chips
 })
 
