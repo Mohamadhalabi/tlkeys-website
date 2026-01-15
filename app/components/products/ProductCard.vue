@@ -358,7 +358,7 @@ async function onAdd() {
           :href="waLink"
           target="_blank"
           rel="noopener"
-          class="inline-flex items-center justify-center gap-2 bg-green-700 text-white ring-1 ring-green-600 hover:bg-green-800 hover:text-white font-semibold rounded-lg px-3 py-2"
+          class="inline-flex items-center justify-center gap-2 bg-green-700 text-white ring-1 ring-green-600 hover:bg-green-800 hover:text-white text-sm font-semibold rounded-lg px-3 py-2"
           :aria-label="_t('search.contactOnWhatsApp','Contact on WhatsApp')"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.52 3.48A11.94 11.94 0 0 0 12 0C5.39 0 0 5.39 0 12c0 2.11.55 4.1 1.61 5.89L0 24l6.26-1.64A11.96 11.96 0 0 0 12 24c6.61 0 12-5.39 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 22a9.93 9.93 0 0 1-5.07-1.39l-.36-.21-3.71.97.99-3.62-.23-.37A9.93 9.93 0 0 1 2 12C2 6.49 6.49 2 12 2s10 4.49 10 10-4.49 10-10 10zm5.55-7.46c-.3-.15-1.78-.88-2.05-.98-.27-.1-.47-.15-.68.15-.2.3-.78.98-.96 1.18-.18.2-.35.23-.65.08a8.2 8.2 0 0 1-2.41-1.49 9.05 9.05 0 0 1-1.68-2.08c-.17-.3 0-.46.13-.61.13-.13.3-.35.46-.53.15-.18.2-.3.3-.5.1-.2.05-.38-.03-.53-.08-.15-.68-1.62-.93-2.22-.25-.6-.5-.51-.68-.51h-.58c-.2 0-.53.08-.83.38-.3.3-1.08 1.05-1.08 2.56 0 1.51 1.1 2.97 1.25 3.18.15.2 2.17 3.31 5.26 4.63.74.32 1.32.51 1.77.65.74.24 1.41.2 1.94.12.59-.09 1.78-.73 2.03-1.45.25-.73.25-1.35.18-1.48-.07-.13-.27-.2-.57-.35z"/></svg>

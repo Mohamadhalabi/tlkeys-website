@@ -78,6 +78,7 @@ async function toggle(p: MiniProduct) {
             v-for="p in items"
             :key="String(p.id)"
             class="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm hover:shadow-md transition"
+            data-nosnippet
           >
             <!-- Mobile: stacked; Desktop: image | info | controls -->
             <div class="flex flex-col md:flex-row md:items-center gap-4">

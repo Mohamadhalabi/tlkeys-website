@@ -373,7 +373,7 @@ function makeLinks<T extends { slug?: string; name?: string; title?: string }>(
     const label = (row.name ?? (row as any)?.title ?? '').trim()
     if (!label) continue
     // For filters, you might link to search page
-    const to = row.slug ? `/products?brand=${encodeURIComponent(row.slug)}` : nameToPath(label)
+    const to = row.slug ? `/${encodeURIComponent(row.slug)}` : nameToPath(label)
     const key = to.toLowerCase()
     if (seen.has(key)) continue
     seen.add(key)

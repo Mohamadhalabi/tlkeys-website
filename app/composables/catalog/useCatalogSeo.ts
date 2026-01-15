@@ -10,7 +10,7 @@ export function useCatalogSeo(opts: {
   sel: ReturnType<typeof import('./useCatalogState').useCatalogState>['sel'],
   facets: any,
   breadcrumbs: () => { label: string; to?: string }[],
-  t: (k:string, p?:any)=>string,
+  t: (k: string, p?: any) => string,
   siteNameFromI18n: () => string,
   overrideTitle?: import('vue').ComputedRef<string | undefined>,
   overrideDescription?: import('vue').ComputedRef<string | undefined>,
@@ -57,10 +57,10 @@ export function useCatalogSeo(opts: {
   const dynamicDescription = computed(() => {
     const parts: string[] = []
     if (opts.sel.q?.trim()) parts.push(opts.t('seo.searchingFor', { q: opts.sel.q }) || `Searching for “${opts.sel.q}”`)
-    if (opts.sel.brands.length)        parts.push(`${opts.t('facets.brands')}: ${opts.sel.brands.join(', ')}`)
-    if (opts.sel.categories.length)    parts.push(`${opts.t('facets.categories')}: ${opts.sel.categories.join(', ')}`)
+    if (opts.sel.brands.length) parts.push(`${opts.t('facets.brands')}: ${opts.sel.brands.join(', ')}`)
+    if (opts.sel.categories.length) parts.push(`${opts.t('facets.categories')}: ${opts.sel.categories.join(', ')}`)
     if (opts.sel.manufacturers.length) parts.push(`${opts.t('facets.manufacturers')}: ${opts.sel.manufacturers.join(', ')}`)
-    if (opts.sel.models.length)        parts.push(`${opts.t('facets.models')}: ${opts.sel.models.join(', ')}`)
+    if (opts.sel.models.length) parts.push(`${opts.t('facets.models')}: ${opts.sel.models.join(', ')}`)
     const body = parts.length ? parts.join(' • ') : (opts.t('seo.defaultDesc') || 'Browse products, filter and sort to find what you need.')
     return body.slice(0, 300)
   })
@@ -120,8 +120,8 @@ export function useCatalogSeo(opts: {
   })
   const ogLocaleAlternates = computed(() =>
     (allLocales.value as any[])
-      .map((l:any) => (l.iso || l.code).toString().replace('_', '-'))
-      .filter((c:string) => c !== ogLocale.value)
+      .map((l: any) => (l.iso || l.code).toString().replace('_', '-'))
+      .filter((c: string) => c !== ogLocale.value)
   )
 
   // ---- SEO meta
