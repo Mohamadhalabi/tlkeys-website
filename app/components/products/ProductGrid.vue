@@ -96,6 +96,7 @@ const visible = computed(() => (props.products || []).slice(0, limit.value))
           :class="gridColsClass"
         >
           <div v-for="product in visible" :key="product.id" class="h-full" data-nosnippet>
+            <ClientOnly>
             <ProductCard
               :product="product"
               :show-rewards="showRewards"
@@ -104,6 +105,7 @@ const visible = computed(() => (props.products || []).slice(0, limit.value))
               class="h-full"
               @add-to-cart="$emit('add-to-cart', $event)"
             />
+            </ClientOnly>
           </div>
         </div>
       </div>
