@@ -1,30 +1,30 @@
 // nuxt.config.ts
 import { fileURLToPath } from 'url'
 
-const siteUrl  = (process.env.SITE_URL || 'https://www.tlkeys.com').replace(/\/+$/, '')
+const siteUrl = (process.env.SITE_URL || 'https://www.tlkeys.com').replace(/\/+$/, '')
 const siteName = 'tlkeys'
-const logoUrl  = `${siteUrl}/images/logo/techno-lock-desktop-logo.webp`
+const logoUrl = `${siteUrl}/images/logo/techno-lock-desktop-logo.webp`
 const searchTarget = `${siteUrl}/shop?q={search_term_string}`
 
-const SAME_AS = [ "https://www.facebook.com/technolockkeystrade", "https://www.instagram.com/technolock", "https://www.youtube.com/@technolock", "https://www.tiktok.com/@technolockkeys" ].filter(Boolean)
+const SAME_AS = ["https://www.facebook.com/technolockkeystrade", "https://www.instagram.com/technolock", "https://www.youtube.com/@technolock", "https://www.tiktok.com/@technolockkeys"].filter(Boolean)
 
 const ADDRESS =
   process.env.BUSINESS_STREET ||
-  process.env.BUSINESS_LOCALITY ||
-  process.env.BUSINESS_REGION ||
-  process.env.BUSINESS_POSTCODE ||
-  process.env.BUSINESS_COUNTRY
+    process.env.BUSINESS_LOCALITY ||
+    process.env.BUSINESS_REGION ||
+    process.env.BUSINESS_POSTCODE ||
+    process.env.BUSINESS_COUNTRY
     ? {
-        '@type': 'PostalAddress',
-        streetAddress: process.env.BUSINESS_STREET,
-        addressLocality: process.env.BUSINESS_LOCALITY,
-        addressRegion: process.env.BUSINESS_REGION,
-        postalCode: process.env.BUSINESS_POSTCODE,
-        addressCountry: process.env.BUSINESS_COUNTRY || 'AE'
-      }
+      '@type': 'PostalAddress',
+      streetAddress: process.env.BUSINESS_STREET,
+      addressLocality: process.env.BUSINESS_LOCALITY,
+      addressRegion: process.env.BUSINESS_REGION,
+      postalCode: process.env.BUSINESS_POSTCODE,
+      addressCountry: process.env.BUSINESS_COUNTRY || 'AE'
+    }
     : undefined
 
-const OPENING_HOURS = [ { "@type": "OpeningHoursSpecification", "dayOfWeek": [ "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" ], "opens": "09:00", "closes": "18:00" }, ]
+const OPENING_HOURS = [{ "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], "opens": "09:00", "closes": "18:00" },]
 
 // --- i18n (inline on module!) ---
 const i18nOptions = {
@@ -35,9 +35,9 @@ const i18nOptions = {
     { code: 'fr', iso: 'fr', dir: 'ltr', file: 'fr.json', name: 'Français' },
     { code: 'ru', iso: 'ru', dir: 'ltr', file: 'ru.json', name: 'Русский' },
     { code: 'de', iso: 'de', dir: 'ltr', file: 'de.json', name: 'Deutsch' },
-    { code: 'tr', iso: 'tr', dir: 'ltr', file: 'tr.json', name: 'Turkish'},
-    { code: 'pt', iso: 'pt', dir: 'ltr', file: 'pt.json', name: 'Portuguese'},
-    { code: 'it', iso: 'it', dir: 'ltr', file: 'it.json', name: 'Italian'}
+    { code: 'tr', iso: 'tr', dir: 'ltr', file: 'tr.json', name: 'Turkish' },
+    { code: 'pt', iso: 'pt', dir: 'ltr', file: 'pt.json', name: 'Portuguese' },
+    { code: 'it', iso: 'it', dir: 'ltr', file: 'it.json', name: 'Italian' }
   ],
   defaultLocale: 'en',
   strategy: 'prefix_except_default',
@@ -140,7 +140,7 @@ export default defineNuxtConfig({
             name: siteName,
             url: siteUrl,
             publisher: { '@id': siteUrl },
-            inLanguage: ['en', 'ar', 'es', 'fr', 'ru', 'de','pt','it','tr'],
+            inLanguage: ['en', 'ar', 'es', 'fr', 'ru', 'de', 'pt', 'it', 'tr'],
             potentialAction: {
               '@type': 'SearchAction',
               target: `${siteUrl}/shop?q={search_term_string}`,
@@ -190,10 +190,10 @@ export default defineNuxtConfig({
 
   routeRules: {
     '/products/**': { headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
-    '/_nuxt/**':    { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    '/fonts/**':    { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    '/_ipx/**':     { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    '/images/**':   { headers: { 'cache-control': 'public, max-age=31536000, immutable' } }
+    '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    '/fonts/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    '/_ipx/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    '/images/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } }
   },
 
   nitro: {

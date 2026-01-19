@@ -1,13 +1,16 @@
 import { defineEventHandler, sendRedirect, getQuery } from 'h3'
-import { withoutTrailingSlash, withLeadingSlash } from 'ufo'
+import { parseURL, withoutTrailingSlash, withLeadingSlash } from 'ufo'
 
-/* --- helpers --- */
-const LOCALES = ['en', 'tr', 'ar', 'es', 'fr', 'de'] // adjust to your locales
+/* --- 1. Constants & Helpers --- */
+const LOCALES = ['en', 'ar', 'es', 'fr', 'ru', 'de', 'tr', 'pt', 'it']
 
+// Normalize path: lowercase, decode URI, ensure leading slash, remove trailing slash
 function normPath(p?: string) {
     const clean = (p || '/').split('?')[0]
     return withoutTrailingSlash(withLeadingSlash(decodeURIComponent(clean).toLowerCase()))
 }
+
+// Split locale from path: /en/shop -> { locale: '/en', path: '/shop' }
 function splitLocale(pathname: string) {
     const seg = pathname.split('/')
     const maybe = seg[1]
@@ -17,9 +20,10 @@ function splitLocale(pathname: string) {
     return { locale: '', path: pathname }
 }
 
-/* --- path → path rules --- */
-const PATH_REDIRECTS: { from: string; to: string }[] = [
-    // brands
+/* --- 2. Static Data Rules --- */
+// I have included your full list here
+const RAW_REDIRECTS = [
+    // --- Brands ---
     { from: "/shop/alfa-romeo", to: "/alfa-romeo" },
     { from: "/shop/audi", to: "/audi" },
     { from: "/shop/baic", to: "/baic" },
@@ -81,7 +85,7 @@ const PATH_REDIRECTS: { from: string; to: string }[] = [
     { from: "/shop/ram-car", to: "/ram" },
     { from: "/shop/corvette", to: "/corvette" },
 
-    // categories
+    // --- Categories ---
     { from: "/shop/car-remotes", to: "/car-Remotes" },
     { from: "/shop/remote-shell", to: "/remote-shell" },
     { from: "/shop/lcd-remotes", to: "/lcd-remotes" },
@@ -115,7 +119,7 @@ const PATH_REDIRECTS: { from: string; to: string }[] = [
     { from: "/shop/software", to: "/software" },
     { from: "/shop/accessories", to: "/accessories-tools" },
 
-    // manufacturers
+    // --- Manufacturers ---
     { from: "/shop/advanced-diagnostics", to: "/advanced-diagnostics" },
     { from: "/shop/keyline", to: "/keyline" },
     { from: "/shop/gscan", to: "/g-scan" },
@@ -141,7 +145,7 @@ const PATH_REDIRECTS: { from: string; to: string }[] = [
     { from: "/shop/microtronik", to: "/microtronik" },
     { from: "/shop/eldb", to: "/eldb" },
 
-    // product slugs
+    // --- Specific Product Fixes ---
     { from: "/products/chevrolet-2017-proximity-flip-key-5b-433mhz-aftermarket-bran-33079", to: "/products/Chevrolet-2017-Proximity-Flip-Key-13531362-5B-433mhz-33079" },
     { from: "/products/original-nissan-2013-2018-flip-key-3-buttons-433mhz-h0561-4ca0b-40231", to: "/products/Original-Nissan-Sunny-2018-2024-Flip-Key-3-Buttons-433MHz-40231" },
     { from: "/products/original-ford-f-150-2017-smart-key-remote-3-buttons-868mhz-id49-chip-gb5t-15k601-db-36157", to: "/products/SUNSHINE-LC-AD15-Infrared-Thermal-Imaging-Analyzing-Camera-400W-3D-36157" },
@@ -149,11 +153,18 @@ const PATH_REDIRECTS: { from: string; to: string }[] = [
     { from: "/products/xhorse-key-tool-midi-immo-tpms-device", to: "/products/xhorse-xdkmd0en-key-tool-midi-immo-tpms-basic-version" },
 ]
 
-/* query-based legacy /download-files.php?device=... */
-function queryRedirect(event: any): string | null {
+// --- Optimization: Build Map ONCE on server start ---
+const REDIRECT_MAP = new Map<string, string>()
+RAW_REDIRECTS.forEach(r => {
+    REDIRECT_MAP.set(normPath(r.from), r.to)
+})
+
+
+/* --- 3. Legacy Query Logic (Downloads/PHP) --- */
+function checkLegacyQueries(event: any, path: string): string | null {
     const q = getQuery(event)
     const dev = (q.device as string | undefined)?.toLowerCase()
-    const path = normPath(event.path)
+
     if (path === '/download-files.php' && dev) {
         const map: Record<string, string> = {
             'ad100pro': '/downloads/AD-Loader-AD100-Advanced-Diagnostics-Download-and-Installation',
@@ -187,27 +198,56 @@ function queryRedirect(event: any): string | null {
         }
         return map[dev] ?? null
     }
+
+    // Legacy PHP file paths
     const phpMap: Record<string, string> = {
         '/downloads/autohex.php': '/downloads/Microtronik-Autohex-II',
         '/downloads/xhorse.php': '/downloads/xhorse-vvdi-mb',
-        '/downloads//vvdi-prog.php': '/downloads/Xhorse-VVDI-PROG-Programmer-Update-Software-Download',
         '/downloads/vvdi-prog.php': '/downloads/Xhorse-VVDI-PROG-Programmer-Update-Software-Download',
-        '/downloads//vvdi-2.php': '/downloads/Xhorse-VVDI2-Key-Programmer',
         '/downloads/vvdi-2.php': '/downloads/Xhorse-VVDI2-Key-Programmer',
     }
-    if (phpMap[path]) return phpMap[path]
+    const cleanPath = path.replace('//', '/')
+    if (phpMap[cleanPath]) return phpMap[cleanPath]
+
     return null
 }
 
-/* middleware */
+
+/* --- 4. Main Middleware Handler --- */
 export default defineEventHandler((event) => {
-    const { locale, path } = splitLocale(normPath(event.path))
+    // 1. Prepare Paths
+    const normalizedPath = normPath(event.path)
+    const { locale, path } = splitLocale(normalizedPath)
 
-    const qDest = queryRedirect(event)
-    if (qDest) return sendRedirect(event, locale + qDest, 301)
+    // ---------------------------------------------------------
+    // PRIORITY 1: Dynamic Brand Redirects (e.g. products?brand=bmw)
+    // ---------------------------------------------------------
+    if (path === '/products') {
+        const query = getQuery(event)
+        const brand = query.brand
 
-    const match = PATH_REDIRECTS.find(r => normPath(r.from) === path)
-    if (match) return sendRedirect(event, locale + match.to, 301)
+        if (brand && typeof brand === 'string') {
+            const cleanBrand = brand.trim()
+            // Redirect to /bmw or /de/bmw
+            const newUrl = withLeadingSlash(withoutTrailingSlash(`${locale}/${cleanBrand}`))
+            return sendRedirect(event, newUrl, 301)
+        }
+    }
 
-    // else let routing continue (your 404→410 plugin may kick in later)
+    // ---------------------------------------------------------
+    // PRIORITY 2: Legacy Query Redirects (PHP Downloads)
+    // ---------------------------------------------------------
+    const legacyDest = checkLegacyQueries(event, normalizedPath) // pass raw path for PHP checks
+    if (legacyDest) {
+        return sendRedirect(event, locale + legacyDest, 301)
+    }
+
+    // ---------------------------------------------------------
+    // PRIORITY 3: Static Map Redirects (Brands, Categories, etc.)
+    // ---------------------------------------------------------
+    // This checks the optimized Map we built at the top
+    const staticDest = REDIRECT_MAP.get(path)
+    if (staticDest) {
+        return sendRedirect(event, locale + staticDest, 301)
+    }
 })

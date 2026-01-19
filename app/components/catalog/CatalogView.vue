@@ -187,7 +187,6 @@ const selectionHistory = ref<Array<{ group:string; slug:string; attrSlug?:string
 
 // Watch state.sel deep to maintain history
 watch(()=> state.sel, (newVal) => {
-  // 1. Gather all current active items
   const currentSet = new Set<string>()
   const addItem = (id:string) => currentSet.add(id)
 
@@ -199,14 +198,11 @@ watch(()=> state.sel, (newVal) => {
     (list as string[]).forEach(s => addItem(`attr:${aSlug}:${s}`))
   })
 
-  // 2. Prune history (remove items no longer active)
   selectionHistory.value = selectionHistory.value.filter(h => {
     const key = h.group === 'attr' ? `attr:${h.attrSlug}:${h.slug}` : `${h.group}:${h.slug}`
     return currentSet.has(key)
   })
 
-  // 3. Append new items (items in currentSet but not in history)
-  // Define helper to check existence in history
   const inHistory = (key:string) => {
     return selectionHistory.value.some(h => {
        const k = h.group === 'attr' ? `attr:${h.attrSlug}:${h.slug}` : `${h.group}:${h.slug}`
@@ -214,7 +210,6 @@ watch(()=> state.sel, (newVal) => {
     })
   }
 
-  // Check each group and append if missing
   newVal.brands.forEach(s => {
     if(!inHistory(`brands:${s}`)) selectionHistory.value.push({ group:'brands', slug:s })
   })
@@ -245,7 +240,6 @@ const selectedChips = computed(() => {
   const mapC = labelFrom(fac?.categories)
   const mapMan = labelFrom(fac?.manufacturers)
   
-  // Pre-compute attribute maps
   const attrMap = new Map<string, Map<string,string>>()
   if (fac?.attributes?.length) {
      fac.attributes.forEach(a => {
@@ -253,7 +247,6 @@ const selectedChips = computed(() => {
      })
   }
 
-  // Iterate based on HISTORY
   selectionHistory.value.forEach(h => {
     let label = h.slug
     if (h.group === 'brands') label = mapB.get(h.slug) || h.slug
@@ -319,7 +312,7 @@ const pageInfo = computed(() => {
   return { current, size, total, last, from, to }
 })
 
-/* ============ Breadcrumbs (with leaf + H1 in component) ============ */
+/* ============ Breadcrumbs ============ */
 const prettify = (s: string) => s.replace(/-/g, ' ').replace(/\b\w/g, m => m.toUpperCase())
 
 const breadcrumbs = computed(() => {
@@ -339,7 +332,6 @@ const breadcrumbs = computed(() => {
 
   let leaf: string | null = null
 
-  // Priority by entry type
   if (state.entryType.value === 'brand' && state.sel.brands.length) {
     const s = state.sel.brands[0]; leaf = mBrands.get(s) || prettify(s)
   } else if (state.entryType.value === 'category' && state.sel.categories.length) {
@@ -347,15 +339,13 @@ const breadcrumbs = computed(() => {
   } else if (state.entryType.value === 'manufacturer' && state.sel.manufacturers.length) {
     const s = state.sel.manufacturers[0]; leaf = mMfrs.get(s) || prettify(s)
   } else {
-    // Fallbacks if entryType isn't set or multiple filters
     if (!leaf && state.sel.brands.length)        { const s = state.sel.brands[0];        leaf = mBrands.get(s) || prettify(s) }
     if (!leaf && state.sel.categories.length)    { const s = state.sel.categories[0];    leaf = mCats.get(s)   || prettify(s) }
     if (!leaf && state.sel.manufacturers.length) { const s = state.sel.manufacturers[0]; leaf = mMfrs.get(s)   || prettify(s) }
     if (!leaf && state.sel.models.length)        { const s = state.sel.models[0];        leaf = mModels.get(s) || prettify(s) }
   }
 
-  if (leaf) base.push({ label: leaf }) // last item has no link; Breadcrumbs.vue will render <h1>
-
+  if (leaf) base.push({ label: leaf }) 
   return base
 })
 
@@ -388,24 +378,56 @@ async function clearAllAndGoShop() {
   }
 }
 
-/* ============ page nav ============ */
-function goPage(p:number){
+/* ============ page nav (FIXED) ============ */
+// Helper to perform cleaner route updates
+function applyCleanPagination(p: number) {
   state.sel.page = p
-  state.updateRoute()
+  
+  // Clone current query (preserves active filters like ?color=red)
+  const query = { ...route.query } as Record<string, any>
+  
+  // 1. Update Page
+  if (p > 1) {
+    query.page = p.toString()
+  } else {
+    delete query.page
+  }
+
+  // 2. Remove default perPage if it matches default (assuming 25)
+  if (String(state.sel.perPage) === '25') {
+    delete query.perPage
+    delete query.per_page
+  }
+
+  // 3. Remove Redundant Context (The fix for your dirty URL)
+  // If we are on a Category route, don't duplicate ?categories=slug in query
+  if (state.entryType.value === 'category') delete query.categories
+  if (state.entryType.value === 'brand') delete query.brands
+  if (state.entryType.value === 'manufacturer') delete query.manufacturers
+
+  // 4. Clean Sort (optional, remove if default or empty)
+  // Only remove if it was likely added redundantly. If the user explicitly set it, 
+  // route.query should already have it, so we leave it alone.
+  
+  router.push({ path: route.path, query })
+
   if (process.client) window.scrollTo({ top: 0, behavior: 'smooth' })
 }
+
+function goPage(p:number){
+  applyCleanPagination(p)
+}
+
 function loadMore(){
-  state.sel.page += 1
-  state.updateRoute()
+  const p = state.sel.page + 1
+  applyCleanPagination(p)
 }
 </script>
 
 <template>
   <div class="container mx-auto px-4 py-6 grid grid-cols-12 gap-6">
-    <!-- Breadcrumbs -->
     <Breadcrumbs :items="breadcrumbs" class="col-span-12 -mt-2" />
 
-    <!-- Mobile chips + launchers -->
     <div data-nosnippet class="min-[993px]:hidden col-span-12">
       <div class="flex items-center justify-between mb-2">
         <div class="text-sm text-gray-600">
@@ -423,7 +445,6 @@ function loadMore(){
       <SelectedChips :chips="selectedChips" @remove="removeChip" class="mb-3" />
 
       <div v-if="data.facets.value" class="flex flex-wrap gap-2">
-        <!-- fixed groups -->
         <button v-if="(data.facets.value.categories?.length || 0) > 0"
                 class="px-3 py-1.5 rounded-full border border-orange-300 text-orange-700 text-sm bg-orange-50"
                 @click="openMobileModal('categories')">
@@ -445,7 +466,6 @@ function loadMore(){
           {{ t('facets.models') }}
         </button>
 
-        <!-- attribute groups -->
         <button
           v-for="attr in (data.facets.value.attributes || [])"
           :key="attr.slug"
@@ -457,7 +477,6 @@ function loadMore(){
       </div>
     </div>
 
-    <!-- Sidebar (desktop) -->
     <aside
       data-nosnippet
       class="hidden min-[993px]:block col-span-12 min-[993px]:col-span-3"
@@ -491,7 +510,6 @@ function loadMore(){
       </div>
     </aside>
 
-    <!-- Products -->
     <section :class="['col-span-12 min-[993px]:col-span-9', isRTL ? 'min-[993px]:order-1' : 'min-[993px]:order-2']">
       <Toolbar
         :sort="state.sel.sort"
@@ -543,7 +561,6 @@ function loadMore(){
       </template>
     </section>
 
-    <!-- Mobile facet modal -->
     <transition name="fade">
       <div v-if="activeMobileModal" class="fixed inset-0 z-50">
         <div class="absolute inset-0 bg-black/40" @click="closeMobileModal"></div>
