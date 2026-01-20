@@ -103,7 +103,6 @@ const isString = (v: unknown): v is string => typeof v === 'string' && v.trim() 
 const money = (v: unknown): string => Number(v || 0).toFixed(2)
 const imgSrc = (v: unknown): string | null => (isString(v) ? v : null)
 
-// Helper: Title Case (Madina Al Munawara)
 function toTitleCase(str: string): string {
   if (!str) return ''
   return str.toLowerCase().split(' ').map(word => {
@@ -137,7 +136,6 @@ const couponInput = ref<string>('')
 const appliedCouponCode = ref<string | null>(null)
 const selectedPromo = ref<PromoKey>('none')
 
-// New Order Preferences
 const orderNote = ref('')
 const customShipmentValue = ref<number | string>('')
 
@@ -196,13 +194,11 @@ const showAddressForm = ref(false)
 const addressForm = ref<AddressForm>({})
 const isEditing = computed(() => !!addressForm.value.id)
 
-// NEW: Cities Logic (Using CountriesNow API)
 const cityOptions = ref<any[]>([])
 const isLoadingCities = ref(false)
 const citySearch = ref('') 
 const showCityList = ref(false)
 
-// Filter cities based on search
 const filteredCities = computed(() => {
   if (!citySearch.value) return cityOptions.value
   const lower = citySearch.value.toLowerCase()
@@ -211,12 +207,10 @@ const filteredCities = computed(() => {
 
 function openAddressForm(a?: Address) {
   if (a) {
-      // Edit Mode
       addressForm.value = { ...a }
-      citySearch.value = a.city || '' // Pre-fill search with existing city
+      citySearch.value = a.city || '' 
       if(a.country_id) fetchCitiesExternal(a.country_id)
   } else {
-      // New Mode
       addressForm.value = {
         country_id: undefined as any,
         city: '',
@@ -238,7 +232,6 @@ function closeAddressForm() {
   citySearch.value = ''
 }
 
-// Watch Country Change
 watch(() => addressForm.value.country_id, (newId, oldId) => {
   if (!showAddressForm.value) return
   if (oldId !== undefined && newId !== oldId) {
@@ -246,8 +239,6 @@ watch(() => addressForm.value.country_id, (newId, oldId) => {
      citySearch.value = ''
      addressForm.value.postal_code = '' 
   }
-
-  // Fetch Cities
   if (newId) {
     fetchCitiesExternal(newId)
   } else {
@@ -255,20 +246,16 @@ watch(() => addressForm.value.country_id, (newId, oldId) => {
   }
 })
 
-// UPDATED: Fetch Cities from CountriesNow API
 async function fetchCitiesExternal(countryId: number) {
   isLoadingCities.value = true
   cityOptions.value = []
   
   try {
-    // 1. Find the selected country object to get its Name (string)
     const countryObj = countries.value.find(c => c.id === countryId)
     if (!countryObj) return
 
-    // 2. Extract clean English Name for the API
     let cleanCountryName = ''
     if (typeof countryObj.name === 'string') {
-        // Try parsing if it's a JSON string, otherwise use as is
         try {
             const parsed = JSON.parse(countryObj.name)
             cleanCountryName = parsed.en || Object.values(parsed)[0]
@@ -281,7 +268,6 @@ async function fetchCitiesExternal(countryId: number) {
     
     if (!cleanCountryName) return
 
-    // 3. Call CountriesNow API
     const response = await fetch('https://countriesnow.space/api/v0.1/countries/cities', {
        method: 'POST',
        headers: { 'Content-Type': 'application/json' },
@@ -290,10 +276,7 @@ async function fetchCitiesExternal(countryId: number) {
     
     const json = await response.json()
     
-    // 4. Process response (data is array of strings)
     if (!json.error && Array.isArray(json.data)) {
-        // Transform ["City", "City2"] -> [{id:1, name:"City"}, {id:2, name:"City2"}]
-        // We use map to create the object structure your UI expects
         const uniqueMap = new Map()
         
         json.data.forEach((cityName: string, index: number) => {
@@ -303,44 +286,34 @@ async function fetchCitiesExternal(countryId: number) {
             
             if(!uniqueMap.has(key)) {
                 uniqueMap.set(key, { 
-                    id: index, // Fake ID, not important for string storage
+                    id: index, 
                     name: niceName 
                 })
             }
         })
-        
         cityOptions.value = Array.from(uniqueMap.values())
     }
 
   } catch (e) {
     console.error("Failed to load cities from external API", e)
-    // Optional: add a generic 'Other' option or leave empty to allow manual typing
   } finally {
     isLoadingCities.value = false
   }
 }
 
-// Select City from Dropdown
 function selectCity(city: any) {
   addressForm.value.city = city.name
   citySearch.value = city.name
   showCityList.value = false
 }
 
-// Handle Blur
 function onCityBlur() {
   setTimeout(() => {
-    // Check if exact match exists in list
     const match = cityOptions.value.find(c => c.name.toLowerCase() === citySearch.value.trim().toLowerCase())
-    
     if (match) {
-       // Found specific city object
        addressForm.value.city = match.name
        citySearch.value = match.name
     } else {
-       // NOT FOUND in list. 
-       // Logic Update: Since this is a 3rd party API, it might miss some cities.
-       // We allow the user's manual input if they typed something.
        const typed = citySearch.value.trim()
        if(typed.length > 0) {
            addressForm.value.city = toTitleCase(typed)
@@ -377,6 +350,8 @@ function showCouponAlertOnce(c: CouponResult | null | undefined) {
 
 async function applyCoupon() {
     if (!couponInput.value.trim()) return
+    // Reset Promo if applying coupon
+    selectedPromo.value = 'none'
     await fetchQuote({ couponOverride: couponInput.value, showCouponAlert: true })
 }
 async function removeCoupon() {
@@ -384,6 +359,25 @@ async function removeCoupon() {
     appliedCouponCode.value = null
     await fetchQuote({ couponOverride: '', showCouponAlert: false })
 }
+
+// Watcher to remove coupon if a promo is selected
+watch(selectedPromo, async (newVal) => {
+    if (newVal !== 'none' && appliedCouponCode.value) {
+        couponInput.value = ''
+        appliedCouponCode.value = null
+        alerts.showAlert({
+            type: 'info',
+            title: 'Coupon Removed',
+            message: 'Coupons cannot be combined with promotions.'
+        })
+        await fetchQuote({ couponOverride: '', showCouponAlert: false })
+    } else if (newVal !== 'none' && !isInternalUpdate.value) {
+        await fetchQuote()
+    } else if (newVal === 'none' && !isInternalUpdate.value) {
+        // If user manually selects "No promo", refresh quote to remove discount
+        await fetchQuote()
+    }
+})
 
 /* ---------------- API calls ---------------- */
 async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAlert?: boolean, initialLoad?: boolean }) {
@@ -443,8 +437,14 @@ async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAle
       selectedShipping.value = null
     }
 
+    // Sync Promo selection from Backend
     if (res.promotions?.selected) {
-      selectedPromo.value = res.promotions.selected as PromoKey
+       // Only update if differnt to avoid loop, though internal update flag handles most
+       if(selectedPromo.value !== res.promotions.selected) {
+           isInternalUpdate.value = true
+           selectedPromo.value = res.promotions.selected as PromoKey
+           nextTick(() => { isInternalUpdate.value = false })
+       }
     }
 
     if (opts?.showCouponAlert) {
@@ -479,7 +479,6 @@ const blockedSkus = computed<string[]>(() => {
 async function saveAddress() {
   const body = { ...addressForm.value }
   
-  // 1. Basic Fields Check
   if (!body.country_id || !String(body.city||'').trim() || !String(body.street||'').trim()
       || !String(body.address||'').trim() || !String(body.phone||'').trim()) {
     alerts.showAlert({
@@ -490,10 +489,6 @@ async function saveAddress() {
     return
   }
 
-  // 2. Strict City Validation Check REMOVED
-  // Since we use external API, we allow manual entry if user typed something valid
-  
-  // Proceed with Save
   let savedId: number | null = null
   if (isEditing.value) {
     await $customApi(`/edit-addresses/${body.id}`, { method: 'POST', body })
@@ -511,9 +506,9 @@ async function saveAddress() {
     }
   }
 
-  showAddressForm.value = false // Close Form / Show List
+  showAddressForm.value = false 
   if (selectedAddress.value?.country_id === UAE_COUNTRY_ID) selectedShipping.value = null
-  await fetchQuote() // reload addresses and quote
+  await fetchQuote() 
   alerts.showAlert({ type: 'success', title: t('checkout.addressSaved') || 'Address saved' })
 }
 
@@ -558,8 +553,8 @@ async function createOrder() {
     coupon_code:     appliedCouponCode.value || null,
     promo:           selectedPromo.value,
     free_ship:       selectedPromo.value === 'free_ship' ? 1 : 0,
-    note:            orderNote.value,               // ✅ Added Note
-    shipment_value:  customShipmentValue.value,     // ✅ Added Shipment Value
+    note:            orderNote.value,               
+    shipment_value:  customShipmentValue.value,     
   }
 
   try {
@@ -660,7 +655,6 @@ watch(selectedShipping, async (newVal) => {
   }
 })
 
-// ✅ Watch quote summary to set default shipment value
 watch(() => quote.value?.summary?.sub_total, (newVal) => {
   if (newVal !== undefined && customShipmentValue.value === '') {
     customShipmentValue.value = newVal
@@ -749,7 +743,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
               class="flex items-start gap-2 p-2 rounded-xl border hover:bg-gray-50 cursor-pointer transition ring-offset-2"
               :class="selectedPromo==='free_ship' ? 'ring-2 ring-emerald-500' : ''"
             >
-              <input class="mt-1" type="radio" value="free_ship" v-model="selectedPromo" @change="fetchQuote()" />
+              <input class="mt-1" type="radio" value="free_ship" v-model="selectedPromo" />
               <div>
                 <div class="font-medium">
                   {{ $t('checkout.freeShipTitle') || 'Free Shipping (>$500 eligible items)' }}
@@ -768,7 +762,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
               class="flex items-start gap-2 p-2 rounded-xl border hover:bg-gray-50 cursor-pointer transition ring-offset-2"
               :class="selectedPromo==='ten_off' ? 'ring-2 ring-emerald-500' : ''"
             >
-              <input class="mt-1" type="radio" value="ten_off" v-model="selectedPromo" @change="fetchQuote()" />
+              <input class="mt-1" type="radio" value="ten_off" v-model="selectedPromo" />
               <div>
                 <div class="font-medium">
                   {{ $t('checkout.tenOffTitle') || '10% OFF (>$700, first paid order)' }}
@@ -786,7 +780,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
               class="flex items-start gap-2 p-2 rounded-xl border hover:bg-gray-50 cursor-pointer transition ring-offset-2"
               :class="selectedPromo==='none' ? 'ring-2 ring-emerald-500' : ''"
             >
-              <input class="mt-1" type="radio" value="none" v-model="selectedPromo" @change="fetchQuote()" />
+              <input class="mt-1" type="radio" value="none" v-model="selectedPromo" />
               <div class="font-medium">{{ $t('checkout.noPromo') || 'No promotion' }}</div>
             </label>
           </div>
