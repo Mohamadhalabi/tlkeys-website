@@ -784,12 +784,6 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
               <div class="font-medium">{{ $t('checkout.noPromo') || 'No promotion' }}</div>
             </label>
           </div>
-
-          <p v-if="selectedPromo==='ten_off' && quote?.summary?.promo_discount"
-             class="mt-2 text-sm text-emerald-700">
-            {{ $t('checkout.promoSavings') || 'Promo savings' }}:
-            -{{ money(quote.summary.promo_discount) }}$
-          </p>
         </div>
 
         <div
