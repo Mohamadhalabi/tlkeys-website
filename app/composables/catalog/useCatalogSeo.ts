@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useSeoMeta, useHead, useRuntimeConfig, useRequestURL } from '#imports'
 import { useI18n } from 'vue-i18n'
-// If you use @nuxtjs/i18n, these are auto-imported:
+
 declare function useSwitchLocalePath(): (code: string) => string
 
 export function useCatalogSeo(opts: {
@@ -20,14 +20,12 @@ export function useCatalogSeo(opts: {
   const switchLocalePath = (globalThis as any).useSwitchLocalePath?.() ?? useSwitchLocalePath?.()
   const reqURL = useRequestURL()
 
-  // ---- Resolve site origin (supports SITE_URL or siteUrl)
   const configuredSite = (pub?.SITE_URL || pub?.siteUrl || '').toString().trim().replace(/\/+$/, '')
   const reqOrigin = (reqURL?.origin && reqURL.origin !== 'null')
     ? reqURL.origin
     : (typeof window !== 'undefined' ? window.location.origin : '')
   const origin = (configuredSite || reqOrigin || '').replace(/\/+$/, '')
 
-  // ---- Current path & search
   const currentPath = computed(() =>
     reqURL?.pathname || (typeof window !== 'undefined' ? new URL(window.location.href).pathname : '/')
   )
@@ -35,14 +33,11 @@ export function useCatalogSeo(opts: {
     reqURL?.search || (typeof window !== 'undefined' ? new URL(window.location.href).search : '')
   )
 
-  // ---- Canonical + robots
   const hasQuery = computed(() => (currentSearch.value || '').replace('?', '').length > 0)
-  const isShopRoot = computed(() => currentPath.value === '/shop')           // ✅ /shop root
-  const shouldNoindex = computed(() => hasQuery.value || isShopRoot.value)   // ✅ /shop and /shop?... => noindex
 
+  // ---- Canonical
   const canonicalUrl = computed(() => {
     if (!origin) return undefined
-    // If query params exist, canonicalize to clean path (no query)
     return `${origin}${currentPath.value}${hasQuery.value ? '' : currentSearch.value}`
   })
 
@@ -87,31 +82,12 @@ export function useCatalogSeo(opts: {
     } catch { return null }
   })
 
-  // ---- hreflang for ALL locales (+ x-default)
+  // ---- hreflang
   const allLocales = computed(() => {
     const arr = Array.isArray(locales.value) ? locales.value : []
     return arr
       .map((l: any) => ({ code: l.code || l, iso: l.iso || l.code || l }))
       .filter((l: any) => !!l.code)
-  })
-
-  const altLinks = computed(() => {
-    if (!origin) return []
-    const links: Array<{ hreflang: string; href: string }> = []
-    for (const l of allLocales.value as any[]) {
-      let localizedPath = currentPath.value
-      if (typeof switchLocalePath === 'function') {
-        // Build the localized path that mirrors the CURRENT route in each locale
-        localizedPath = switchLocalePath(l.code) || currentPath.value
-      }
-      const href = `${origin}${localizedPath}`
-      const hreflang = (l.iso || l.code).toString()
-      links.push({ hreflang, href })
-      if (hreflang.includes('_')) {
-        links.push({ hreflang: hreflang.replace('_', '-'), href })
-      }
-    }
-    return links
   })
 
   const ogLocale = computed(() => {
@@ -131,22 +107,20 @@ export function useCatalogSeo(opts: {
     ogTitle: finalTitle,
     ogDescription: finalDescription,
     ogType: 'website',
-    ogUrl: canonicalUrl,                 // ✅ og:url
+    ogUrl: canonicalUrl,
     ogSiteName: siteName.value,
     twitterCard: 'summary_large_image',
   })
 
-  // ---- Head links + robots + JSON-LD + OG locale alternates
+  // ---- Head links + robots + JSON-LD
   useHead(() => {
     const link: any[] = []
-    if (canonicalUrl.value) link.push({ rel: 'canonical', href: canonicalUrl.value }) // ✅ canonical
-
-    // (Optional) hreflang alternates — keep commented if you manage hreflang elsewhere
-    // for (const a of altLinks.value) link.push({ rel: 'alternate', hreflang: a.hreflang, href: a.href })
+    if (canonicalUrl.value) link.push({ rel: 'canonical', href: canonicalUrl.value })
 
     const meta: any[] = [
-      { name: 'robots', content: shouldNoindex.value ? 'noindex,follow' : 'index,follow' },              // ✅ robots
-      { 'http-equiv': 'X-Robots-Tag', content: shouldNoindex.value ? 'noindex, follow' : 'index, follow' }, // ✅ header-equivalent
+      // ✅ Set to index,follow explicitly
+      { name: 'robots', content: 'index,follow' },
+      { 'http-equiv': 'X-Robots-Tag', content: 'index, follow' },
       { property: 'og:locale', content: ogLocale.value },
       ...ogLocaleAlternates.value.map(l => ({ property: 'og:locale:alternate', content: l })),
     ]
