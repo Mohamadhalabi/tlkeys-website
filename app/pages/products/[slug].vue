@@ -9,6 +9,7 @@ import { useCart } from '~/composables/useCart'
 import { useWishlist } from '~/composables/useWishlist'
 import { useAlertStore } from '~/stores/alert'
 import { useLocalePath } from '#imports'
+
 /* components */
 import ProductTabDescription from '~/components/product/tabs/ProductTabDescription.vue'
 import ProductTabReviews from '~/components/product/tabs/ProductTabReviews.vue'
@@ -66,6 +67,7 @@ type Product = {
   manufacturers?: SimpleItem[]
   brands?: SimpleItem[]
   sku?: string | null
+  mpn?: string | null
   min_purchase_qty?: number
   quantity?: number | null
   discount_type?: 'percent' | 'fixed' | null
@@ -81,7 +83,6 @@ type Product = {
   videos?: VideoItem[] | null
   requires_serial?: boolean | null
   canonical_slug?: string | null
-  /* 🟢 ADDED: related_versions field */
   related_versions?: MiniProduct[]
 }
 
@@ -97,11 +98,9 @@ const localePath = useLocalePath()
 
 const runtime = useRuntimeConfig()
 const API_BASE_URL = runtime.public.API_BASE_URL as string
-
-// IMPORTANT: Use SITE_URL for all absolute URLs (canonical, og:url, JSON-LD, breadcrumbs)
 const PUBLIC_BASE = (runtime.public.SITE_URL as string) || 'https://www.tlkeys.com'
 const baseSiteUrl = computed(() => PUBLIC_BASE.replace(/\/+$/, '')) // no trailing slash
-const absUrl = computed(() => baseSiteUrl.value + route.path)       // clean path, no query/hash
+const absUrl = computed(() => baseSiteUrl.value + route.path)       // clean path
 
 const { $customApi } = useNuxtApp()
 
@@ -128,7 +127,6 @@ function waLinkForProduct(p?: Product | null) {
   return `https://api.whatsapp.com/send?phone=${encodeURIComponent(WHATSAPP_NUMBER)}&text=${encodeURIComponent(msg)}`
 }
 
-// make absolute using SITE_URL base (same as canonical/og:url)
 const abs = (u?: string | null) => {
   if (!u) return ''
   if (/^https?:\/\//i.test(u)) return u
@@ -136,14 +134,12 @@ const abs = (u?: string | null) => {
   return `${baseSiteUrl.value}${clean}`
 }
 
-// Canonical hero image URL (first gallery image or fallback)
 const primaryImageAbs = computed(() => {
   const p = product.value
   const rawImgs = (p?.images || []).map(i => i?.src).filter(Boolean) as string[]
   return abs(rawImgs[0] || p?.image || '')
 })
 
-// Show Buy Now only when the normal Add-to-Cart flow is available
 const showBuyNow = computed(() => showAddToCartUI.value)
 const buying = ref(false)
 
@@ -157,7 +153,6 @@ async function onBuyNow() {
     })
     return
   }
-
   const p = product.value
   const query: Record<string, string> = {
     mode: 'buy-now',
@@ -166,12 +161,10 @@ async function onBuyNow() {
     qty: String(Math.max(1, Number(qty.value || 1))),
   }
   if (requiresSerial.value) query.serial = serial.value.trim()
-
   await navigateTo({ path: localePath('/custom-checkout'), query })
 }
 
 /* ---------------- URL / PATH HELPERS ---------------- */
-// 🟢 FIXED: Forces "/products/" prefix for product links
 const slugToPath = (s?: string | null) => {
   if (!s) return '/products/'
   const cleaned = String(s).trim().replace(/^\/+/, '')
@@ -204,7 +197,6 @@ const nameToPath = (s?: string | null) => {
   return `/${encodeURIComponent(cleaned)}`
 }
 
-/* urgency + discount helpers */
 const now = ref(Date.now())
 
 /* ---------------- SSR fetch & normalize ---------------- */
@@ -213,7 +205,6 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
   async () => {
     const endpoint =
       `${API_BASE_URL}/products/slug/${encodeURIComponent(slug.value)}` +
-      // 🟢 ADDED: related_versions to the include list
       `?include=images,table_price,description,reviews,categories,manufacturers,brands,meta_title,meta_description,discount,accessories,bundles,attributes,faq,videos,compatibility,related_versions`
 
     try {
@@ -244,7 +235,6 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
       const active    = Boolean(rawDisc?.active) && discType && discValue !== null && startOk && endOk
 
       const basePrice = toNum(data.price) ?? toNum(data.regular_price) ?? 0
-
       const faqRaw    = (data?.faq?.data ?? data?.faq) || []
       const videosRaw = (data?.videos?.data ?? data?.videos) || []
 
@@ -275,15 +265,14 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
         manufacturers: Array.isArray(data.manufacturers) ? data.manufacturers : [],
         brands: Array.isArray(data.brands) ? data.brands : [],
         sku: data.sku ?? null,
+        mpn: data.mpn ?? null,
         min_purchase_qty: Number(data.min_purchase_qty ?? 1),
         quantity: data.quantity ?? null,
-
         discount_type:  active ? discType : null,
         discount_value: active ? discValue : null,
         discount_start: startISO,
         discount_end:   endISO,
         discount_active: active,
-
         accessories: Array.isArray(data.accessories) ? data.accessories : [],
         bundles: Array.isArray(data.bundles) ? data.bundles : [],
         attributes: Array.isArray(data.attributes) ? data.attributes : [],
@@ -294,11 +283,8 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
         videos: Array.isArray(videosRaw)
           ? videosRaw.map((x: any) => ({ title: x.title ?? null, url: String(x.url ?? x.link ?? '') }))
           : [],
-        
-        /* 🟢 ADDED: Mapping the versions from response */
         related_versions: Array.isArray(data.related_versions) ? data.related_versions : []
       }
-
       return product
     } catch (err: any) {
       const status  = err?.response?.status ?? err?.status ?? 500
@@ -316,9 +302,6 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
   { server: true, default: () => null, watch: [() => slug.value] }
 )
 
-/**
- * ⬇️ CRITICAL: On SSR, rethrow the error so Nuxt sets the HTTP status
- */
 if (process.server && error.value) {
   const statusCode    = (error.value as any)?.statusCode ?? (error.value as any)?.status ?? 500
   const statusMessage = (error.value as any)?.statusMessage ?? (error.value as any)?.message ?? t('errors.generic','Error')
@@ -327,7 +310,6 @@ if (process.server && error.value) {
 
 const product = computed<Product | null>(() => ssr.value)
 
-/* hide/show logic */
 const hidePrice = computed(() => Boolean(product.value?.hide_price))
 const isPinCodeOffline = computed(() =>
   (product.value?.categories || []).some(c =>
@@ -339,27 +321,35 @@ const showQtyUI        = computed(() => !hidePrice.value && !isPinCodeOffline.va
 const showAddToCartUI  = computed(() => !hidePrice.value && !isPinCodeOffline.value)
 const hideCart         = computed(() => hidePrice.value || isPinCodeOffline.value)
 const showWishlistUI   = computed(() => showAddToCartUI.value)
-
-/* serial number */
 const requiresSerial = computed(() => Boolean(product.value?.requires_serial))
 const serial = ref('')
 const canAddToCart = computed(() => !requiresSerial.value || serial.value.trim().length > 0)
 
-/* breadcrumb + chips */
-const primaryCategory = computed(() => (product.value?.categories || [])[0])
+/* ---------------- OPTIMIZED SEO BREADCRUMB ---------------- */
 const breadcrumb = computed(() => {
   const items: { label: string; to?: string }[] = [{ label: t('breadcrumbs.home','Home'), to: '/' }]
-  const cat     = primaryCategory.value
-  const catLabel = (cat?.name || (cat as any)?.title || '') as string
-  if (catLabel) {
-    // 🟢 We use slugToPath which forces /products/ prefix, OR use a custom logic for category URLs if they differ
-    // For now, assuming you might want category pages to be /category/slug or similar. 
-    // If you want categories to also just be /slug, use slugToPath.
-    // If you want categories to be /category/slug, use a specific logic:
-    const catTo = cat?.slug ? `/category/${encodeURIComponent(cat.slug)}` : nameToPath(catLabel || '')
-    items.push({ label: catLabel, to: catTo })
+  
+  // 1. Primary Category (Crucial for SEO Hierarchy)
+  const cat = (product.value?.categories || [])[0]
+  if (cat) {
+    const label = (cat.name || (cat as any).title || '').trim()
+    if (label) {
+       // 🟢 1. Use raw slug with NO '/category/' prefix
+       // 🟢 2. NuxtLinkLocale in the template will add the '/fr' prefix visually
+       // 🟢 3. The useHead logic below will add '/fr' for Schema/SEO
+       items.push({ 
+         label, 
+         to: cat.slug ? `/${cat.slug}` : nameToPath(label) 
+       })
+    }
   }
-  items.push({ label: product.value?.short_title || product.value?.title || t('product.product','Product') })
+
+  // 2. Product Title (Current Page)
+  items.push({ 
+    label: product.value?.short_title || product.value?.title || t('product.product','Product'),
+    to: undefined // No link for the current page (SEO best practice)
+  })
+
   return items
 })
 
@@ -372,7 +362,6 @@ function makeLinks<T extends { slug?: string; name?: string; title?: string }>(
   for (const row of src || []) {
     const label = (row.name ?? (row as any)?.title ?? '').trim()
     if (!label) continue
-    // For filters, you might link to search page
     const to = row.slug ? `/${encodeURIComponent(row.slug)}` : nameToPath(label)
     const key = to.toLowerCase()
     if (seen.has(key)) continue
@@ -409,98 +398,58 @@ const rawFallback = computed(() => {
 })
 const unitPrice = computed(() => {
   if (!product.value) return 0
-
   if (useEuro.value) {
     const base = toNum(product.value!.euro_price) ?? 0
     const dtype = product.value!.discount_type
     const dval  = toNum(product.value!.discount_value)
-    const hasActive =
-      !!product.value!.discount_active &&
-      (dtype === 'fixed' || dtype === 'percent') &&
-      (dval ?? 0) > 0
-
+    const hasActive = !!product.value!.discount_active && (dtype === 'fixed' || dtype === 'percent') && (dval ?? 0) > 0
     if (!hasActive) return base
-
-    if (dtype === 'fixed') {
-      return Math.max(0, base - (dval as number))
-    }
-
-    if (dtype === 'percent') {
-      return Math.max(0, base * (1 - (dval as number) / 100))
-    }
-
+    if (dtype === 'fixed') return Math.max(0, base - (dval as number))
+    if (dtype === 'percent') return Math.max(0, base * (1 - (dval as number) / 100))
     return base
   }
-
   const base = computeUnitPrice(product.value as any, qty.value).unit
   let unit = base > 0 ? base : (rawFallback.value || 0)
-
   const noPromo = unitWithoutDiscount.value
   const dtype = product.value.discount_type
   const dval  = toNum(product.value.discount_value)
-  const hasActive =
-    !!product.value.discount_active &&
-    (dtype === 'fixed' || dtype === 'percent') &&
-    (dval ?? 0) > 0
-
+  const hasActive = !!product.value.discount_active && (dtype === 'fixed' || dtype === 'percent') && (dval ?? 0) > 0
   const helperMissedIt = unit >= noPromo - 1e-9
   if (hasActive && helperMissedIt) {
     if (dtype === 'fixed')   unit = Math.max(0, unit - (dval as number))
     if (dtype === 'percent') unit = Math.max(0, unit * (1 - (dval as number) / 100))
   }
-
   return unit
 })
-
 
 const unitWithoutDiscount = computed(() => {
   if (!product.value) return 0
   if (useEuro.value) return 0 
-  const forcedBase =
-    (typeof product.value.regular_price === 'number' && product.value.regular_price > 0)
-      ? product.value.regular_price
-      : Number(product.value.price || 0)
-
+  const forcedBase = (typeof product.value.regular_price === 'number' && product.value.regular_price > 0) ? product.value.regular_price : Number(product.value.price || 0)
   const p: any = {
     ...(product.value as any),
-    discount_type: null,
-    discount_value: null,
-    sale_price: null,
-    price: forcedBase,
-    table_price: Array.isArray(product.value.table_price)
-      ? product.value.table_price.map(r => ({ ...r, sale_price: null }))
-      : null,
+    discount_type: null, discount_value: null, sale_price: null, price: forcedBase,
+    table_price: Array.isArray(product.value.table_price) ? product.value.table_price.map(r => ({ ...r, sale_price: null })) : null,
   }
   return computeUnitPrice(p, qty.value).unit
 })
 
 const displayPrice = computed(() => {
   if (!product.value) return { current: 0, old: null as number | null }
-
   if (useEuro.value) {
     const base = toNum(product.value!.euro_price) ?? 0
     const dtype = product.value!.discount_type
     const dval  = toNum(product.value!.discount_value)
-    const hasActive =
-      !!product.value!.discount_active &&
-      (dtype === 'fixed' || dtype === 'percent') &&
-      (dval ?? 0) > 0
-
+    const hasActive = !!product.value!.discount_active && (dtype === 'fixed' || dtype === 'percent') && (dval ?? 0) > 0
     let current = base
     let old: number | null = null
-
     if (hasActive && base > 0) {
-      if (dtype === 'fixed') {
-        current = Math.max(0, base - (dval as number))
-      } else if (dtype === 'percent') {
-        current = Math.max(0, base * (1 - (dval as number) / 100))
-      }
+      if (dtype === 'fixed') current = Math.max(0, base - (dval as number))
+      else if (dtype === 'percent') current = Math.max(0, base * (1 - (dval as number) / 100))
       old = base
     }
-
     return { current, old }
   }
-
   const current = unitPrice.value
   const old = current < unitWithoutDiscount.value ? unitWithoutDiscount.value : null
   return { current, old }
@@ -535,21 +484,14 @@ const discountEndsIn = computed(() => {
 const adding = ref(false)
 const wishing = ref(false)
 const inWish = computed(() => product.value ? wishlist.isInWishlist(String(product.value.id)) : false)
-
-const useEuro = computed(() =>
-  !!product.value?.display_euro_price && toNum(product.value?.euro_price) != null
-)
+const useEuro = computed(() => !!product.value?.display_euro_price && toNum(product.value?.euro_price) != null)
 
 const formatDisplayMoney = (amount: number | null | undefined) =>
-  new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: useEuro.value ? 'EUR' : (currency.value || 'USD'),
-  }).format(Number(amount || 0))
+  new Intl.NumberFormat(undefined, { style: 'currency', currency: useEuro.value ? 'EUR' : (currency.value || 'USD') }).format(Number(amount || 0))
 
 async function onAddToCart() {
   if (!product.value) return
   if (hideCart.value) return
-
   if (requiresSerial.value && serial.value.trim() === '') {
     alerts.showAlert({
       type: 'error',
@@ -558,28 +500,20 @@ async function onAddToCart() {
     })
     return
   }
-
   const p = product.value
   const unit = unitPrice.value
-
-  const euroToSend = useEuro.value
-    ? unit 
-    : (toNum(p.euro_price) ?? null)
-
+  const euroToSend = useEuro.value ? unit : (toNum(p.euro_price) ?? null)
   await cart.add(p.id, qty.value, {
     title: p.title,
     image: p.image || p.images?.[0]?.src,
     sku: p.sku || undefined,
     slug: p.slug,
-
     price: unit,
     regular_price: toNum(p.regular_price),
     sale_price: toNum(p.sale_price),
     table_price: Array.isArray(p.table_price) ? p.table_price : null,
-
     euro_price: euroToSend,
     display_euro_price: p.display_euro_price,
-
     discount_type: p.discount_type ?? null,
     discount_value: toNum(p.discount_value),
     priceSnapshot: unit,
@@ -589,17 +523,12 @@ async function onAddToCart() {
 }
 
 async function onToggleWishlist() {
-  if (!product.value) return
-  if (!showWishlistUI.value) return
-
+  if (!product.value || !showWishlistUI.value) return
   try {
     wishing.value = true
     const p = product.value
     const { unit } = computeUnitPrice(p as any, Math.max(1, Number(qty.value || 1)))
-    const snapshotPrice = unit > 0
-      ? unit
-      : (toNum(p.sale_price) ?? toNum(p.price) ?? toNum(p.regular_price) ?? 0)
-
+    const snapshotPrice = unit > 0 ? unit : (toNum(p.sale_price) ?? toNum(p.price) ?? toNum(p.regular_price) ?? 0)
     await wishlist.toggle(p.id, {
       title: p.title,
       image: p.image || p.images?.[0]?.src,
@@ -612,9 +541,7 @@ async function onToggleWishlist() {
       discount_type: p.discount_type ?? null,
       discount_value: toNum(p.discount_value) ?? null,
     })
-  } finally {
-    wishing.value = false
-  }
+  } finally { wishing.value = false }
 }
 
 /* tabs */
@@ -625,69 +552,39 @@ const TAB_DEFS = [
   { key: 'videos',  k: 'tabs.videos',      fb: 'Videos' },
   { key: 'contact', k: 'tabs.contact',     fb: 'Contact' }
 ] as const
-
 type TabKey = typeof TAB_DEFS[number]['key']
-
-const tabs = computed(() =>
-  TAB_DEFS.map(d => ({ key: d.key, label: t(d.k, d.fb) }))
-)
-
+const tabs = computed(() => TAB_DEFS.map(d => ({ key: d.key, label: t(d.k, d.fb) })))
 const activeTab = ref<TabKey>('desc')
 function setTab(k: TabKey) { activeTab.value = k }
 
 // --- Canonical helpers ---
-const canonicalSlug = computed(
-  () => product.value?.canonical_slug || product.value?.slug || slug.value
-)
-
+const canonicalSlug = computed(() => product.value?.canonical_slug || product.value?.slug || slug.value)
 const canonicalPath = computed(() => {
   const want = String(canonicalSlug.value || '').trim()
-  
-  // 1. Define the raw path (without language)
-  const rawPath = want 
-    ? `/products/${encodeURIComponent(want)}` 
-    : route.path
-
-  // 2. Use localePath to automatically add '/tr', '/ar', etc., based on current language
-  // If the language is default (English), it will leave it as is.
+  const rawPath = want ? `/products/${encodeURIComponent(want)}` : route.path
   return localePath(rawPath)
 })
-
 const canonicalAbsUrl = computed(() => baseSiteUrl.value + canonicalPath.value)
 
 /* head/meta */
 useHead(() => {
   const p = product.value
-  const stripHtml = (html?: string | null) =>
-    (html || '').toString().replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
-
+  const stripHtml = (html?: string | null) => (html || '').toString().replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
   const title = p?.meta_title || (p?.title || '')
   const desc  = p?.meta_description || stripHtml(p?.description || '')
-
   const primary = primaryImageAbs.value || ''
-  const gallery = primary
-    ? [primary, ...((p?.images || []).slice(1).map(i => abs(i.src)))]
-    : []
-
-  const primaryW = p?.images?.[0]?.w || 1200
-  const primaryH = p?.images?.[0]?.h || 1200
+  const gallery = primary ? [primary, ...((p?.images || []).slice(1).map(i => abs(i.src)))] : []
 
   let aggregateRating: any = null
-  const reviewsLd =
-    Array.isArray(p?.reviews) && p!.reviews!.length
-      ? p!.reviews!
-          .filter(r => r && (r.content || Number.isFinite(Number(r.rating))))
-          .map(r => ({
+  const reviewsLd = Array.isArray(p?.reviews) && p!.reviews!.length
+      ? p!.reviews!.filter(r => r && (r.content || Number.isFinite(Number(r.rating)))).map(r => ({
             '@type': 'Review',
             author: r.author_name || 'Customer',
             reviewBody: r.content ? stripHtml(r.content) : undefined,
-            reviewRating: Number.isFinite(Number(r.rating))
-              ? { '@type': 'Rating', ratingValue: Number(r.rating) }
-              : undefined,
+            reviewRating: Number.isFinite(Number(r.rating)) ? { '@type': 'Rating', ratingValue: Number(r.rating) } : undefined,
             datePublished: r.created_at || undefined
           }))
       : undefined
-
   if (Array.isArray(p?.reviews) && p!.reviews!.length) {
     const rated = p!.reviews!.map(r => Number(r?.rating)).filter(n => Number.isFinite(n))
     if (rated.length) {
@@ -699,71 +596,47 @@ useHead(() => {
   const cur = currency.value || 'USD'
   const qtyNum = Number(p?.quantity ?? 0)
   const availability = qtyNum > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock'
+  const regularPrice = Number(p?.regular_price || p?.price || 0)
+  const effectivePrice = Number((typeof p?.sale_price === 'number' && p.sale_price > 0 ? p.sale_price : regularPrice) || 0)
+  const tp = p?.table_price || []
+  let offersSchema: any
 
-  const priceNumber = p
-    ? Number(
-        (typeof p.sale_price === 'number' && p.sale_price > 0
-          ? p.sale_price
-          : typeof p.price === 'number' && p.price > 0
-          ? p.price
-          : p.regular_price) || 0
-      )
-    : 0
-
-  const offers: any = p
-    ? {
-        '@type': 'Offer',
-        url: absUrl.value,
-        priceCurrency: cur,
-        price: Math.max(0, Number(priceNumber || 0)).toFixed(2),
-        availability,
-        sku: p.sku || undefined,
-        priceValidUntil: p?.discount_active && p?.discount_end ? p.discount_end : undefined
-      }
-    : undefined
-
-  const brandName =
-    (p?.brands && p.brands[0] && (p.brands[0].name || (p.brands[0] as any).title)) ||
-    (p?.manufacturers && p.manufacturers[0] && (p.manufacturers[0].title || p.manufacturers[0].name)) ||
-    undefined
-
-  const productLd: any = p && {
-    '@type': 'Product',
-    '@id': absUrl.value + '#product',
-    name: title,
-    description: desc,
-    image: gallery.length ? gallery : undefined, 
-    sku: p.sku || undefined,
-    brand: brandName ? { '@type': 'Brand', name: brandName } : undefined,
-    category:
-      (p?.categories && p.categories[0] && (p.categories[0].name || p.categories[0].title)) ||
-      undefined,
-    offers,
-    aggregateRating,
-    review: reviewsLd
+  if (tp.length > 0) {
+    const prices = tp.map(r => Number(r.sale_price || r.price)).filter(n => n > 0)
+    prices.push(effectivePrice)
+    const minPrice = Math.min(...prices)
+    const maxPrice = Math.max(...prices)
+    offersSchema = {
+      '@type': 'AggregateOffer', priceCurrency: cur, lowPrice: minPrice.toFixed(2), highPrice: maxPrice.toFixed(2), offerCount: tp.length, availability
+    }
+  } else {
+    offersSchema = {
+      '@type': 'Offer', url: absUrl.value, priceCurrency: cur, price: Math.max(0, effectivePrice).toFixed(2), availability, sku: p?.sku || undefined,
+      priceValidUntil: p?.discount_active && p?.discount_end ? p.discount_end : undefined
+    }
   }
 
-  const breadcrumbLd =
-    breadcrumb.value && breadcrumb.value.length
-      ? {
-          '@type': 'BreadcrumbList',
-          itemListElement: breadcrumb.value.map((b, i) => ({
-            '@type': 'ListItem',
-            position: i + 1,
-            name: b.label,
-            item: b.to ? (baseSiteUrl.value + b.to) : absUrl.value
-          }))
-        }
-      : undefined
+  const brandName = (p?.brands && p.brands[0] && (p.brands[0].name || (p.brands[0] as any).title)) || (p?.manufacturers && p.manufacturers[0] && (p.manufacturers[0].title || p.manufacturers[0].name)) || undefined
 
-  const faqs = Array.isArray(p?.faq)
-    ? p!.faq!.filter(f => f && (f.q || f.a)).map(f => ({
-        '@type': 'Question',
-        name: stripHtml(f.q || ''),
-        acceptedAnswer: { '@type': 'Answer', text: stripHtml(f.a || '') }
-      }))
-    : []
+  const productLd: any = p && {
+    '@type': 'Product', '@id': absUrl.value + '#product', name: title, description: desc, image: gallery.length ? gallery : undefined,
+    sku: p.sku || undefined, mpn: p.mpn || undefined, brand: brandName ? { '@type': 'Brand', name: brandName } : undefined,
+    category: (p?.categories && p.categories[0] && (p.categories[0].name || p.categories[0].title)) || undefined,
+    offers: offersSchema, aggregateRating, review: reviewsLd
+  }
 
+  // 🟢 CHANGE: Use localePath for Schema breadcrumbs
+  const breadcrumbLd = breadcrumb.value && breadcrumb.value.length ? {
+    '@type': 'BreadcrumbList',
+    itemListElement: breadcrumb.value.map((b, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: b.label,
+      item: b.to ? (baseSiteUrl.value + localePath(b.to)) : absUrl.value
+    }))
+  } : undefined
+
+  const faqs = Array.isArray(p?.faq) ? p!.faq!.filter(f => f && (f.q || f.a)).map(f => ({ '@type': 'Question', name: stripHtml(f.q || ''), acceptedAnswer: { '@type': 'Answer', text: stripHtml(f.a || '') } })) : []
   const faqLd = faqs.length ? { '@type': 'FAQPage', '@id': absUrl.value + '#faq', mainEntity: faqs } : undefined
   const graph = [productLd, breadcrumbLd, faqLd].filter(Boolean)
 
@@ -771,54 +644,35 @@ useHead(() => {
     title,
     meta: [
       { name: 'description', content: desc },
-
-      // Open Graph
       { property: 'og:type', content: 'product' },
       { property: 'og:title', content: title },
       { property: 'og:description', content: desc },
       ...(primary ? [{ property: 'og:image', content: primary }] : []),
-      ...(primary ? [{ property: 'og:image:width', content: String(primaryW) }] : []),
-      ...(primary ? [{ property: 'og:image:height', content: String(primaryH) }] : []),
       { property: 'og:url', content: absUrl.value },
-
-      // Twitter
       { name: 'twitter:card', content: 'summary_large_image' },
       { name: 'twitter:title', content: title },
       { name: 'twitter:description', content: desc },
       ...(primary ? [{ name: 'twitter:image', content: primary }] : []),
-
-      // Hints
       { name: 'robots', content: 'index,follow,max-image-preview:large' }
     ],
     link: [
       { rel: 'canonical', href: canonicalAbsUrl },
-      ...(primary ? [{ rel: 'preload', as: 'image', href: primary, fetchpriority: 'high' } as any] : [])
+      ...(primary ? [{
+          rel: 'preload',
+          as: 'image',
+          href: primary,
+          // Tells browser: "Download small image for small screens, big for big screens"
+          imagesrcset: `${primary}?w=400 400w, ${primary}?w=800 800w, ${primary} 1200w`,
+          imagesizes: '(max-width: 640px) 100vw, 50vw',
+          fetchpriority: 'high'
+      } as any] : [])
     ],
-    script: graph.length
-      ? [{
-          id: 'ld-json',
-          type: 'application/ld+json',
-          innerHTML: JSON.stringify({ '@context': 'https://schema.org', '@graph': graph })
-        }]
-      : []
+    script: graph.length ? [{ id: 'ld-json', type: 'application/ld+json', innerHTML: JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }) }] : []
   }
 })
 
 /* ---------------- Related products (lazy) ---------------- */
-type GridProduct = {
-  id: number | string
-  name: string
-  image: string
-  price: number
-  oldPrice?: number | null
-  slug?: string
-  href?: string
-  sku?: string | null
-  category?: string | null
-  hide_price?: boolean | number | null
-  display_euro_price?: boolean | number | null
-  euro_price?: number | null
-}
+type GridProduct = { id: number | string; name: string; image: string; price: number; oldPrice?: number | null; slug?: string; href?: string; sku?: string | null; category?: string | null; hide_price?: boolean | number | null; display_euro_price?: boolean | number | null; euro_price?: number | null }
 const relatedProducts   = ref<GridProduct[]>([])
 const relatedLoading    = ref(false)
 const relatedError      = ref<string | null>(null)
@@ -831,13 +685,8 @@ function normRelatedItem(x: any): GridProduct | null {
   const id   = x.id ?? x.product_id
   const name = String(x.title ?? x.name ?? '')
   const img  = x.image || x.images?.[0]?.src || ''
-  const price = Number(
-    (typeof x.sale_price === 'number' && x.sale_price > 0 ? x.sale_price
-      : typeof x.price === 'number' && x.price > 0 ? x.price
-      : x.regular_price) ?? 0
-  )
+  const price = Number((typeof x.sale_price === 'number' && x.sale_price > 0 ? x.sale_price : typeof x.price === 'number' && x.price > 0 ? x.price : x.regular_price) ?? 0)
   const old = (x.regular_price && Number(x.regular_price) > price) ? Number(x.regular_price) : null
-
   return { id, name, image: img, price, oldPrice: old, slug: x.slug, sku: x.sku, hide_price: x.hide_price ?? null }
 }
 
@@ -851,37 +700,22 @@ async function fetchRelatedOnce() {
     const catIds   = (product.value.categories || []).map(c => c.id).filter(Boolean)
     const manuIds  = (product.value.manufacturers || []).map(m => m.id).filter(Boolean)
     const brandIds = (product.value.brands || []).map(b => b.id).filter(Boolean)
-
-    if (!catIds.length && !manuIds.length && !brandIds.length) {
-      relatedProducts.value = []
-      return
-    }
-
+    if (!catIds.length && !manuIds.length && !brandIds.length) { relatedProducts.value = []; return }
     const body = { exclude_id: product.value.id, categories: catIds, manufacturers: manuIds, brands: brandIds, limit: 24 }
     const res = await $customApi(`${API_BASE_URL}/products/related`, { method: 'POST', body })
     const rows: any[] = (res?.data ?? res ?? []) as any[]
     relatedProducts.value = rows.map(normRelatedItem).filter(Boolean) as GridProduct[]
-  } catch (e: any) {
-    relatedError.value = t('product.failedToLoadRelated','Failed to load related products')
-  } finally {
-    relatedLoading.value = false
-  }
+  } catch (e: any) { relatedError.value = t('product.failedToLoadRelated','Failed to load related products') } finally { relatedLoading.value = false }
 }
 
 onMounted(() => {
   if (!process.client) return
-  relatedIO = new IntersectionObserver((entries) => {
-    if (entries.some(e => e.isIntersecting)) fetchRelatedOnce()
-  }, { rootMargin: '0px 0px 200px 0px' })
+  relatedIO = new IntersectionObserver((entries) => { if (entries.some(e => e.isIntersecting)) fetchRelatedOnce() }, { rootMargin: '0px 0px 200px 0px' })
   if (relatedSentinel.value) relatedIO.observe(relatedSentinel.value)
 })
-
 onUnmounted(() => { relatedIO?.disconnect(); relatedIO = null })
 watch(() => product.value?.id, () => {
-  relatedProducts.value = []
-  relatedError.value = null
-  relatedLoading.value = false
-  relatedTriggered.value = false
+  relatedProducts.value = []; relatedError.value = null; relatedLoading.value = false; relatedTriggered.value = false
   if (process.client && relatedSentinel.value && relatedIO) relatedIO.observe(relatedSentinel.value)
 })
 </script>
@@ -940,6 +774,10 @@ watch(() => product.value?.id, () => {
                 <span v-if="product.sku" class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700 border border-emerald-200">
                   <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> {{ t('labels.sku','SKU') }}: {{ product.sku }}
                 </span>
+
+                <h2 v-if="product.mpn" class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700 border border-blue-200">
+                  <span class="h-1.5 w-1.5 rounded-full bg-blue-500"></span> {{ t('labels.mpn','MPN') }}: {{ product.mpn }}
+                </h2>
               </div>
 
               <div class="mt-5 space-y-3 text-sm">
