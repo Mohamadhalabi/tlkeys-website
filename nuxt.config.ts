@@ -28,6 +28,7 @@ const OPENING_HOURS = [{ "@type": "OpeningHoursSpecification", "dayOfWeek": ["Mo
 
 // --- i18n (inline on module!) ---
 const i18nOptions = {
+  baseUrl: "https://www.tlkeys.com",
   locales: [
     { code: 'en', iso: 'en', dir: 'ltr', file: 'en.json', name: 'English' },
     { code: 'ar', iso: 'ar', dir: 'rtl', file: 'ar.json', name: 'العربية' },
