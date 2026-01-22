@@ -642,9 +642,15 @@ const canonicalSlug = computed(
 
 const canonicalPath = computed(() => {
   const want = String(canonicalSlug.value || '').trim()
-  if (!want) return route.path
-  // 🟢 Force /products/ into the canonical url as well
-  return `/products/${encodeURIComponent(want)}`
+  
+  // 1. Define the raw path (without language)
+  const rawPath = want 
+    ? `/products/${encodeURIComponent(want)}` 
+    : route.path
+
+  // 2. Use localePath to automatically add '/tr', '/ar', etc., based on current language
+  // If the language is default (English), it will leave it as is.
+  return localePath(rawPath)
 })
 
 const canonicalAbsUrl = computed(() => baseSiteUrl.value + canonicalPath.value)
