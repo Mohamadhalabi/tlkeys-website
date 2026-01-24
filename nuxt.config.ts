@@ -6,6 +6,9 @@ const siteName = 'tlkeys'
 const logoUrl = `${siteUrl}/images/logo/techno-lock-desktop-logo.webp`
 const searchTarget = `${siteUrl}/shop?q={search_term_string}`
 
+// Define API Base URL for Sitemap fetching
+const API_BASE_URL = process.env.API_BASE_URL || 'https://dev-srv.tlkeys.com'
+
 const SAME_AS = ["https://www.facebook.com/technolockkeystrade", "https://www.instagram.com/technolock", "https://www.youtube.com/@technolock", "https://www.tiktok.com/@technolockkeys"].filter(Boolean)
 
 const ADDRESS =
@@ -45,9 +48,7 @@ const i18nOptions = {
   baseUrl: siteUrl,
   seo: true,
   lazy: true,
-  // Must be RELATIVE to srcDir ("app")
   langDir: 'locales',
-  // Minimal file (don’t import messages here when using lazy+langDir)
   vueI18n: 'i18n.config.ts'
 }
 
@@ -60,13 +61,37 @@ export default defineNuxtConfig({
 
   modules: [
     '@nuxtjs/tailwindcss',
-    ['@nuxtjs/i18n', i18nOptions], // ← single source of truth
+    ['@nuxtjs/i18n', i18nOptions],
     '@nuxt/image',
     '@pinia/nuxt',
     'nuxt-delay-hydration',
     'nuxt-vitalizer',
-    '@vite-pwa/nuxt'
+    '@vite-pwa/nuxt',
+    '@nuxtjs/sitemap'
   ],
+  sitemap: {
+    // 1. Logs
+    debug: true,
+
+    // 2. I18n
+    autoI18n: true,
+    sitemaps: true,
+
+    // 3. POINT TO YOUR NEW LOCAL PROXY
+    // We just give it the string path. The module handles the rest.
+    sources: [
+      '/api/sitemap-routes'
+    ],
+
+    defaults: {
+      changefreq: 'daily',
+      priority: 0.8,
+      lastmod: new Date().toISOString(),
+    },
+
+    exclude: ['/checkout/**', '/account/**', '/cart', 'complete-order', '/complete-custom-order', '/custom-order', '/3e00ce51bde3addf1fa11b7', '/6b750ddca9d27708692942d7d85ee5a16b3fc2e6', '435d7eb240c0e460cbb0281d1956b68c0ca99c33', '']
+  },
+  // --- SITEMAP CONFIGURATION END ---
 
   css: [
     fileURLToPath(new URL('./app/assets/css/main.css', import.meta.url)),
@@ -182,23 +207,24 @@ export default defineNuxtConfig({
 
   site: { url: siteUrl },
 
-  // image: {
-  //   domains: ['www.tlkeys.com', 'dev-srv.tlkeys.com'],
-  //   format: ['avif', 'webp'],
-  //   quality: 70
-  // },
-
   routeRules: {
     '/products/**': { headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
     '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
     '/fonts/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
     '/_ipx/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    '/images/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } }
+    '/images/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    // Ensure sitemap is not cached too aggressively if it changes often
+    // '/sitemap.xml': { headers: { 'cache-control': 'public, max-age=3600, s-maxage=3600' } }
   },
 
   nitro: {
     compressPublicAssets: true,
-    prerender: { crawlLinks: false, routes: [] }
+    prerender: {
+      crawlLinks: false,
+      // ❌ CHANGE THIS LINE BELOW ❌
+      // routes: ['/sitemap.xml'] 
+      routes: [] // Keep it empty or remove the sitemap entry
+    }
   },
 
   delayHydration: { mode: 'mount' },
