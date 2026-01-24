@@ -7,29 +7,13 @@ const logoUrl = `${siteUrl}/images/logo/techno-lock-desktop-logo.webp`
 const searchTarget = `${siteUrl}/shop?q={search_term_string}`
 
 // Define API Base URL for Sitemap fetching
-const API_BASE_URL = process.env.API_BASE_URL || 'https://dev-srv.tlkeys.com'
+const API_BASE_URL = process.env.API_BASE_URL || 'https://dev-srv.tlkeys.com/api'
 
 const SAME_AS = ["https://www.facebook.com/technolockkeystrade", "https://www.instagram.com/technolock", "https://www.youtube.com/@technolock", "https://www.tiktok.com/@technolockkeys"].filter(Boolean)
 
-const ADDRESS =
-  process.env.BUSINESS_STREET ||
-    process.env.BUSINESS_LOCALITY ||
-    process.env.BUSINESS_REGION ||
-    process.env.BUSINESS_POSTCODE ||
-    process.env.BUSINESS_COUNTRY
-    ? {
-      '@type': 'PostalAddress',
-      streetAddress: process.env.BUSINESS_STREET,
-      addressLocality: process.env.BUSINESS_LOCALITY,
-      addressRegion: process.env.BUSINESS_REGION,
-      postalCode: process.env.BUSINESS_POSTCODE,
-      addressCountry: process.env.BUSINESS_COUNTRY || 'AE'
-    }
-    : undefined
-
 const OPENING_HOURS = [{ "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], "opens": "09:00", "closes": "18:00" },]
 
-// --- i18n (inline on module!) ---
+// --- i18n ---
 const i18nOptions = {
   locales: [
     { code: 'en', iso: 'en', dir: 'ltr', file: 'en.json', name: 'English' },
@@ -69,16 +53,14 @@ export default defineNuxtConfig({
     '@vite-pwa/nuxt',
     '@nuxtjs/sitemap'
   ],
-  sitemap: {
-    // 1. Logs
-    debug: true,
 
-    // 2. I18n
+  // --- SITEMAP CONFIGURATION ---
+  sitemap: {
+    debug: true,
     autoI18n: true,
     sitemaps: true,
 
-    // 3. POINT TO YOUR NEW LOCAL PROXY
-    // We just give it the string path. The module handles the rest.
+    // Point to the local proxy
     sources: [
       '/api/sitemap-routes'
     ],
@@ -89,9 +71,31 @@ export default defineNuxtConfig({
       lastmod: new Date().toISOString(),
     },
 
-    exclude: ['/checkout/**', '/account/**', '/cart', 'complete-order', '/complete-custom-order', '/custom-order', '/3e00ce51bde3addf1fa11b7', '/6b750ddca9d27708692942d7d85ee5a16b3fc2e6', '435d7eb240c0e460cbb0281d1956b68c0ca99c33', '']
+    // 👇 UPDATED EXCLUSION LIST (Matches ALL languages) 👇
+    exclude: [
+      // Standard matches
+      '/checkout/**',
+      '/account/**',
+      '/cart',
+      '/complete-order',
+      '/complete-custom-order',
+      '/custom-order',
+      '/3e00ce51bde3addf1fa11b7',
+      '/6b750ddca9d27708692942d7d85ee5a16b3fc2e6',
+      '/435d7eb240c0e460cbb0281d1956b68c0ca99c33',
+
+      // 🌍 I18n Wildcard matches (Matches /tr/checkout, /ar/account, etc.)
+      '/**/checkout/**',
+      '/**/account/**',
+      '/**/cart',
+      '/**/complete-order',
+      '/**/complete-custom-order',
+      '/**/custom-order',
+      '/**/3e00ce51bde3addf1fa11b7',
+      '/**/6b750ddca9d27708692942d7d85ee5a16b3fc2e6',
+      '/**/435d7eb240c0e460cbb0281d1956b68c0ca99c33'
+    ]
   },
-  // --- SITEMAP CONFIGURATION END ---
 
   css: [
     fileURLToPath(new URL('./app/assets/css/main.css', import.meta.url)),
@@ -213,17 +217,13 @@ export default defineNuxtConfig({
     '/fonts/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
     '/_ipx/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
     '/images/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    // Ensure sitemap is not cached too aggressively if it changes often
-    // '/sitemap.xml': { headers: { 'cache-control': 'public, max-age=3600, s-maxage=3600' } }
   },
 
   nitro: {
     compressPublicAssets: true,
     prerender: {
       crawlLinks: false,
-      // ❌ CHANGE THIS LINE BELOW ❌
-      // routes: ['/sitemap.xml'] 
-      routes: [] // Keep it empty or remove the sitemap entry
+      routes: []
     }
   },
 
@@ -239,16 +239,22 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-09-22',
   devtools: { enabled: false },
 
+  // 👇 IMPORTANT: THIS MAPS YOUR .ENV TO NUXT CONFIG 👇
   runtimeConfig: {
+    // Private keys (Server side only) - Must be here to work in production!
+    apiKey: process.env.API_KEY,
+    secretKey: process.env.SECRET_KEY,
+    apiBaseUrl: process.env.API_BASE_URL,
+
+    // Public keys (Client side)
     public: {
       siteName: 'Techno Lock Keys',
       siteUrl,
       defaultOgImage: `${siteUrl}/images/og-image.jpg`,
       defaultDescription: 'Automotive locksmith tools, remotes, shells, and key programming devices.',
       gtmId: process.env.NUXT_PUBLIC_GTM_ID || 'GTM-PWSSMVC7',
-
-      SECRET_KEY: process.env.SECRET_KEY,
-      API_KEY: process.env.API_KEY,
+      // API Keys should generally NOT be public, but if your app logic needs them, they are here.
+      // If sitemap is the only thing using them, remove them from 'public' and keep them in private above.
       API_BASE_URL: process.env.API_BASE_URL,
       PUBLIC_PATH: process.env.PUBLIC_PATH,
       PUBLIC_PATH_WITHOUT_SLASH: process.env.PUBLIC_PATH_WITHOUT_SLASH,

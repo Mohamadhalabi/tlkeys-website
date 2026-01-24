@@ -1,10 +1,10 @@
 // server/api/sitemap-routes.ts
 
 export default defineEventHandler(async (event) => {
-    // 1. Load the Secure Configuration
+    // 1. Load the Secure Configuration from nuxt.config.ts
     const config = useRuntimeConfig();
 
-    // 2. Get the Base URL (fallback to hardcoded if env missing)
+    // 2. Get the Base URL (using config value)
     const baseUrl = config.apiBaseUrl || 'https://dev-srv.tlkeys.com/api';
     const targetUrl = `${baseUrl}/sitemap-data`;
 
@@ -22,6 +22,7 @@ export default defineEventHandler(async (event) => {
             }
         });
 
+        // Safety check
         if (!Array.isArray(data)) {
             console.error('❌ [Proxy] Error: API returned valid JSON but not an array.');
             return [];
