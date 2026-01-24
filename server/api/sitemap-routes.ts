@@ -1,35 +1,58 @@
 // server/api/sitemap-routes.ts
 
 export default defineEventHandler(async (event) => {
-    // 1. Load the Secure Configuration from nuxt.config.ts
     const config = useRuntimeConfig();
-
-    // 2. Get the Base URL (using config value)
     const baseUrl = config.apiBaseUrl || 'https://dev-srv.tlkeys.com/api';
     const targetUrl = `${baseUrl}/sitemap-data`;
 
-    console.log(`🔌 [Proxy] Fetching sitemap from: ${targetUrl}`);
+    // 1. Define your extra languages (Exclude 'en' because it's default)
+    const extraLocales = ['ar', 'es', 'fr', 'ru', 'de', 'tr', 'pt', 'it'];
+
+    console.log(`🔌 [Proxy] Fetching English sitemap from: ${targetUrl}`);
 
     try {
-        const data = await $fetch(targetUrl, {
+        const englishData = await $fetch(targetUrl, {
             responseType: 'json',
             timeout: 25000,
             headers: {
                 'Accept': 'application/json',
-                // 3. Use the Secure Keys from Config
                 'api-key': config.apiKey,
                 'secret-key': config.secretKey
             }
         });
 
-        // Safety check
-        if (!Array.isArray(data)) {
-            console.error('❌ [Proxy] Error: API returned valid JSON but not an array.');
+        if (!Array.isArray(englishData)) {
+            console.error('❌ [Proxy] Error: API returned invalid data.');
             return [];
         }
 
-        console.log(`✅ [Proxy] Success! Retrieved ${data.length} URLs.`);
-        return data;
+        console.log(`✅ [Proxy] Received ${englishData.length} English URLs. Generating other languages...`);
+
+        // 2. CREATE THE MASTER LIST
+        // We start with the English list, then loop and add the others.
+        let finalUrls = [...englishData];
+
+        englishData.forEach(item => {
+            // Check if item has a valid 'loc' (URL)
+            if (item.loc) {
+                // For each extra language, create a new entry
+                extraLocales.forEach(lang => {
+                    // Create a copy of the item
+                    const newItem = { ...item };
+
+                    // Add the language prefix (e.g., "/products/key" -> "/tr/products/key")
+                    // Note: Ensure we handle the slash correctly
+                    const originalLoc = item.loc.startsWith('/') ? item.loc : `/${item.loc}`;
+                    newItem.loc = `/${lang}${originalLoc}`;
+
+                    // Add to the final list
+                    finalUrls.push(newItem);
+                });
+            }
+        });
+
+        console.log(`🚀 [Proxy] DONE! Sending ${finalUrls.length} total URLs to Nuxt.`);
+        return finalUrls;
 
     } catch (err) {
         console.error('❌ [Proxy] Failed to fetch sitemap:', err);
