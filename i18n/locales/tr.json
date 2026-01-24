@@ -129,6 +129,8 @@
   "downloads": "İndirilenler",
   "pinCodes": "PIN Kodları",
   "checkout": {
+    "declaredValue": "Beyan Edilen Değer",
+    "declaredValueHelp": "Gönderim için beyan edilen değer.",
     "orderPreferences": "Sipariş Tercihleri",
     "orderNote": "Sipariş Notu",
     "enterNote": "Özel talimatlar...",

@@ -129,6 +129,8 @@
   "downloads": "التنزيلات",
   "pinCodes": "رمز PIN",
   "checkout": {
+    "declaredValue": "القيمة المصرح بها",
+    "declaredValueHelp": "القيمة المصرح بها لأغراض الشحن.",
     "orderPreferences": "تفضيلات الطلب",
     "orderNote": "ملاحظة الطلب",
     "enterNote": "أي تعليمات خاصة...",

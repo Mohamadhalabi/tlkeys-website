@@ -129,6 +129,8 @@
   "downloads": "Загрузки",
   "pinCodes": "ПИН-коды",
   "checkout": {
+    "declaredValue": "Объявленная стоимость",
+    "declaredValueHelp": "Объявленная стоимость для доставки.",
     "orderPreferences": "Параметры заказа",
     "orderNote": "Примечание к заказу",
     "enterNote": "Особые указания...",

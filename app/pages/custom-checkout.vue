@@ -90,6 +90,8 @@ const postalCode = ref('')
 const phone = ref('')
 const paymentMethod = ref<PayMethod>('card')
 
+const shipmentValue = ref<number>(0)
+
 /* placing state */
 const placingOrder = ref(false)
 
@@ -325,11 +327,16 @@ const feeRate = computed(() => (paymentMethod.value === 'card' || paymentMethod.
 const paymentFee = computed(() => +(subtotal.value * feeRate.value).toFixed(2))
 const grandTotal = computed(() => +(subtotal.value + paymentFee.value).toFixed(2))
 
-// --- FIX: THIS IS THE FUNCTION THAT WAS MISSING ---
+// --- WATCH SUBTOTAL FOR SHIPMENT VALUE DEFAULT ---
+watch(subtotal, (val) => {
+  // Update shipment value to match subtotal as default behavior
+  // You can remove this watch if you want the user's manual entry to persist across quantity changes
+  shipmentValue.value = val
+}, { immediate: true })
+
 function markInvalid(v: string | number | '') {
   return submitAttempted.value && (!v || String(v).trim() === '')
 }
-// -------------------------------------------------
 
 async function handlePlaceOrder() {
   submitAttempted.value = true
@@ -376,6 +383,8 @@ async function handlePlaceOrder() {
       subtotal: subtotal.value,
       total: grandTotal.value
     },
+    // --- NEW: Pass the shipment value ---
+    shipment_value: Number(shipmentValue.value),
     payment_method: backendPaymentMethod,
     serial: serialFromQuery || null
   }
@@ -575,6 +584,22 @@ onMounted(async () => {
                 <div v-else-if="!isFreeShipping && selectedCountryId && selectedCountryId !== 231 && (!city || !postalCode)" class="text-xs text-amber-600 p-2 bg-amber-50 rounded">
                    {{ t('checkout.enterAddressForShipping') || 'Please enter City and Postal Code to see shipping rates.' }}
                 </div>
+              </div>
+
+              <div class="mt-4">
+                <label class="text-sm text-gray-600">{{ t('checkout.shipmentValue') }}</label>
+                <div class="relative mt-1">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    v-model.number="shipmentValue"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2"
+                    :placeholder="t('checkout.declaredValue')" 
+                  />
+                  <span class="absolute right-3 top-2 text-gray-400 text-sm">USD</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">{{ t('checkout.declaredValueHelp') }}</p>
               </div>
 
               <div class="mt-4">

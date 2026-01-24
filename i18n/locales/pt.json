@@ -129,6 +129,8 @@
   "downloads": "Transferências",
   "pinCodes": "Códigos PIN",
   "checkout": {
+    "declaredValue": "Valor Declarado",
+    "declaredValueHelp": "Valor declarado para envio.",
     "orderPreferences": "Preferências do pedido",
     "orderNote": "Nota do pedido",
     "enterNote": "Instruções especiais...",
