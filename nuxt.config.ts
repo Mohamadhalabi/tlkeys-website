@@ -3,6 +3,13 @@ import { fileURLToPath } from 'url'
 
 const siteUrl = (process.env.SITE_URL || 'https://www.tlkeys.com').replace(/\/+$/, '')
 const siteName = 'tlkeys'
+// 👇 THIS LINE WAS MISSING, I ADDED IT BACK 👇
+const logoUrl = `${siteUrl}/images/logo/techno-lock-desktop-logo.webp`
+const searchTarget = `${siteUrl}/shop?q={search_term_string}`
+
+const OPENING_HOURS = [{ "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], "opens": "09:00", "closes": "18:00" },]
+
+const SAME_AS = ["https://www.facebook.com/technolockkeystrade", "https://www.instagram.com/technolock", "https://www.youtube.com/@technolock", "https://www.tiktok.com/@technolockkeys"].filter(Boolean)
 
 // --- i18n ---
 const i18nOptions = {
@@ -26,11 +33,6 @@ const i18nOptions = {
   langDir: 'locales',
   vueI18n: 'i18n.config.ts'
 }
-
-const OPENING_HOURS = [{ "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], "opens": "09:00", "closes": "18:00" },]
-
-const SAME_AS = ["https://www.facebook.com/technolockkeystrade", "https://www.instagram.com/technolock", "https://www.youtube.com/@technolock", "https://www.tiktok.com/@technolockkeys"].filter(Boolean)
-
 
 export default defineNuxtConfig({
   devServer: { host: '127.0.0.1', port: 4000 },
@@ -95,7 +97,6 @@ export default defineNuxtConfig({
     apiBaseUrl: process.env.API_BASE_URL,
 
     // 🔓 PUBLIC KEYS (Used by Browser / Search Bar)
-    // We PUT THEM BACK here so your frontend stops crashing
     public: {
       siteName: 'Techno Lock Keys',
       siteUrl,
@@ -190,7 +191,7 @@ export default defineNuxtConfig({
             inLanguage: ['en', 'ar', 'es', 'fr', 'ru', 'de', 'pt', 'it', 'tr'],
             potentialAction: {
               '@type': 'SearchAction',
-              target: `${siteUrl}/shop?q={search_term_string}`,
+              target: searchTarget,
               'query-input': 'required name=search_term_string'
             }
           })
