@@ -57,17 +57,6 @@ const mainSrc = computed(() => {
   return activeAbs
 })
 
-/* (kept for potential future use) */
-const heroResolved = computed(() => {
-  const hero = props.images?.[0]
-  if (!hero) return null
-  return $img.getSizes(hero.src, {
-    width: mainW.value,
-    sizes: sizesAttrMain.value,
-    modifiers: { fit: 'inside', format: 'avif,webp', quality: 70 }
-  })
-})
-
 /* Preload EXACT hero URL (canonical) for LCP */
 useHead(() => {
   const href = (props.heroCanonical && props.heroCanonical.trim()) || ''
@@ -222,7 +211,6 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
 
 <template>
   <div class="space-y-4">
-    <!-- Main image -->
     <div
       ref="cardEl"
       class="group relative mx-auto cursor-zoom-in overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
@@ -235,7 +223,6 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
         </span>
       </div>
 
-      <!-- AFTER -->
       <NuxtImg
         :src="mainSrc"
         :alt="heroLabel"
@@ -247,10 +234,10 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
         fit="inside"
         quality="70"
         loading="eager"
-        :fetchpriority="'high'"
-        class="h-full w-full select-none object-contain"
+        decoding="async"
+        :fetchpriority="activeIndex === 0 ? 'high' : 'auto'"
+        class="h-full w-full select-none object-contain transition-opacity duration-200"
       />
-
 
       <div class="absolute left-3 top-3 flex flex-col gap-1">
         <span
@@ -287,7 +274,6 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
       >›</button>
     </div>
 
-    <!-- Thumbnails -->
     <div class="relative mx-auto" :style="thumbsStyle">
       <button
         v-if="canThumbPrev"
@@ -319,6 +305,7 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
               format="avif,webp"
               quality="60"
               loading="lazy"
+              decoding="async"
               class="h-20 w-20 rounded-xl bg-white object-contain"
             />
           </button>
@@ -333,7 +320,6 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
       >›</button>
     </div>
 
-    <!-- LIGHTBOX -->
     <teleport to="body">
       <div
         v-if="lightbox"
@@ -358,6 +344,7 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
             quality="75"
             class="h-[90vh] w-[95vw] select-none object-contain"
             loading="lazy"
+            decoding="async"
           />
         </div>
 

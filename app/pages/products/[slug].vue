@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useI18n, useHead, useRoute, useRuntimeConfig, useNuxtApp, createError, navigateTo } from '#imports'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, markRaw } from 'vue'
+import { useI18n, useHead, useRoute, useRuntimeConfig, useNuxtApp, createError, navigateTo, useAsyncData, useLocalePath } from '#imports'
 import { computeUnitPrice } from '~/utils/pricing'
 
 /* composables */
@@ -8,7 +8,6 @@ import { useCurrency } from '~/composables/useCurrency'
 import { useCart } from '~/composables/useCart'
 import { useWishlist } from '~/composables/useWishlist'
 import { useAlertStore } from '~/stores/alert'
-import { useLocalePath } from '#imports'
 
 /* components */
 import ProductTabDescription from '~/components/product/tabs/ProductTabDescription.vue'
@@ -99,8 +98,8 @@ const localePath = useLocalePath()
 const runtime = useRuntimeConfig()
 const API_BASE_URL = runtime.public.API_BASE_URL as string
 const PUBLIC_BASE = (runtime.public.SITE_URL as string) || 'https://www.tlkeys.com'
-const baseSiteUrl = computed(() => PUBLIC_BASE.replace(/\/+$/, '')) // no trailing slash
-const absUrl = computed(() => baseSiteUrl.value + route.path)       // clean path
+const baseSiteUrl = computed(() => PUBLIC_BASE.replace(/\/+$/, ''))
+const absUrl = computed(() => baseSiteUrl.value + route.path)
 
 const { $customApi } = useNuxtApp()
 
@@ -153,15 +152,28 @@ async function onBuyNow() {
     })
     return
   }
-  const p = product.value
-  const query: Record<string, string> = {
-    mode: 'buy-now',
-    pid: String(p.id),
-    pslug: String(p.slug || ''),
-    qty: String(Math.max(1, Number(qty.value || 1))),
+
+  /* --- INP FIX START --- */
+  buying.value = true
+  await nextTick()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  /* --- INP FIX END --- */
+
+  try {
+    const p = product.value
+    const query: Record<string, string> = {
+      mode: 'buy-now',
+      pid: String(p.id),
+      pslug: String(p.slug || ''),
+      qty: String(Math.max(1, Number(qty.value || 1))),
+    }
+    if (requiresSerial.value) query.serial = serial.value.trim()
+    await navigateTo({ path: localePath('/custom-checkout'), query })
+  } catch (e) {
+    console.error(e)
+  } finally {
+    buying.value = false
   }
-  if (requiresSerial.value) query.serial = serial.value.trim()
-  await navigateTo({ path: localePath('/custom-checkout'), query })
 }
 
 /* ---------------- URL / PATH HELPERS ---------------- */
@@ -238,6 +250,10 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
       const faqRaw    = (data?.faq?.data ?? data?.faq) || []
       const videosRaw = (data?.videos?.data ?? data?.videos) || []
 
+      // PERFORMANCE: markRaw for heavy static lists to avoid deep reactivity overhead
+      const compatibilityList = Array.isArray(data.compatibility) ? data.compatibility : []
+      const attributesList = Array.isArray(data.attributes) ? data.attributes : []
+      
       const product: Product = {
         id: data.id,
         slug: data.slug,
@@ -275,8 +291,10 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
         discount_active: active,
         accessories: Array.isArray(data.accessories) ? data.accessories : [],
         bundles: Array.isArray(data.bundles) ? data.bundles : [],
-        attributes: Array.isArray(data.attributes) ? data.attributes : [],
-        compatibility: Array.isArray(data.compatibility) ? data.compatibility : [],
+        
+        attributes: markRaw(attributesList),     // Shallow Reactivity Fix
+        compatibility: markRaw(compatibilityList), // Shallow Reactivity Fix
+        
         faq: Array.isArray(faqRaw)
           ? faqRaw.map((x: any) => ({ q: String(x.q ?? x.question ?? ''), a: String(x.a ?? x.answer ?? '') }))
           : [],
@@ -329,14 +347,10 @@ const canAddToCart = computed(() => !requiresSerial.value || serial.value.trim()
 const breadcrumb = computed(() => {
   const items: { label: string; to?: string }[] = [{ label: t('breadcrumbs.home','Home'), to: '/' }]
   
-  // 1. Primary Category (Crucial for SEO Hierarchy)
   const cat = (product.value?.categories || [])[0]
   if (cat) {
     const label = (cat.name || (cat as any).title || '').trim()
     if (label) {
-       // 🟢 1. Use raw slug with NO '/category/' prefix
-       // 🟢 2. NuxtLinkLocale in the template will add the '/fr' prefix visually
-       // 🟢 3. The useHead logic below will add '/fr' for Schema/SEO
        items.push({ 
          label, 
          to: cat.slug ? `/${cat.slug}` : nameToPath(label) 
@@ -344,10 +358,9 @@ const breadcrumb = computed(() => {
     }
   }
 
-  // 2. Product Title (Current Page)
   items.push({ 
     label: product.value?.short_title || product.value?.title || t('product.product','Product'),
-    to: undefined // No link for the current page (SEO best practice)
+    to: undefined 
   })
 
   return items
@@ -463,22 +476,6 @@ const hasTablePrice     = computed(() => Array.isArray(product.value?.table_pric
 let timer: any = null
 onMounted(() => { timer = setInterval(() => (now.value = Date.now()), 1000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
-const discountEndsIn = computed(() => {
-  const end = product.value?.discount_active && product.value?.discount_end
-    ? Date.parse(product.value.discount_end)
-    : NaN
-  if (!Number.isFinite(end)) return null
-  const diff = end - now.value
-  if (diff <= 0) return null
-  const s = Math.floor(diff / 1000)
-  const days = Math.floor(s / 86400)
-  const hours = Math.floor((s % 86400) / 3600)
-  const mins = Math.floor((s % 3600) / 60)
-  const secs = s % 60
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return days > 0 ? `${days}d ${pad(hours)}:${pad(mins)}:${pad(secs)}`
-                  : `${pad(hours)}:${pad(mins)}:${pad(secs)}`
-})
 
 /* actions */
 const adding = ref(false)
@@ -500,26 +497,40 @@ async function onAddToCart() {
     })
     return
   }
-  const p = product.value
-  const unit = unitPrice.value
-  const euroToSend = useEuro.value ? unit : (toNum(p.euro_price) ?? null)
-  await cart.add(p.id, qty.value, {
-    title: p.title,
-    image: p.image || p.images?.[0]?.src,
-    sku: p.sku || undefined,
-    slug: p.slug,
-    price: unit,
-    regular_price: toNum(p.regular_price),
-    sale_price: toNum(p.sale_price),
-    table_price: Array.isArray(p.table_price) ? p.table_price : null,
-    euro_price: euroToSend,
-    display_euro_price: p.display_euro_price,
-    discount_type: p.discount_type ?? null,
-    discount_value: toNum(p.discount_value),
-    priceSnapshot: unit,
-    stock: typeof p.quantity === 'number' ? p.quantity : null,
-    serial_number: requiresSerial.value ? [serial.value.trim()] : null,
-  })
+
+  /* --- INP FIX START --- */
+  adding.value = true
+  await nextTick() 
+  await new Promise(resolve => setTimeout(resolve, 0))
+  /* --- INP FIX END --- */
+
+  try {
+    const p = product.value
+    const unit = unitPrice.value
+    const euroToSend = useEuro.value ? unit : (toNum(p.euro_price) ?? null)
+    
+    await cart.add(p.id, qty.value, {
+      title: p.title,
+      image: p.image || p.images?.[0]?.src,
+      sku: p.sku || undefined,
+      slug: p.slug,
+      price: unit,
+      regular_price: toNum(p.regular_price),
+      sale_price: toNum(p.sale_price),
+      table_price: Array.isArray(p.table_price) ? p.table_price : null,
+      euro_price: euroToSend,
+      display_euro_price: p.display_euro_price,
+      discount_type: p.discount_type ?? null,
+      discount_value: toNum(p.discount_value),
+      priceSnapshot: unit,
+      stock: typeof p.quantity === 'number' ? p.quantity : null,
+      serial_number: requiresSerial.value ? [serial.value.trim()] : null,
+    })
+  } catch (e) {
+    console.error(e)
+  } finally {
+    adding.value = false
+  }
 }
 
 async function onToggleWishlist() {
@@ -625,7 +636,6 @@ useHead(() => {
     offers: offersSchema, aggregateRating, review: reviewsLd
   }
 
-  // 🟢 CHANGE: Use localePath for Schema breadcrumbs
   const breadcrumbLd = breadcrumb.value && breadcrumb.value.length ? {
     '@type': 'BreadcrumbList',
     itemListElement: breadcrumb.value.map((b, i) => ({
@@ -661,7 +671,6 @@ useHead(() => {
           rel: 'preload',
           as: 'image',
           href: primary,
-          // Tells browser: "Download small image for small screens, big for big screens"
           imagesrcset: `${primary}?w=400 400w, ${primary}?w=800 800w, ${primary} 1200w`,
           imagesizes: '(max-width: 640px) 100vw, 50vw',
           fetchpriority: 'high'
@@ -942,8 +951,6 @@ watch(() => product.value?.id, () => {
                       <span v-if="!adding">{{ _t('product.addToCart','Add to Cart') }}</span>
                       <span v-else>{{ _t('product.adding','Adding…') }}</span>
                     </button>
-
-
 
                     <button
                       v-if="showWishlistUI"
