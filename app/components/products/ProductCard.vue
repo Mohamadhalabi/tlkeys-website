@@ -42,19 +42,18 @@ const props = withDefaults(defineProps<{
   showAdd: true
 })
 
-/* --- Composables --- */
+/* --- Composables & Config --- */
 const { t: _t } = (useI18n?.() as any) || { t: (s:string)=>s }
 const cart = useCart()
 const { formatMoney } = useCurrency()
 const runtime = useRuntimeConfig()
 const WHATSAPP_NUMBER = (runtime.public.WHATSAPP_NUMBER as string) || '971504429045'
 
+/* --- State --- */
 const qty = ref(1)
 const serial = ref('')
 const cardEl = ref<HTMLElement | null>(null)
 const offAnim = ref(0)
-// isHovered is no longer needed for dots, but might be used for other effects.
-// We keep it for consistency if you add other hover effects later.
 const isHovered = ref(false) 
 const activeImageIndex = ref(0)
 const imageContainerRef = ref<HTMLElement | null>(null)
@@ -68,19 +67,24 @@ const getFilename = (url: string) => {
   } catch (e) { return '' }
 }
 
-/* --- Gallery Logic --- */
+/* --- Gallery Logic (Smart Dedupe) --- */
 const imageList = computed(() => {
   const mainImg = props.product.image || ''
+  // Always start with main image
   const imgs = [mainImg]
 
   if (props.product.gallery && Array.isArray(props.product.gallery) && props.product.gallery.length > 0) {
     const mainName = getFilename(mainImg)
+    
+    // Filter out duplicates based on filename (handles -min vs full differences)
     const unique = props.product.gallery.filter(g => {
       if (!g) return false
       const gName = getFilename(g)
       if (gName === mainName) return false 
+      
       const cleanMain = mainName.replace('-min', '').replace('-primary', '')
       const cleanG = gName.replace('-min', '').replace('-primary', '')
+      
       return cleanMain !== cleanG
     })
     imgs.push(...unique)
@@ -93,6 +97,7 @@ const currentImage = computed(() => {
   return imageList.value[idx]
 })
 
+/* --- Mouse Events for Gallery Scrubbing --- */
 function onMouseMove(e: MouseEvent) {
   if (!imageContainerRef.value || imageList.value.length <= 1) return
   const { left, width } = imageContainerRef.value.getBoundingClientRect()
@@ -110,6 +115,29 @@ function onMouseLeave() {
 function onMouseEnter() {
   isHovered.value = true
 }
+
+/* --- Timer Logic --- */
+const now = ref(Date.now())
+let timerTick: any = null
+
+const endTs = computed(() => {
+  const d = props.product.discount_end_date
+  return d ? new Date(d).getTime() : 0
+})
+
+const remainingMs = computed(() => Math.max(0, endTs.value - now.value))
+const hasTimer = computed(() => !!endTs.value && remainingMs.value > 0)
+
+const countdownString = computed(() => {
+  const s = Math.floor(remainingMs.value / 1000)
+  const d = Math.floor(s / 86400)
+  const h = Math.floor((s % 86400) / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  
+  const hms = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+  return d > 0 ? `${d} DAYS, ${hms}` : hms
+})
 
 /* --- Price Logic --- */
 const hidePrice = computed(() => Boolean((props.product as any).hide_price))
@@ -184,7 +212,7 @@ const unitBefore = computed(() => {
 const hasDiscount = computed(() => !!unitBefore.value && unitBefore.value > unit.value)
 const discountAmount = computed(() => !hasDiscount.value ? 0 : Math.max(0, (unitBefore.value || 0) - unit.value))
 
-/* --- Animation --- */
+/* --- Animation & Lifecycle --- */
 let rafId: number | null = null
 let visIO: IntersectionObserver | null = null
 
@@ -205,11 +233,17 @@ function animateOff(to: number, duration = 900) {
 onMounted(() => {
   visIO = new IntersectionObserver(([entry]) => { if (entry?.isIntersecting) animateOff(discountAmount.value) }, { threshold: 0.35 })
   if (cardEl.value) visIO.observe(cardEl.value)
+  
+  // Start Timer
+  timerTick = setInterval(() => { now.value = Date.now() }, 1000)
 })
+
 onUnmounted(() => {
   if (rafId) cancelAnimationFrame(rafId)
   if (visIO && cardEl.value) visIO.unobserve(cardEl.value)
+  if (timerTick) clearInterval(timerTick)
 })
+
 watch(discountAmount, (v) => animateOff(v))
 
 async function onAdd() {
@@ -242,7 +276,7 @@ async function onAdd() {
   >
     <NuxtLinkLocale
       :to="linkTo"
-      class="relative block w-full overflow-hidden bg-white aspect-[1/1] p-4 border-b border-gray-100"
+      class="relative block w-full overflow-hidden bg-white aspect-[1/1] border-b border-gray-100"
     >
       <div 
         ref="imageContainerRef"
@@ -254,32 +288,46 @@ async function onAdd() {
           :src="currentImage"
           :alt="product.name"
           :width="600" 
-          :quality="1"
+          :quality="90"
           loading="lazy"
           class="h-full w-full object-contain transition-transform duration-500 will-change-transform group-hover:scale-105"
         />
 
         <div 
+          v-if="hasTimer && !hidePrice" 
+          class="absolute inset-x-0 bottom-0 z-10 flex flex-col items-center justify-end pb-3 pt-2 bg-gradient-to-t from-black/90 to-transparent pointer-events-none"
+        >
+          <span class="text-[9px] font-bold text-gray-200 uppercase tracking-widest mb-0.5 shadow-sm">
+            {{ _t('product.ends', 'DISCOUNT ENDS IN') }}
+          </span>
+          <span class="text-[11px] sm:text-xs font-extrabold text-white tracking-wide shadow-sm font-sans">
+            {{ countdownString }}
+          </span>
+        </div>
+
+        <div 
           v-if="imageList.length > 1" 
-          class="absolute bottom-0 left-0 right-0 flex justify-center gap-1 pb-1 z-20"
+          class="absolute left-0 right-0 flex justify-center gap-1.5 pb-1 z-20 transition-all duration-300"
+          :class="hasTimer && !hidePrice ? 'bottom-11' : 'bottom-2'"
         >
           <span 
             v-for="(_, idx) in imageList" 
             :key="idx" 
-            class="h-1 rounded-full transition-all duration-200 shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
-            :class="idx === activeImageIndex ? 'w-3 bg-red-600' : 'w-1 bg-gray-300'"
+            class="h-1.5 rounded-full transition-all duration-300 shadow-sm border border-black/10"
+            :class="idx === activeImageIndex ? 'w-1.5 bg-emerald-500' : 'w-1.5 bg-gray-200/80'"
           ></span>
         </div>
       </div>
       
-      <div v-if="hasDiscount && !hidePrice" class="absolute left-2 top-2 z-10 pointer-events-none">
-        <span class="inline-flex items-center rounded bg-red-600 px-2 py-1 text-[10px] font-bold text-white shadow-sm">
-          -{{ formatDisplayMoney(Number(offAnim.toFixed(2))) }}
+      <div v-if="hasDiscount && !hidePrice" class="absolute left-3 top-3 z-10 pointer-events-none">
+        <span class="inline-flex items-center rounded-full bg-red-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-md">
+          {{ formatDisplayMoney(Number(offAnim.toFixed(2))) }} {{ _t('common.off', 'OFF') }}
         </span>
       </div>
     </NuxtLinkLocale>
 
     <div class="flex flex-1 flex-col px-4 pb-4 pt-4">
+      
       <div class="mb-1 min-h-[15px]">
         <div v-if="product.sku" class="text-[10px] font-bold uppercase tracking-wide text-gray-400">
           {{ product.sku }}
