@@ -119,8 +119,8 @@ export function useCatalogSeo(opts: {
 
     const meta: any[] = [
       // ✅ Set to index,follow explicitly
-      { name: 'robots', content: 'index,follow' },
-      { 'http-equiv': 'X-Robots-Tag', content: 'index, follow' },
+      { name: 'robots', content: 'noindex,follow' },
+      { 'http-equiv': 'X-Robots-Tag', content: 'noindex,follow' },
       { property: 'og:locale', content: ogLocale.value },
       ...ogLocaleAlternates.value.map(l => ({ property: 'og:locale:alternate', content: l })),
     ]
