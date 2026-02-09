@@ -1,6 +1,5 @@
 <template>
   <main class="pin-code-page">
-    <!-- Breadcrumb -->
     <nav aria-label="breadcrumb" class="border-b bg-gray-50">
       <div class="container mx-auto max-w-7xl px-4">
         <ol class="flex items-center gap-2 py-3 text-sm text-gray-600">
@@ -19,7 +18,6 @@
 
     <div class="container mx-auto max-w-7xl px-4 mt-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <!-- OFFLINE -->
         <section class="lg:col-span-4">
           <h3 class="text-center text-xl md:text-2xl font-extrabold tracking-tight text-gray-900">
             {{ t('pincode.pincodeoffline') }}
@@ -48,7 +46,8 @@
                 <p class="mt-1 text-center text-sm font-semibold text-gray-900">
                   {{ brand?.short_title }}
                 </p>
-                <b class="mt-auto text-center block text-base text-orange-700">
+                
+                <b v-if="Number(brand?.price?.value) > 0" class="mt-auto text-center block text-base text-orange-700">
                   {{ brand?.price?.value }} {{ brand?.price?.currency }}
                 </b>
               </NuxtLinkLocale>
@@ -56,7 +55,6 @@
           </div>
         </section>
 
-        <!-- ONLINE -->
         <section class="lg:col-span-8">
           <h3 class="text-center text-xl md:text-2xl font-extrabold tracking-tight text-gray-900">
             {{ t('pincode.pincodeonline') }}
@@ -82,7 +80,6 @@
       </div>
     </div>
 
-    <!-- PRODUCTS GRID (PIN CODE ONLINE via category_id=4) -->
     <section ref="pinGridEl" class="container mx-auto max-w-7xl px-4 mt-10">
       <ProductGrid
         :key="gridKey"

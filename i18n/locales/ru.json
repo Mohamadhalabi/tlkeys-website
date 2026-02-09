@@ -39,6 +39,9 @@
     }
   },
   "common": {
+    "copied": "Скопировано",
+    "goHome": "На главную",
+    "continueShopping": "Продолжить покупки",
     "prev": "Назад",
     "next": "Вперед",
     "aboutUs": "О нас",
@@ -129,6 +132,26 @@
   "downloads": "Загрузки",
   "pinCodes": "ПИН-коды",
   "checkout": {
+    "transfer": "Перевод",
+    "cryptoUSDT": "Криптовалюта (USDT)",
+    "usdtWalletLabel": "Адрес кошелька USDT (TRC20)",
+    "proofTitle": "Требуется подтверждение оплаты",
+    "proofMsgPart1": "После совершения платежа, пожалуйста, отправьте нам подтверждение транзакции (скриншот) на ",
+    "proofMsgPart2": " для подтверждения вашего заказа.",
+    "paymentFailed": "Оплата не прошла или была отменена",
+    "orderConfirmed": "Спасибо! Ваш заказ подтверждён",
+    "emailNextSteps": "В ближайшее время вы получите письмо с дальнейшими инструкциями.",
+    "howToPay": "Как завершить оплату",
+    "proofInstructions": "После оплаты, пожалуйста, отправьте нам скриншот.",
+    "confirmUSDT": "Я хочу оплатить через USDT",
+    "sendProof": "Отправить подтверждение в WhatsApp",
+    "shippingCost": "Стоимость доставки",
+    "shippingAddress": "Адрес доставки",
+    "whatsNext": "Что дальше?",
+    "tryAnotherMethod": "Попробуйте другой способ оплаты на странице заказов.",
+    "notifyEmail": "Мы уведомим вас по электронной почте при изменении статуса заказа.",
+    "keepOrderId": "Сохраните номер заказа",
+    "forReference": "для справки.",
     "declaredValue": "Объявленная стоимость",
     "declaredValueHelp": "Объявленная стоимость для доставки.",
     "orderPreferences": "Параметры заказа",
@@ -219,7 +242,9 @@
   },
   "dashboard": {
     "cart": "Корзина",
-    "checkout": "Оформление заказа"
+    "checkout": "Оформление заказа",
+    "orderDetails": "Детали заказа",
+    "viewOrders": "Посмотреть мои заказы"
   },
   "about": {
     "seoTitle": "О нас | Techno Lock Keys Trading",
@@ -444,7 +469,14 @@
     "sku": "SKU",
     "categories": "Категории",
     "manufacturers": "Производители",
-    "brands": "Бренды"
+    "brands": "Бренды",
+    "orderId": "ID заказа",
+    "placedOn": "Оформлен",
+    "status": "Статус",
+    "payment": "Оплата",
+    "paymentStatus": "Статус оплаты",
+    "paymentMethod": "Способ оплаты",
+    "tracking": "Отслеживание"
   },
   "pincode": {
     "pincode": "ПИН-код",
@@ -720,5 +752,23 @@
     "keepOrderId": "Сохраните номер заказа для справки.",
     "continueShopping": "Продолжить покупки",
     "notPaidYet": "Платёж ожидается или не выполнен"
+  },
+  "messages": {
+    "walletCopied": "Адрес кошелька скопирован в буфер обмена.",
+    "copiedClipboard": "Скопировано в буфер обмена"
+  },
+  "whatsapp": {
+    "payWithUSDT": "Здравствуйте, касательно заказа #{id}. Я хочу оплатить через USDT. Пожалуйста, подтвердите.",
+    "paymentProof": "Здравствуйте, я оформил заказ #{id}. Вот подтверждение оплаты."
+  },
+  "pages": {
+    "order": "Заказ",
+    "complete": "Завершён",
+    "completeOrder": "Завершение заказа"
+  },
+  "errors": {
+    "orderLoadTitle": "Не удалось загрузить ваш заказ",
+    "missingOrderId": "Отсутствует ID заказа",
+    "loadOrderFailed": "Ошибка загрузки заказа"
   }
 }

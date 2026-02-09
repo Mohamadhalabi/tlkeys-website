@@ -39,6 +39,9 @@
     }
   },
   "common": {
+    "copied": "Copied",
+    "goHome": "Go home",
+    "continueShopping": "Continue shopping",
     "prev": "Prev",
     "next": "Next",
     "aboutUs": "About us",
@@ -129,6 +132,26 @@
   "downloads": "Downloads",
   "pinCodes": "Pin Code",
   "checkout": {
+    "transfer": "Transfer",
+    "cryptoUSDT": "Cryptocurrency (USDT)",
+    "usdtWalletLabel": "USDT (TRC20) Wallet Address",
+    "proofTitle": "Proof of Payment Required",
+    "proofMsgPart1": "After sending the payment, please send the proof of transaction (screenshot) to us on ",
+    "proofMsgPart2": " to confirm your order.",
+    "paymentFailed": "Payment failed or canceled",
+    "orderConfirmed": "Thanks! Your order is confirmed",
+    "emailNextSteps": "You’ll receive an email with next steps shortly.",
+    "howToPay": "How to complete your payment",
+    "proofInstructions": "After paying, please send us the screenshot.",
+    "confirmUSDT": "I want to pay with USDT",
+    "sendProof": "Send Proof on WhatsApp",
+    "shippingCost": "Shipping cost",
+    "shippingAddress": "Shipping address",
+    "whatsNext": "What’s next?",
+    "tryAnotherMethod": "Try another payment method from your Orders page.",
+    "notifyEmail": "We’ll notify you by email when your order status changes.",
+    "keepOrderId": "Keep your order ID",
+    "forReference": "for reference.",
     "declaredValue": "Declared Value",
     "declaredValueHelp": "Declared value for shipping.",
     "orderPreferences": "Order Preferences",
@@ -444,7 +467,14 @@
     "sku": "SKU",
     "categories": "Categories",
     "manufacturers": "Manufacturers",
-    "brands": "Brands"
+    "brands": "Brands",
+    "orderId": "Order ID",
+    "placedOn": "Placed on",
+    "status": "Status",
+    "payment": "Payment",
+    "paymentStatus": "Payment status",
+    "paymentMethod": "Payment method",
+    "tracking": "Tracking"
   },
   "pincode": {
     "pincode": "PIN Code",
@@ -771,5 +801,23 @@
     "this_month": "This Month",
     "left_today": "Left Today",
     "left_month": "Left"
+  },
+  "messages": {
+    "walletCopied": "Wallet address copied to clipboard.",
+    "copiedClipboard": "Copied to clipboard"
+  },
+  "whatsapp": {
+    "payWithUSDT": "Hello, regarding Order #{id}. I want to pay with USDT. Please confirm.",
+    "paymentProof": "Hello, I placed Order #{id}. Here is the proof of payment."
+  },
+  "pages": {
+    "order": "Order",
+    "complete": "Complete",
+    "completeOrder": "Complete order"
+  },
+  "errors": {
+    "orderLoadTitle": "Couldn't load your order",
+    "missingOrderId": "Missing order id",
+    "loadOrderFailed": "Failed to load order"
   }
 }

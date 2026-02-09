@@ -39,6 +39,9 @@
     }
   },
   "common": {
+    "copied": "Copié",
+    "goHome": "Aller à l'accueil",
+    "continueShopping": "Continuer vos achats",
     "prev": "Précédent",
     "next": "Suivant",
     "aboutUs": "À propos de nous",
@@ -129,6 +132,26 @@
   "downloads": "Téléchargements",
   "pinCodes": "Code PIN",
   "checkout": {
+    "transfer": "Virement",
+    "cryptoUSDT": "Cryptomonnaie (USDT)",
+    "usdtWalletLabel": "Adresse du portefeuille USDT (TRC20)",
+    "proofTitle": "Preuve de paiement requise",
+    "proofMsgPart1": "Après avoir effectué le paiement, veuillez nous envoyer la preuve de transaction (capture d'écran) à ",
+    "proofMsgPart2": " pour confirmer votre commande.",
+    "paymentFailed": "Paiement échoué ou annulé",
+    "orderConfirmed": "Merci ! Votre commande est confirmée",
+    "emailNextSteps": "Vous recevrez bientôt un e-mail avec les prochaines étapes.",
+    "howToPay": "Comment finaliser votre paiement",
+    "proofInstructions": "Après avoir payé, veuillez nous envoyer la capture d'écran.",
+    "confirmUSDT": "Je veux payer en USDT",
+    "sendProof": "Envoyer la preuve sur WhatsApp",
+    "shippingCost": "Frais de livraison",
+    "shippingAddress": "Adresse de livraison",
+    "whatsNext": "Et ensuite ?",
+    "tryAnotherMethod": "Essayez un autre mode de paiement depuis votre page de Commandes.",
+    "notifyEmail": "Nous vous informerons par e-mail lorsque le statut de votre commande changera.",
+    "keepOrderId": "Conservez votre ID de commande",
+    "forReference": "pour référence.",
     "declaredValue": "Valeur déclarée",
     "declaredValueHelp": "Valeur déclarée pour l'expédition.",
     "orderPreferences": "Préférences de commande",
@@ -219,7 +242,9 @@
   },
   "dashboard": {
     "cart": "Panier",
-    "checkout": "Paiement"
+    "checkout": "Paiement",
+    "orderDetails": "Détails de la commande",
+    "viewOrders": "Voir mes commandes"
   },
   "about": {
     "seoTitle": "À propos de nous | Techno Lock Keys Trading",
@@ -444,7 +469,14 @@
     "sku": "SKU",
     "categories": "Catégories",
     "manufacturers": "Fabricants",
-    "brands": "Marques"
+    "brands": "Marques",
+    "orderId": "ID de commande",
+    "placedOn": "Commandé le",
+    "status": "Statut",
+    "payment": "Paiement",
+    "paymentStatus": "Statut du paiement",
+    "paymentMethod": "Moyen de paiement",
+    "tracking": "Suivi"
   },
   "pincode": {
     "pincode": "Code PIN",
@@ -719,5 +751,23 @@
     "keepOrderId": "Conservez votre numéro de commande pour référence.",
     "continueShopping": "Continuer vos achats",
     "notPaidYet": "Paiement en attente ou non effectué"
+  },
+  "messages": {
+    "walletCopied": "Adresse du portefeuille copiée dans le presse-papiers.",
+    "copiedClipboard": "Copié dans le presse-papiers"
+  },
+  "whatsapp": {
+    "payWithUSDT": "Bonjour, concernant la commande #{id}. Je souhaite payer en USDT. Merci de confirmer.",
+    "paymentProof": "Bonjour, j'ai passé la commande #{id}. Voici la preuve de paiement."
+  },
+  "pages": {
+    "order": "Commande",
+    "complete": "Terminée",
+    "completeOrder": "Finaliser la commande"
+  },
+  "errors": {
+    "orderLoadTitle": "Impossible de charger votre commande",
+    "missingOrderId": "Identifiant de commande manquant",
+    "loadOrderFailed": "Échec du chargement de la commande"
   }
 }

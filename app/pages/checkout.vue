@@ -157,6 +157,31 @@ const totalWithSurcharge = computed(() => {
   return +(base * (1 + (surchargePct.value / 100))).toFixed(2)
 })
 
+/* ---------------- Crypto / Transfer State ---------------- */
+const transferType = ref<'bank' | 'crypto'>('bank')
+const copied = ref(false)
+// TODO: Replace with your actual USDT TRC20 Address
+const USDT_WALLET_ADDRESS = 'TMUnF98HTXiW3uQz4VbktLJuEaHcYS47zb' 
+
+function copyWalletAddress() {
+  if (!USDT_WALLET_ADDRESS) return
+  navigator.clipboard.writeText(USDT_WALLET_ADDRESS).then(() => {
+    copied.value = true
+    alerts.showAlert({
+      type: 'success',
+      title: t('common.copied') || 'Copied',
+      message: t('messages.walletCopied') || 'Wallet address copied to clipboard.'
+    })
+    setTimeout(() => { copied.value = false }, 2000)
+  }).catch(() => {
+     alerts.showAlert({
+      type: 'error',
+      title: t('common.error') || 'Error',
+      message: 'Failed to copy address.'
+    })
+  })
+}
+
 /* -------- Countries (dropdown data) ------- */
 const countries = ref<Country[]>([])
 const countriesLoading = ref(false)
@@ -543,7 +568,16 @@ async function createOrder() {
   const paymentMap: Record<'card'|'paypal'|'transfer', string> = {
     card: 'ccavenue',
     paypal: 'paypal',
-    transfer: 'transfer_online'
+    // We send transfer_online for both Bank and Crypto
+    // You can append transferType to the note if you need backend distinction without changing API
+    transfer: 'transfer_online' 
+  }
+
+  // Append Crypto note to order note if Crypto is selected
+  let finalNote = orderNote.value
+  if (paymentMethod.value === 'transfer' && transferType.value === 'crypto') {
+      const cryptoTag = '[Crypto/USDT]'
+      finalNote = finalNote ? `${cryptoTag} ${finalNote}` : cryptoTag
   }
 
   const body = {
@@ -553,7 +587,7 @@ async function createOrder() {
     coupon_code:     appliedCouponCode.value || null,
     promo:           selectedPromo.value,
     free_ship:       selectedPromo.value === 'free_ship' ? 1 : 0,
-    note:            orderNote.value,               
+    note:            finalNote,               
     shipment_value:  customShipmentValue.value,     
   }
 
@@ -1001,16 +1035,16 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
 
           <div class="grid sm:grid-cols-3 gap-3">
             <label class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
-                   :class="paymentMethod === 'card' ? 'ring-2 ring-emerald-500' : ''">
+                   :class="paymentMethod === 'card' ? 'ring-2 ring-emerald-500 border-emerald-500' : 'border-gray-200'">
               <input class="sr-only" type="radio" value="card" v-model="paymentMethod" :disabled="isCheckoutBlocked" />
               <div class="flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6a2 2 0 012-2h14a2 2 0 012 2v2H3V6z"/><path d="M3 10h18v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8zm2 5h6v2H5v-2z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6a2 2 0 012-2h14a2 2 0 012 2v2H3V6z"/><path d="M3 10h18v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8zm2 5h6v2H5v-2z"/></svg>
                 <span class="font-medium">{{ $t('checkout.payCard') }}</span>
               </div>
             </label>
 
             <label class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
-                   :class="paymentMethod === 'paypal' ? 'ring-2 ring-emerald-500' : ''">
+                   :class="paymentMethod === 'paypal' ? 'ring-2 ring-emerald-500 border-emerald-500' : 'border-gray-200'">
               <input class="sr-only" type="radio" value="paypal" v-model="paymentMethod" :disabled="isCheckoutBlocked" />
               <div class="flex items-center justify-center gap-2">
                 <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-600 text-white text-xs font-bold">P</span>
@@ -1019,21 +1053,89 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
             </label>
 
             <label class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
-                   :class="paymentMethod === 'transfer' ? 'ring-2 ring-emerald-500' : ''">
+                   :class="paymentMethod === 'transfer' ? 'ring-2 ring-emerald-500 border-emerald-500' : 'border-gray-200'">
               <input class="sr-only" type="radio" value="transfer" v-model="paymentMethod" :disabled="isCheckoutBlocked" />
               <div class="flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l9 6v2H3V9l9-6z"/><path d="M4 13h16v6H4v-6z"/></svg>
-                <span class="font-medium">{{ $t('checkout.bankTransfer') }}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 6v2H3V9l9-6z"/><path d="M4 13h16v6H4v-6z"/></svg>
+                <span class="font-medium">{{ $t('checkout.transfer') || 'Transfer' }}</span>
               </div>
             </label>
           </div>
 
-          <div v-if="paymentMethod === 'transfer'" class="mt-3 text-sm">
-            <div class="rounded-xl border p-3 bg-gray-50">
-              <div class="font-medium">{{ $t('bank.name') || 'ADCB' }}</div>
-              <div>{{ $t('bank.account') || 'Account' }}: 699321041001</div>
-              <div>{{ $t('bank.iban') || 'IBAN' }}: AE470030000699321041001</div>
-              <div>{{ $t('bank.bic') || 'BIC' }}: ADCBAEAA</div>
+          <div v-if="paymentMethod === 'transfer'" class="mt-4 p-4 rounded-2xl bg-gray-50 border border-gray-200">
+            <div class="flex p-1 bg-white rounded-xl border mb-4 w-fit">
+              <button 
+                @click="transferType = 'bank'"
+                class="px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
+                :class="transferType === 'bank' ? 'bg-orange-100 text-orange-700 shadow-sm' : 'text-gray-500 hover:bg-gray-50'"
+              >
+                {{ $t('checkout.bankTransfer') || 'Bank Transfer' }}
+              </button>
+              <button 
+                @click="transferType = 'crypto'"
+                class="px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
+                :class="transferType === 'crypto' ? 'bg-orange-100 text-orange-700 shadow-sm' : 'text-gray-500 hover:bg-gray-50'"
+              >
+                {{ $t('checkout.cryptoUSDT') || 'Cryptocurrency (USDT)' }}
+              </button>
+            </div>
+
+            <div v-if="transferType === 'bank'" class="text-sm text-gray-700 space-y-2">
+               <div class="p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
+                  <div class="grid grid-cols-[100px_1fr] gap-2 items-center">
+                    <span class="font-semibold text-gray-500">{{ $t('bank.name') || 'Bank' }}</span>
+                    <span class="font-medium text-gray-900">ADCB</span>
+                    
+                    <span class="font-semibold text-gray-500">{{ $t('bank.account') || 'Account' }}</span>
+                    <span class="font-mono bg-gray-50 px-2 py-0.5 rounded w-fit select-all">699321041001</span>
+                    
+                    <span class="font-semibold text-gray-500">{{ $t('bank.iban') || 'IBAN' }}</span>
+                    <span class="font-mono bg-gray-50 px-2 py-0.5 rounded w-fit select-all break-all">AE470030000699321041001</span>
+                    
+                    <span class="font-semibold text-gray-500">{{ $t('bank.bic') || 'BIC' }}</span>
+                    <span class="font-mono bg-gray-50 px-2 py-0.5 rounded w-fit select-all">ADCBAEAA</span>
+                  </div>
+               </div>
+            </div>
+
+            <div v-if="transferType === 'crypto'" class="text-sm space-y-3">
+              <div class="p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
+                <label class="block text-xs font-bold text-gray-500 mb-1">
+                  {{ $t('checkout.usdtWalletLabel') || 'USDT (TRC20) Wallet Address' }}
+                </label>
+                <div class="flex items-center gap-2">
+                  <code class="flex-1 block bg-gray-100 p-2.5 rounded-lg text-gray-800 break-all font-mono select-all text-xs sm:text-sm">
+                    {{ USDT_WALLET_ADDRESS }}
+                  </code>
+                  <button 
+                    @click="copyWalletAddress" 
+                    type="button"
+                    class="p-2.5 rounded-lg border hover:bg-gray-50 text-gray-600 transition-colors shrink-0"
+                    :title="$t('common.copy') || 'Copy'"
+                  >
+                    <svg v-if="copied" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl text-amber-900">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                 </svg>
+                 <div class="text-sm">
+                   <p class="font-semibold">{{ $t('checkout.proofTitle') || 'Proof of Payment Required' }}</p>
+                   <p class="mt-1 opacity-90">
+                     {{ $t('checkout.proofMsgPart1') || 'After sending the payment, please send the proof of transaction (screenshot) to us on ' }}
+                     <a :href="whatsappLink" target="_blank" class="underline font-bold hover:text-amber-700">WhatsApp</a> 
+                     {{ $t('checkout.proofMsgPart2') || ' to confirm your order.' }}
+                   </p>
+                 </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1216,3 +1318,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
     </div>
   </main>
 </template>
+
+<style scoped>
+/* Tailwind handles styling */
+</style>

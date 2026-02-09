@@ -39,6 +39,9 @@
     }
   },
   "common": {
+    "copied": "Copiato",
+    "goHome": "Vai alla Home",
+    "continueShopping": "Continua lo shopping",
     "prev": "Precedente",
     "next": "Successivo",
     "aboutUs": "Chi siamo",
@@ -129,6 +132,26 @@
   "downloads": "Download",
   "pinCodes": "Codici PIN",
   "checkout": {
+    "transfer": "Bonifico",
+    "cryptoUSDT": "Criptovaluta (USDT)",
+    "usdtWalletLabel": "Indirizzo Wallet USDT (TRC20)",
+    "proofTitle": "Prova di pagamento richiesta",
+    "proofMsgPart1": "Dopo aver effettuato il pagamento, inviaci la prova della transazione (screenshot) a ",
+    "proofMsgPart2": " per confermare il tuo ordine.",
+    "paymentFailed": "Pagamento fallito o annullato",
+    "orderConfirmed": "Grazie! Il tuo ordine è confermato",
+    "emailNextSteps": "Riceverai a breve un'email con i passaggi successivi.",
+    "howToPay": "Come completare il pagamento",
+    "proofInstructions": "Dopo il pagamento, inviaci lo screenshot.",
+    "confirmUSDT": "Voglio pagare con USDT",
+    "sendProof": "Invia prova su WhatsApp",
+    "shippingCost": "Costo spedizione",
+    "shippingAddress": "Indirizzo di spedizione",
+    "whatsNext": "Cosa succede ora?",
+    "tryAnotherMethod": "Prova un altro metodo di pagamento dalla pagina Ordini.",
+    "notifyEmail": "Ti informeremo via email quando lo stato del tuo ordine cambierà.",
+    "keepOrderId": "Conserva il tuo ID ordine",
+    "forReference": "come riferimento.",
     "declaredValue": "Valore dichiarato",
     "declaredValueHelp": "Valore dichiarato per la spedizione.",
     "orderPreferences": "Preferenze dell'ordine",
@@ -219,7 +242,8 @@
   },
   "dashboard": {
     "cart": "Carrello",
-    "checkout": "Checkout"
+    "checkout": "Checkout",
+    "orderDetails": "Dettagli ordine"
   },
   "about": {
     "seoTitle": "Chi Siamo | Techno Lock Keys Trading",
@@ -444,7 +468,14 @@
     "sku": "SKU",
     "categories": "Categorie",
     "manufacturers": "Produttori",
-    "brands": "Brand"
+    "brands": "Brand",
+    "orderId": "ID Ordine",
+    "placedOn": "Effettuato il",
+    "status": "Stato",
+    "payment": "Pagamento",
+    "paymentStatus": "Stato pagamento",
+    "paymentMethod": "Metodo di pagamento",
+    "tracking": "Tracciamento"
   },
   "pincode": {
     "pincode": "Codice PIN",
@@ -754,5 +785,23 @@
     "keepOrderId": "Conserva l’ID dell’ordine per riferimento.",
     "continueShopping": "Continua a fare acquisti",
     "notPaidYet": "Pagamento in sospeso o non effettuato"
+  },
+  "messages": {
+    "walletCopied": "Indirizzo wallet copiato negli appunti.",
+    "copiedClipboard": "Copiato negli appunti"
+  },
+  "whatsapp": {
+    "payWithUSDT": "Ciao, riguardo l'ordine #{id}. Voglio pagare con USDT. Per favore conferma.",
+    "paymentProof": "Ciao, ho effettuato l'ordine #{id}. Ecco la prova di pagamento."
+  },
+  "pages": {
+    "order": "Ordine",
+    "complete": "Completato",
+    "completeOrder": "Completa ordine"
+  },
+  "errors": {
+    "orderLoadTitle": "Impossibile caricare il tuo ordine",
+    "missingOrderId": "ID ordine mancante",
+    "loadOrderFailed": "Caricamento ordine fallito"
   }
 }

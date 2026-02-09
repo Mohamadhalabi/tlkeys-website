@@ -67,7 +67,10 @@
     "showMore": "عرض المزيد",
     "contactOnWhatsApp": "تواصل معنا عبر واتساب",
     "productImageAlt": "صورة المنتج",
-    "img": "صورة"
+    "img": "صورة",
+    "copied": "تم النسخ",
+    "goHome": "العودة للرئيسية",
+    "continueShopping": "متابعة التسوق"
   },
   "auth": {
     "loginRegister": "تسجيل الدخول / إنشاء حساب",
@@ -208,7 +211,27 @@
     "pickup": "الاستلام",
     "localShipping": "شحن محلي",
     "itemNotAvailableForCountry": "العنصر غير متاح لهذا البلد",
-    "shippingBlocked": "الشحن محظور"
+    "shippingBlocked": "الشحن محظور",
+    "transfer": "تحويل",
+    "cryptoUSDT": "عملة رقمية (USDT)",
+    "usdtWalletLabel": "عنوان محفظة USDT (TRC20)",
+    "proofTitle": "مطلوب إثبات الدفع",
+    "proofMsgPart1": "بعد إرسال الدفعة، يرجى إرسال إثبات التحويل (لقطة شاشة) إلينا عبر ",
+    "proofMsgPart2": " لتأكيد طلبك.",
+    "paymentFailed": "فشل الدفع أو تم الإلغاء",
+    "orderConfirmed": "شكرًا لك! تم تأكيد طلبك",
+    "emailNextSteps": "ستتلقى رسالة بريد إلكتروني بالخطوات التالية قريباً.",
+    "howToPay": "كيفية إكمال عملية الدفع",
+    "proofInstructions": "بعد الدفع، يرجى إرسال لقطة الشاشة إلينا.",
+    "confirmUSDT": "أريد الدفع بواسطة USDT",
+    "sendProof": "إرسال الإثبات عبر واتساب",
+    "shippingCost": "تكلفة الشحن",
+    "shippingAddress": "عنوان الشحن",
+    "whatsNext": "ما الخطوة التالية؟",
+    "tryAnotherMethod": "جرب طريقة دفع أخرى من صفحة طلباتك.",
+    "notifyEmail": "سنقوم بإعلامك عبر البريد الإلكتروني عند تغير حالة طلبك.",
+    "keepOrderId": "احتفظ برقم الطلب",
+    "forReference": "كمرجع لك."
   },
   "edit": "تعديل",
   "delete": "حذف",
@@ -219,7 +242,9 @@
   },
   "dashboard": {
     "cart": "السلة",
-    "checkout": "الدفع"
+    "checkout": "الدفع",
+    "orderDetails": "تفاصيل الطلب",
+    "viewOrders": "عرض طلباتي"
   },
   "about": {
     "seoTitle": "من نحن | Techno Lock Keys Trading",
@@ -444,7 +469,14 @@
     "sku": "SKU",
     "categories": "الفئات",
     "manufacturers": "المصنّعون",
-    "brands": "العلامات التجارية"
+    "brands": "العلامات التجارية",
+    "orderId": "رقم الطلب",
+    "placedOn": "تم الطلب في",
+    "status": "الحالة",
+    "payment": "الدفع",
+    "paymentStatus": "حالة الدفع",
+    "paymentMethod": "طريقة الدفع",
+    "tracking": "التتبع"
   },
   "pincode": {
     "pincode": "رمز PIN",
@@ -737,5 +769,23 @@
     "this_month": "هذا الشهر",
     "left_today": "المتبقي اليوم",
     "left_month": "المتبقي"
+  },
+  "messages": {
+    "walletCopied": "تم نسخ عنوان المحفظة إلى الحافظة.",
+    "copiedClipboard": "تم النسخ إلى الحافظة"
+  },
+  "whatsapp": {
+    "payWithUSDT": "مرحباً، بخصوص الطلب رقم #{id}. أريد الدفع بواسطة USDT. يرجى التأكيد.",
+    "paymentProof": "مرحباً، لقد قمت بإنشاء الطلب رقم #{id}. إليك إثبات الدفع."
+  },
+  "pages": {
+    "order": "الطلب",
+    "complete": "مكتمل",
+    "completeOrder": "إكمال الطلب"
+  },
+  "errors": {
+    "orderLoadTitle": "تعذر تحميل طلبك",
+    "missingOrderId": "رقم الطلب مفقود",
+    "loadOrderFailed": "فشل تحميل الطلب"
   }
 }

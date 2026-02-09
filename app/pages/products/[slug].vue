@@ -823,7 +823,7 @@ watch(() => product.value?.id, () => {
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div :class="hasTablePrice ? '' : 'lg:col-span-2'">
-                  <div v-if="showPriceBlock" class="flex items-end gap-3">
+                  <div v-if="showPriceBlock && displayPrice.current > 0" class="flex items-end gap-3">
                     <span class="text-[28px] md:text-4xl text-red-600 font-bold tracking-tight">
                       {{ formatDisplayMoney(displayPrice.current) }}
                     </span>
@@ -853,7 +853,7 @@ watch(() => product.value?.id, () => {
                             <span class="text-xs font-bold text-orange-900 line-clamp-4 leading-tight">
                               {{ product.short_title || product.title }}
                             </span>
-                            <span class="mt-1 text-sm font-bold text-orange-700">
+                            <span v-if="displayPrice.current > 0" class="mt-1 text-sm font-bold text-orange-700">
                               {{ formatDisplayMoney(displayPrice.current) }}
                             </span>
                           </div>
@@ -877,7 +877,7 @@ watch(() => product.value?.id, () => {
                               {{ ver.title }}
                             </span>
                             <div class="mt-1 flex gap-2 text-xs">
-                                <span class="text-sm font-semibold text-gray-900">
+                                <span v-if="(ver.sale_price || ver.price || ver.regular_price) > 0" class="text-sm font-semibold text-gray-900">
                                   {{ formatDisplayMoney(ver.sale_price || ver.price || ver.regular_price) }}
                                 </span>
                             </div>

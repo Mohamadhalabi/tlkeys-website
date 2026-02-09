@@ -39,6 +39,9 @@
     }
   },
   "common": {
+    "copied": "Kopyalandı",
+    "goHome": "Ana Sayfaya Dön",
+    "continueShopping": "Alışverişe Devam Et",
     "prev": "Geri",
     "next": "İleri",
     "aboutUs": "Hakkımızda",
@@ -129,6 +132,26 @@
   "downloads": "İndirilenler",
   "pinCodes": "PIN Kodları",
   "checkout": {
+    "transfer": "Transfer",
+    "cryptoUSDT": "Kripto Para (USDT)",
+    "usdtWalletLabel": "USDT (TRC20) Cüzdan Adresi",
+    "proofTitle": "Ödeme Dekontu Gerekli",
+    "proofMsgPart1": "Ödemeyi gönderdikten sonra, siparişinizi onaylamak için lütfen işlem dekontunu (ekran görüntüsü) ",
+    "proofMsgPart2": " üzerinden bize gönderin.",
+    "paymentFailed": "Ödeme başarısız oldu veya iptal edildi",
+    "orderConfirmed": "Teşekkürler! Siparişiniz onaylandı",
+    "emailNextSteps": "Kısa süre içinde sonraki adımları içeren bir e-posta alacaksınız.",
+    "howToPay": "Ödemenizi nasıl tamamlayabilirsiniz",
+    "proofInstructions": "Ödemeyi yaptıktan sonra lütfen bize ekran görüntüsünü gönderin.",
+    "confirmUSDT": "USDT ile ödemek istiyorum",
+    "sendProof": "WhatsApp'tan Dekont Gönder",
+    "shippingCost": "Kargo ücreti",
+    "shippingAddress": "Teslimat adresi",
+    "whatsNext": "Sırada ne var?",
+    "tryAnotherMethod": "Siparişler sayfanızdan başka bir ödeme yöntemi deneyin.",
+    "notifyEmail": "Sipariş durumunuz değiştiğinde sizi e-posta ile bilgilendireceğiz.",
+    "keepOrderId": "Sipariş numaranızı",
+    "forReference": "referans olarak saklayın.",
     "declaredValue": "Beyan Edilen Değer",
     "declaredValueHelp": "Gönderim için beyan edilen değer.",
     "orderPreferences": "Sipariş Tercihleri",
@@ -219,7 +242,9 @@
   },
   "dashboard": {
     "cart": "Sepet",
-    "checkout": "Ödeme"
+    "checkout": "Ödeme",
+    "orderDetails": "Sipariş detayları",
+    "viewOrders": "Siparişlerimi görüntüle"
   },
   "about": {
     "seoTitle": "Hakkımızda | Techno Lock Keys Trading",
@@ -441,7 +466,14 @@
     "sku": "SKU",
     "categories": "Kategoriler",
     "manufacturers": "Üreticiler",
-    "brands": "Markalar"
+    "brands": "Markalar",
+    "orderId": "Sipariş No",
+    "placedOn": "Sipariş Tarihi",
+    "status": "Durum",
+    "payment": "Ödeme",
+    "paymentStatus": "Ödeme Durumu",
+    "paymentMethod": "Ödeme Yöntemi",
+    "tracking": "Takip"
   },
   "pincode": {
     "pincode": "PIN Kodu",
@@ -751,5 +783,23 @@
     "keepOrderId": "Referans için sipariş numaranızı saklayın.",
     "continueShopping": "Alışverişe devam et",
     "notPaidYet": "Ödeme beklemede veya henüz yapılmadı"
+  },
+  "messages": {
+    "walletCopied": "Cüzdan adresi panoya kopyalandı.",
+    "copiedClipboard": "Panoya kopyalandı"
+  },
+  "whatsapp": {
+    "payWithUSDT": "Merhaba, #{id} numaralı sipariş ile ilgili. USDT ile ödeme yapmak istiyorum. Lütfen onaylayın.",
+    "paymentProof": "Merhaba, #{id} numaralı siparişi verdim. İşte ödeme dekontu."
+  },
+  "pages": {
+    "order": "Sipariş",
+    "complete": "Tamamlandı",
+    "completeOrder": "Siparişi Tamamla"
+  },
+  "errors": {
+    "orderLoadTitle": "Siparişiniz yüklenemedi",
+    "missingOrderId": "Sipariş numarası eksik",
+    "loadOrderFailed": "Sipariş yüklenemedi"
   }
 }
