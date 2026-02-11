@@ -166,7 +166,7 @@
             </div>
             <div class="p-4 max-h-[60vh] overflow-y-auto">
               <div v-if="filteredKeys.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3">
-                <button v-for="item in filteredKeys" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-100 text-center" @click="goToBrand(item.slug)">
+                <button v-for="item in filteredKeys" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-100 text-center" @click="goToBrand(item.slug)">                
                   <NuxtImg :src="item.image" :alt="item.name" class="h-20 w-20 object-contain rounded" loading="lazy" />
                   <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">{{ item.name }}</span>
                 </button>
@@ -517,14 +517,29 @@ function goToBrand(slug, category) {
   closeAll()
   if (!slug) return
 
-  // normalize to a path (no domain, no locale), then let nuxt-i18n add the current locale (/es, /ar, /tr, ...)
-  const path = slug.startsWith('/') ? slug : `/${slug}`
-  const to = category
-    ? { path, query: { categories: category } }
-    : { path }
+  // 1. Split the incoming slug into the path and the query string
+  const [pathPart, queryPart] = slug.split('?')
 
-  // ✅ locale-aware push
-  router.push(localePath(to))
+  // 2. Ensure path starts with /
+  const rawPath = pathPart.startsWith('/') ? pathPart : `/${pathPart}`
+
+  // 3. Parse the query string into an object using URLSearchParams
+  // This handles complex params like attributes={"status-10":...} correctly
+  const queryObj = queryPart 
+    ? Object.fromEntries(new URLSearchParams(queryPart)) 
+    : {}
+
+  // 4. If a separate category argument was passed, merge it in
+  if (category) {
+    queryObj.categories = category
+  }
+
+  // 5. Navigate
+  // We use localePath ONLY for the path, and pass the query object separately
+  router.push({
+    path: localePath(rawPath),
+    query: queryObj
+  })
 }
 
 function onDocClick(e) {
