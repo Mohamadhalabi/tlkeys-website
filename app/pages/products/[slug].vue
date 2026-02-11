@@ -844,11 +844,14 @@ watch(() => product.value?.id, () => {
                         </div>
                         
                         <div class="flex items-center gap-4">
-                          <img 
+                          <NuxtImg 
                             :src="product.images?.[0]?.src || '/images/placeholder.webp'" 
+                            width="64"
+                            height="64"
+                            format="webp"
                             class="h-16 w-16 rounded-lg object-contain border border-orange-200 bg-white p-1" 
                             alt=""
-                          >
+                          />
                           <div class="flex flex-col">
                             <span class="text-xs font-bold text-orange-900 line-clamp-4 leading-tight">
                               {{ product.short_title || product.title }}
@@ -867,11 +870,15 @@ watch(() => product.value?.id, () => {
                         class="group relative w-full sm:w-auto min-w-[160px] max-w-[240px] rounded-xl border border-gray-200 bg-white p-4 hover:border-blue-400 hover:shadow-md transition-all"
                       >
                         <div class="flex items-center gap-4">
-                          <img 
+                           <NuxtImg 
                             :src="ver.image || '/images/placeholder.webp'" 
+                            width="64"
+                            height="64"
+                            format="webp"
+                            loading="lazy"
                             class="h-16 w-16 rounded-lg object-contain border border-gray-100 bg-gray-50 p-1 group-hover:opacity-80 transition" 
                             :alt="ver.title"
-                          >
+                          />
                           <div class="flex flex-col">
                             <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 line-clamp-4 leading-tight transition">
                               {{ ver.title }}

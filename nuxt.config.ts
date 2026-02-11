@@ -1,9 +1,9 @@
 // nuxt.config.ts
 import { fileURLToPath } from 'url'
+import { visualizer } from 'rollup-plugin-visualizer';
 
 const siteUrl = (process.env.SITE_URL || 'https://www.tlkeys.com').replace(/\/+$/, '')
 const siteName = 'tlkeys'
-// 👇 THIS LINE WAS MISSING, I ADDED IT BACK 👇
 const logoUrl = `${siteUrl}/images/logo/techno-lock-desktop-logo.webp`
 const searchTarget = `${siteUrl}/shop?q={search_term_string}`
 
@@ -29,7 +29,7 @@ const i18nOptions = {
   detectBrowserLanguage: false,
   baseUrl: siteUrl,
   seo: true,
-  lazy: true,
+  lazy: true, // ✅ KEEP THIS: Critical for reducing bundle size
   langDir: 'locales',
   vueI18n: 'i18n.config.ts'
 }
@@ -52,63 +52,45 @@ export default defineNuxtConfig({
     '@nuxtjs/sitemap'
   ],
 
+  image: {
+    domains: ['dev-srv.tlkeys.com'],
+    alias: {
+      backend: 'https://dev-srv.tlkeys.com/storage/images'
+    },
+    provider: 'ipx',
+  },
+
   // --- SITEMAP CONFIGURATION ---
   sitemap: {
     debug: true,
     autoI18n: true,
     sitemaps: true,
-
-    // Point to our local proxy
-    sources: [
-      '/api/sitemap-routes'
-    ],
-
+    sources: ['/api/sitemap-routes'],
     defaults: {
       changefreq: 'daily',
       priority: 0.8,
       lastmod: new Date().toISOString(),
     },
-
-    // Exclude protected routes for ALL languages
     exclude: [
-      '/checkout/**',
-      '/account/**',
-      '/cart',
-      '/complete-order',
-      '/complete-custom-order',
-      '/custom-order',
-      '/**/checkout/**',
-      '/**/account/**',
-      '/**/cart',
-      '/**/complete-order',
-      '/**/complete-custom-order',
-      '/**/custom-order',
-      '/3e00ce51bde3addf1fa11b7',
-      '/6b750ddca9d27708692942d7d85ee5a16b3fc2e6',
-      '/435d7eb240c0e460cbb0281d1956b68c0ca99c33'
+      '/checkout/**', '/account/**', '/cart', '/complete-order', '/complete-custom-order', '/custom-order',
+      '/**/checkout/**', '/**/account/**', '/**/cart', '/**/complete-order', '/**/complete-custom-order', '/**/custom-order',
+      '/3e00ce51bde3addf1fa11b7', '/6b750ddca9d27708692942d7d85ee5a16b3fc2e6', '/435d7eb240c0e460cbb0281d1956b68c0ca99c33'
     ]
   },
 
-  // --- IMPORTANT: RUNTIME CONFIG ---
   runtimeConfig: {
-    // 🔒 PRIVATE KEYS (Used by Sitemap Proxy on Server)
     apiKey: process.env.API_KEY,
     secretKey: process.env.SECRET_KEY,
     apiBaseUrl: process.env.API_BASE_URL,
-
-    // 🔓 PUBLIC KEYS (Used by Browser / Search Bar)
     public: {
       siteName: 'Techno Lock Keys',
       siteUrl,
       defaultOgImage: `${siteUrl}/images/og-image.jpg`,
       defaultDescription: 'Automotive locksmith tools, remotes, shells, and key programming devices.',
       gtmId: process.env.NUXT_PUBLIC_GTM_ID || 'GTM-PWSSMVC7',
-
-      // RESTORED KEYS FOR FRONTEND:
       SECRET_KEY: process.env.SECRET_KEY,
       API_KEY: process.env.API_KEY,
       API_BASE_URL: process.env.API_BASE_URL,
-
       PUBLIC_PATH: process.env.PUBLIC_PATH,
       PUBLIC_PATH_WITHOUT_SLASH: process.env.PUBLIC_PATH_WITHOUT_SLASH,
       version: process.env.version,
@@ -252,7 +234,18 @@ export default defineNuxtConfig({
 
   vite: {
     optimizeDeps: { include: ['swiper', 'lodash-es'] },
-    build: { cssCodeSplit: false }
+    build: {
+      // cssCodeSplit: false, // ❌ REMOVED: Keep this true (default) for better mobile performance
+    },
+    plugins: [
+      // ✅ CHANGED: Only runs if you type "ANALYZE=true npm run build"
+      ...(process.env.ANALYZE === 'true' ? [
+        visualizer({
+          open: true,
+          filename: 'stats.html'
+        })
+      ] : [])
+    ],
   },
 
   compatibilityDate: '2025-09-22',

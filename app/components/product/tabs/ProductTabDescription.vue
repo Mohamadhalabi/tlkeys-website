@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 
 const props = defineProps<{
   html: string
@@ -9,6 +9,27 @@ const props = defineProps<{
 const show = ref(false)
 const modalSrc = ref('')
 const modalAlt = ref('')
+const containerRef = ref<HTMLElement | null>(null)
+
+// NEW: Post-processing to inject lazy loading into HTML string images
+// This fixes the PageSpeed issue where description images load immediately
+const processImages = () => {
+  if (!containerRef.value) return
+  const imgs = containerRef.value.querySelectorAll('img')
+  imgs.forEach(img => {
+    img.setAttribute('loading', 'lazy')
+    img.setAttribute('decoding', 'async')
+    // Ensure styles to prevent layout shift
+    img.style.maxWidth = '100%'
+    img.style.height = 'auto'
+  })
+}
+
+// Watch for content changes to re-process images
+watch(() => props.html, async () => {
+  await nextTick()
+  processImages()
+}, { immediate: true })
 
 function open(src: string, alt = '') {
   if (!src) return
@@ -40,7 +61,9 @@ function onHostClick(e: MouseEvent) {
   }
 }
 
-onMounted(() => {})
+onMounted(() => {
+  processImages()
+})
 onUnmounted(() => {
   document.removeEventListener('keydown', onKey)
   document.documentElement.style.overflow = ''
@@ -48,12 +71,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="single-product-description prose max-w-none" @click.capture="onHostClick">
-    <!-- your CMS/html content -->
+  <div ref="containerRef" class="single-product-description prose max-w-none" @click.capture="onHostClick">
     <div v-html="html" />
   </div>
 
-  <!-- Modal / Lightbox -->
   <teleport to="body">
     <div
       v-if="show"

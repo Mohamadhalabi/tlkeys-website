@@ -30,7 +30,8 @@ function prevImage(){ if (props.images?.length) activeIndex.value = (activeIndex
 /* ========== Responsive targets ========== */
 const mainW = computed(() => Math.round(Math.min(Math.max(320, viewW.value), 1024)))
 const mainH = computed(() => mainW.value)
-const sizesAttrMain = computed(() => `(max-width: 640px) 90vw, ${mainW.value}px`)
+// Adjusted sizes to be more accurate for LCP
+const sizesAttrMain = computed(() => `(max-width: 640px) 100vw, ${mainW.value}px`)
 
 const thumbW = 80, thumbH = 80
 const lightboxW = 1000, lightboxH = 1000
@@ -66,7 +67,6 @@ useHead(() => {
   if (preconnectOrigin) links.unshift({ rel: 'preconnect', href: preconnectOrigin, crossorigin: '' })
   return { link: links }
 })
-
 
 /* ========== Accessibility label helpers ========== */
 function fileBaseFromSrc(src?: string): string {
@@ -224,16 +224,17 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
       </div>
 
       <NuxtImg
-        :src="mainSrc"
+        v-if="activeImage"
+        :src="activeImage.src"
         :alt="heroLabel"
         :title="heroLabel"
         :width="mainW"
         :height="mainH"
         :sizes="sizesAttrMain"
-        format="avif,webp,jpeg"
-        fit="inside"
-        quality="70"
-        loading="eager"
+        format="webp"
+        fit="contain"
+        quality="80"
+        :loading="activeIndex === 0 ? 'eager' : 'lazy'"
         decoding="async"
         :fetchpriority="activeIndex === 0 ? 'high' : 'auto'"
         class="h-full w-full select-none object-contain transition-opacity duration-200"
@@ -262,13 +263,13 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
 
       <button
         type="button"
-        class="absolute top-1/2 left-3 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow hover:bg-white focus:outline-none focus-visible:ring-4 focus-visible:ring-orange-100"
+        class="absolute top-1/2 left-3 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow hover:bg-white focus:outline-none focus-visible:ring-4 focus-visible:ring-orange-100 z-20"
         aria-label="Previous image"
         @click.stop="prevImage"
       >‹</button>
       <button
         type="button"
-        class="absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow hover:bg-white focus:outline-none focus-visible:ring-4 focus-visible:ring-orange-100"
+        class="absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow hover:bg-white focus:outline-none focus-visible:ring-4 focus-visible:ring-orange-100 z-20"
         aria-label="Next image"
         @click.stop="nextImage"
       >›</button>
@@ -300,9 +301,8 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
               :title="labelFor(img)"
               :width="thumbW"
               :height="thumbH"
-              sizes="80px"
-              fit="inside"
-              format="avif,webp"
+              fit="cover"
+              format="webp"
               quality="60"
               loading="lazy"
               decoding="async"
@@ -333,15 +333,16 @@ const hasOffPill = computed(() => Number(props.discountAmount || 0) > 0)
 
         <div class="max-h-[90vh] max-w-[95vw]">
           <NuxtImg
-            :src="activeImage?.src"
+            v-if="activeImage"
+            :src="activeImage.src"
             :alt="heroLabel"
             :title="heroLabel"
             :width="lightboxW"
             :height="lightboxH"
             :sizes="sizesAttrLightbox"
             fit="inside"
-            format="avif,webp"
-            quality="75"
+            format="webp"
+            quality="80"
             class="h-[90vh] w-[95vw] select-none object-contain"
             loading="lazy"
             decoding="async"
