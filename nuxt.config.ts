@@ -29,12 +29,16 @@ const i18nOptions = {
   detectBrowserLanguage: false,
   baseUrl: siteUrl,
   seo: true,
-  lazy: true, // ✅ KEEP THIS: Critical for reducing bundle size
+  lazy: true,
   langDir: 'locales',
   vueI18n: 'i18n.config.ts'
 }
 
 export default defineNuxtConfig({
+  // Nuxt 4 / Future Compatibility
+  future: { compatibilityVersion: 4 },
+  compatibilityDate: '2025-09-22',
+
   devServer: { host: '127.0.0.1', port: 4000 },
   ssr: true,
   srcDir: 'app',
@@ -207,21 +211,30 @@ export default defineNuxtConfig({
             `<iframe src="https://www.googletagmanager.com/ns.html?id=${process.env.NUXT_PUBLIC_GTM_ID || 'GTM-XXXXXXX'}" height="0" width="0" style="display:none;visibility:hidden"></iframe>`
         }
       ]
-    }
+    },
+    // Ensure scripts aren't blocked by escaping innerHTML properly
+    // __dangerouslyDisableSanitizers: ['script'], 
   },
 
   site: { url: siteUrl },
 
+  // --- UPDATED ROUTE RULES ---
   routeRules: {
     '/products/**': { headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
-    '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    // Fix for Search Console 404s: 'must-revalidate' prevents CDNs from caching errors persistently
+    '/_nuxt/**': {
+      headers: {
+        'cache-control': 'public, max-age=31536000, immutable, must-revalidate',
+        'x-content-type-options': 'nosniff'
+      }
+    },
     '/fonts/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
     '/_ipx/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
     '/images/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
   },
 
   nitro: {
-    compressPublicAssets: true,
+    compressPublicAssets: true, // Optimizes assets (gzip/brotli)
     prerender: {
       crawlLinks: false,
       routes: []
@@ -230,15 +243,20 @@ export default defineNuxtConfig({
 
   delayHydration: { mode: 'mount' },
   vitalizer: { /* defaults */ },
-  experimental: { payloadExtraction: false },
+
+  // --- EXPERIMENTAL SETTINGS ---
+  experimental: {
+    payloadExtraction: false,
+    // CRITICAL FIX: Automatically reloads the page if a user hits a missing hash chunk (404)
+    emitRouteChunkError: 'automatic'
+  },
 
   vite: {
     optimizeDeps: { include: ['swiper', 'lodash-es'] },
     build: {
-      // cssCodeSplit: false, // ❌ REMOVED: Keep this true (default) for better mobile performance
+      // cssCodeSplit: false, // Keep this commented out or removed as per your last setup
     },
     plugins: [
-      // ✅ CHANGED: Only runs if you type "ANALYZE=true npm run build"
       ...(process.env.ANALYZE === 'true' ? [
         visualizer({
           open: true,
@@ -248,6 +266,5 @@ export default defineNuxtConfig({
     ],
   },
 
-  compatibilityDate: '2025-09-22',
   devtools: { enabled: false },
 })
