@@ -9,8 +9,8 @@ type InitialFilters = {
   models?: string[]
 }
 
-const managedKeys = ['brands','categories','manufacturers','models','q','search','sort','page','per_page','attributes'] as const
-const flagKeys = ['offers','promotion','free-shipping','bundled','new-arrival','lowest-price-guaranteed'] as const
+const managedKeys = ['brands', 'categories', 'manufacturers', 'models', 'q', 'search', 'sort', 'page', 'per_page', 'attributes'] as const
+const flagKeys = ['offers', 'promotion', 'free-shipping', 'bundled', 'new-arrival', 'lowest-price-guaranteed'] as const
 const SHOP_PATH = '/shop'
 
 function parseCsv(v: unknown): string[] {
@@ -52,19 +52,19 @@ export function useCatalogState(initialFilters?: InitialFilters) {
   const mergedFilters = computed(() => {
     const qy = route.query
     return {
-      brands:        qy.brands ? parseCsv(qy.brands) : (initialFilters?.brands ?? []),
-      categories:    qy.categories ? parseCsv(qy.categories) : (initialFilters?.categories ?? []),
+      brands: qy.brands ? parseCsv(qy.brands) : (initialFilters?.brands ?? []),
+      categories: qy.categories ? parseCsv(qy.categories) : (initialFilters?.categories ?? []),
       manufacturers: qy.manufacturers ? parseCsv(qy.manufacturers) : (initialFilters?.manufacturers ?? []),
-      models:        qy.models ? parseCsv(qy.models) : (initialFilters?.models ?? []),
-      attributes:    parseAttributesParam(qy.attributes),
-      q:    (qy.q as string) || (qy.search as string) || '',
-      sort: (qy.sort as string) || 'price_desc',
+      models: qy.models ? parseCsv(qy.models) : (initialFilters?.models ?? []),
+      attributes: parseAttributesParam(qy.attributes),
+      q: (qy.q as string) || (qy.search as string) || '',
+      sort: (qy.sort as string) || 'newest',
       page: Number(qy.page || 1),
       perPage: parsePerPage(qy.per_page || (qy as any).page_size),
     }
   })
 
-  const entryType = computed<'brand'|'category'|'manufacturer'|'unknown'>(() => {
+  const entryType = computed<'brand' | 'category' | 'manufacturer' | 'unknown'>(() => {
     if (initialFilters?.categories?.length) return 'category'
     if (initialFilters?.manufacturers?.length) return 'manufacturer'
     if (initialFilters?.brands?.length) return 'brand'
@@ -78,14 +78,14 @@ export function useCatalogState(initialFilters?: InitialFilters) {
     models: [] as string[],
     attributes: {} as AttrMap,
     q: '',
-    sort: 'price_desc',
+    sort: 'newest',
     page: 1,
     perPage: 25 as number | 'all'
   })
 
   const ui = reactive({
-    open:   { brands: false, models: false, categories: false, manufacturers: false } as Record<string, boolean>,
-    search: { brands: '',    models: '',    categories: '',    manufacturers: ''    } as Record<string, string>,
+    open: { brands: false, models: false, categories: false, manufacturers: false } as Record<string, boolean>,
+    search: { brands: '', models: '', categories: '', manufacturers: '' } as Record<string, string>,
   })
 
   // initial hydrate
@@ -106,8 +106,8 @@ export function useCatalogState(initialFilters?: InitialFilters) {
 
   const routeKey = computed(() => {
     const parts = Object.entries(route.query)
-      .sort(([a],[b]) => a.localeCompare(b))
-      .map(([k,v]) => `${k}=${Array.isArray(v)? v.join(',') : (v ?? '')}`)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${k}=${Array.isArray(v) ? v.join(',') : (v ?? '')}`)
       .join('&')
     return `${route.path}?${parts}`
   })
@@ -115,16 +115,16 @@ export function useCatalogState(initialFilters?: InitialFilters) {
 
   function buildQueryFromSel() {
     const q: Record<string, string> = {}
-    if (sel.brands.length)         q.brands         = sel.brands.join(',')
-    if (sel.categories.length)     q.categories     = sel.categories.join(',')
-    if (sel.manufacturers.length)  q.manufacturers  = sel.manufacturers.join(',')
-    if (sel.models.length)         q.models         = sel.models.join(',')
+    if (sel.brands.length) q.brands = sel.brands.join(',')
+    if (sel.categories.length) q.categories = sel.categories.join(',')
+    if (sel.manufacturers.length) q.manufacturers = sel.manufacturers.join(',')
+    if (sel.models.length) q.models = sel.models.join(',')
 
     const hasAttrs = Object.values(sel.attributes || {}).some(arr => (arr?.length ?? 0) > 0)
     if (hasAttrs) q.attributes = stableStringify(sel.attributes)
-    if (sel.q)    q.search     = sel.q
-    if (sel.sort) q.sort       = sel.sort
-    if (sel.page > 1) q.page   = String(sel.page)
+    if (sel.q) q.search = sel.q
+    if (sel.sort) q.sort = sel.sort
+    if (sel.page > 1) q.page = String(sel.page)
     q.per_page = sel.perPage === 'all' ? 'all' : String(sel.perPage || 25)
 
     const next: Record<string, any> = {}
@@ -146,13 +146,13 @@ export function useCatalogState(initialFilters?: InitialFilters) {
     const hasBaseMan = sel.manufacturers.map(s => s.toLowerCase()).includes(baseMan)
 
     if (!hasAny && (entryType.value === 'category' || entryType.value === 'manufacturer')) return SHOP_PATH
-    if (entryType.value === 'category'     && baseCat && !hasBaseCat) return SHOP_PATH
+    if (entryType.value === 'category' && baseCat && !hasBaseCat) return SHOP_PATH
     if (entryType.value === 'manufacturer' && baseMan && !hasBaseMan) return SHOP_PATH
     return route.path
   }
 
   function updateRoute(replace = false) {
-    const path  = computeTargetPath()
+    const path = computeTargetPath()
     const query = (path !== route.path) ? withoutPage(buildQueryFromSel()) : buildQueryFromSel()
     return router[replace ? 'replace' : 'push']({ path, query })
   }
@@ -160,7 +160,7 @@ export function useCatalogState(initialFilters?: InitialFilters) {
   function toggle(list: string[], slug: string) {
     const i = list.indexOf(slug); i >= 0 ? list.splice(i, 1) : list.push(slug)
   }
-  function clearGroup(which: 'brands'|'categories'|'manufacturers'|'models') {
+  function clearGroup(which: 'brands' | 'categories' | 'manufacturers' | 'models') {
     if (which === 'brands') sel.brands = []
     else if (which === 'categories') sel.categories = []
     else if (which === 'manufacturers') sel.manufacturers = []
@@ -170,10 +170,10 @@ export function useCatalogState(initialFilters?: InitialFilters) {
       sel.brands.length + sel.models.length + sel.categories.length + sel.manufacturers.length +
       Object.values(sel.attributes).reduce((n, a) => n + a.length, 0)
 
-  if (totalAfter === 0) { 
-    router.replace({ path: SHOP_PATH })
-    return
-  }
+    if (totalAfter === 0) {
+      router.replace({ path: SHOP_PATH })
+      return
+    }
     applyAndResetPage()
   }
   function toggleAttr(attrSlug: string, subSlug: string) {
