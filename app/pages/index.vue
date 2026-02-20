@@ -3,8 +3,8 @@ import ProSlider from '~/components/ProSlider.vue'
 import CategoriesGrid from '~/components/home/CategoriesGrid.vue'
 import ProductCarousel from '~/components/products/ProductCarousel.vue'
 import BrandSection from '~/components/home/BrandSection.vue'
-import { onMounted, ref, computed, watch } from 'vue'
-import { useSeoMeta, useHead, useRoute, useRequestURL, useRuntimeConfig, useNuxtApp } from '#imports'
+import { ref, computed, watch } from 'vue'
+import { useSeoMeta, useHead, useRoute, useRequestURL, useRuntimeConfig, useNuxtApp, useAsyncData } from '#imports'
 import { useI18n } from 'vue-i18n'
 
 type SliderItem = { image: string; link?: string; title?: string; alt?: string; type?: string }
@@ -47,31 +47,29 @@ const itemsForSlider = computed<SliderItem[]>(() =>
 const slidersError = computed(() =>
   (slidersErrObj.value as any)?.data?.message || (slidersErrObj.value as any)?.message || ''
 )
-if (process.client && typeof watch === 'function') watch(() => locale.value, () => refreshSliders?.())
 
 /* ---------------- Categories ---------------- */
 const categories = [
-  { title: t('home.categories.carRemotes') || 'Car Remotes',     href: '/car-remotes',    image: '/images/home/categories/car-remotes.webp' },
+  { title: t('home.categories.carRemotes') || 'Car Remotes',      href: '/car-remotes',    image: '/images/home/categories/car-remotes.webp' },
   { title: t('home.categories.xhorseRemotes') || 'Xhorse Remotes',  href: '/xhorse-remotes', image: '/images/home/categories/xhorse-remote.webp' },
   { title: t('home.categories.keydiyRemotes') || 'Keydiy Remotes',  href: '/keydiy-remotes', image: '/images/home/categories/keydiy-kd-remote.webp' },
   { title: t('home.categories.remotePcb') || 'Remote PCB',      href: '/remote-pcb',     image: '/images/home/categories/pcb-remote.webp' },
 
   { title: t('home.categories.keyProgrammingDevices') || 'Key Programming Devices', href: '/key-programming-diagnostics-tools', image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/devices%20and%20machine.jpg' },
-  { title: t('home.categories.keyCuttingMachines') || 'Key Cutting Machines',    href: '/key-cutting-machine',               image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/key%20cutting%20machines.jpg' },
-  { title: t('home.categories.cables') || 'Cables',                   href: '/cables',                            image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/cables%202.jpg' },
-  { title: t('home.categories.adapter') || 'Adapter',                  href: '/adapter',                           image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/adapers.jpg' },
+  { title: t('home.categories.keyCuttingMachines') || 'Key Cutting Machines',    href: '/key-cutting-machine',                image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/key%20cutting%20machines.jpg' },
+  { title: t('home.categories.cables') || 'Cables',                    href: '/cables',                             image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/cables%202.jpg' },
+  { title: t('home.categories.adapter') || 'Adapter',                  href: '/adapter',                            image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/adapers.jpg' },
 
-  { title: t('home.categories.cutter') || 'Cutter',                   href: '/cutter',                            image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/1698760907-Cutter.jpg' },
-  { title: t('home.categories.emulators') || 'Emulators',                href: '/emulators',                         image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/emulators.jpg' },
-  { title: t('home.categories.openingTools') || 'Opening Tools',            href: '/opening-tools',                     image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/opening%20tools.jpg' },
-  { title: t('home.categories.immobilizerSmartBox') || 'Immobilizer Smart Box',    href: '/immobilizer-smart-box',             image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/immobilizer-smart-box.jpg' },
+  { title: t('home.categories.cutter') || 'Cutter',                    href: '/cutter',                             image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/1698760907-Cutter.jpg' },
+  { title: t('home.categories.emulators') || 'Emulators',                href: '/emulators',                          image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/emulators.jpg' },
+  { title: t('home.categories.openingTools') || 'Opening Tools',            href: '/opening-tools',                      image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/opening%20tools.jpg' },
+  { title: t('home.categories.immobilizerSmartBox') || 'Immobilizer Smart Box',    href: '/immobilizer-smart-box',              image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/immobilizer-smart-box.jpg' },
 ]
 const catRows = computed(() => Math.ceil((categories?.length || 0) / 5))
 
-/* ---------------- LIMIT LOGIC (max 48 per section) ---------------- */
+/* ---------------- LIMIT LOGIC & API HELPERS ---------------- */
 const MAX_PER_SECTION = 48
 
-// compute server page size & capped last page
 function pageSizeFrom(meta: any, fallbackRows: number, fallbackPerRow: number, itemsLen: number) {
   const byMeta = Number(meta?.per_page ?? meta?.page_size)
   if (Number.isFinite(byMeta) && byMeta > 0) return byMeta
@@ -105,7 +103,6 @@ function unwrapApi(res: any) {
 function mapApiProduct(p: any) {
   const hasSale = p?.sale_price != null && p?.sale_price !== 0
 
-  // discount
   const d = p?.discount || {}
   const typeRaw = d?.type
   const valueNum =
@@ -116,22 +113,19 @@ function mapApiProduct(p: any) {
   const end   = d?.end_date ?? null
   const active = !!d?.active && (typeRaw === 'fixed' || typeRaw === 'percent') && valueNum != null
 
-  // table price
   const tablePrice: any[] =
     Array.isArray(p?.table_price) ? p.table_price
     : Array.isArray(p?.table_price?.data) ? p.table_price.data
     : []
 
-  // free shipping
   const isFree =
     p?.is_free_shipping === 1 ||
     p?.is_free_shipping === '1' ||
     p?.is_free_shipping === true
 
-  // categories (need ids to detect software/token)
   const cats = Array.isArray(p?.categories) ? p.categories : []
   const catIds = cats.map((c:any) => Number(c?.id)).filter((n:number) => Number.isFinite(n))
-  const requiresSerial = catIds.includes(47) || catIds.includes(48)     // Token/Software
+  const requiresSerial = catIds.includes(47) || catIds.includes(48)
   const hidePrice = Number(p?.hide_price ?? 0) === 1
 
   const categoryName = cats[0]?.name ? String(cats[0].name) : ''
@@ -147,7 +141,6 @@ function mapApiProduct(p: any) {
     price: hasSale ? p.sale_price : p.price,
     oldPrice: hasSale ? p.price : null,
 
-    // knobs used by ProductCard/computeUnitPrice()
     regular_price: p.regular_price ?? p.price ?? null,
     sale_price: p.sale_price ?? null,
     table_price: tablePrice,
@@ -158,7 +151,6 @@ function mapApiProduct(p: any) {
     display_euro_price: Number(p?.display_euro_price ?? 0) === 1,
     euro_price: p?.euro_price ?? null,
 
-    // meta / badges
     sku: p.sku ?? '',
     category: categoryName,
     categorySlug,
@@ -171,73 +163,93 @@ function mapApiProduct(p: any) {
     requires_serial: requiresSerial,
   }
 }
-function useLazySection(cb: () => void) {
-  const el = ref<HTMLElement | null>(null)
-  onMounted(() => {
-    if (!el.value) return
-    const io = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) { cb(); io.disconnect() }
-    }, { rootMargin: '200px' })
-    io.observe(el.value)
-  })
-  return { el }
-}
 
-/* -------- FEATURED -------- */
-const featured        = ref<any[]>([])
-const featuredMeta    = ref<any | null>(null)
-const featuredPage    = ref(1)
-const featuredLastRef = ref(1)
-
-async function fetchFeatured(page = 1, rows = 2, perRow = 6) {
+/* -------- FEATURED (SSR) -------- */
+const fetchFeaturedApi = async (page = 1, rows = 2, perRow = 6) => {
   const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
     method: 'GET',
-    params: {
-      page, rows, per_row: perRow,
-      include: 'table_price,categories',
-      currency: 'USD'
-    }
+    params: { page, rows, per_row: perRow, include: 'table_price,categories', currency: 'USD' }
   })
   const { items, meta } = unwrapApi(res)
   const capLast = cappedLastPage(meta, rows, perRow, items.length)
-
-  // 🔁 always REPLACE the products with the requested page
-  featured.value = items.map(mapApiProduct)
-
-  featuredMeta.value    = meta
-  featuredPage.value    = Number(meta?.current_page || page || 1)
-  featuredLastRef.value = capLast
+  return { 
+    items: items.map(mapApiProduct), 
+    meta, 
+    page: Number(meta?.current_page || page || 1), 
+    lastPage: capLast 
+  }
 }
 
-const { el: featuredEl } = useLazySection(() => fetchFeatured(1))
+// Fetch on server side
+const { data: featuredData, refresh: refreshFeatured } = await useAsyncData(
+  () => `home:featured:${locale.value}`,
+  () => fetchFeaturedApi(1, 2, 6),
+  { server: true, default: () => ({ items: [], meta: null, page: 1, lastPage: 1 }) }
+)
 
-/* -------- NEW ARRIVALS -------- */
-const newArrivals = ref<any[]>([])
-const newMeta     = ref<any | null>(null)
-const newPage     = ref(1)
-const newLastRef  = ref(1)
+const featured        = ref<any[]>(featuredData.value.items)
+const featuredPage    = ref(featuredData.value.page)
+const featuredLastRef = ref(featuredData.value.lastPage)
 
-async function fetchNew(page = 1, rows = 1, perRow = 6) {
+// Client-side paginator function
+async function fetchFeaturedClient(page = 1, rows = 2, perRow = 6) {
+  const data = await fetchFeaturedApi(page, rows, perRow)
+  featured.value = data.items
+  featuredPage.value = data.page
+  featuredLastRef.value = data.lastPage
+}
+
+/* -------- NEW ARRIVALS (SSR) -------- */
+const fetchNewApi = async (page = 1, rows = 1, perRow = 6) => {
   const res = await $customApi(`${API_BASE_URL}/homepage-products/new-arrivals`, {
     method: 'GET',
-    params: {
-      page, rows, per_row: perRow,
-      include: 'table_price,categories',
-      currency: 'USD'
-    }
+    params: { page, rows, per_row: perRow, include: 'table_price,categories', currency: 'USD' }
   })
   const { items, meta } = unwrapApi(res)
   const capLast = cappedLastPage(meta, rows, perRow, items.length)
-
-  // 🔁 always REPLACE the products with the requested page
-  newArrivals.value = items.map(mapApiProduct)
-
-  newMeta.value    = meta
-  newPage.value    = Number(meta?.current_page || page || 1)
-  newLastRef.value = capLast
+  return { 
+    items: items.map(mapApiProduct), 
+    meta, 
+    page: Number(meta?.current_page || page || 1), 
+    lastPage: capLast 
+  }
 }
 
-const { el: newEl } = useLazySection(() => fetchNew(1))
+// Fetch on server side
+const { data: newArrivalsData, refresh: refreshNew } = await useAsyncData(
+  () => `home:new-arrivals:${locale.value}`,
+  () => fetchNewApi(1, 1, 6),
+  { server: true, default: () => ({ items: [], meta: null, page: 1, lastPage: 1 }) }
+)
+
+const newArrivals = ref<any[]>(newArrivalsData.value.items)
+const newPage     = ref(newArrivalsData.value.page)
+const newLastRef  = ref(newArrivalsData.value.lastPage)
+
+// Client-side paginator function
+async function fetchNewClient(page = 1, rows = 1, perRow = 6) {
+  const data = await fetchNewApi(page, rows, perRow)
+  newArrivals.value = data.items
+  newPage.value = data.page
+  newLastRef.value = data.lastPage
+}
+
+// Watchers for i18n changes
+if (process.client && typeof watch === 'function') {
+  watch(() => locale.value, async () => {
+    refreshSliders?.()
+    
+    // Refresh SSR data sources and update refs when locale changes
+    await Promise.all([refreshFeatured(), refreshNew()])
+    featured.value = featuredData.value.items
+    featuredPage.value = featuredData.value.page
+    featuredLastRef.value = featuredData.value.lastPage
+
+    newArrivals.value = newArrivalsData.value.items
+    newPage.value = newArrivalsData.value.page
+    newLastRef.value = newArrivalsData.value.lastPage
+  })
+}
 
 /* ================= SEO ================= */
 const route = useRoute()
@@ -246,10 +258,6 @@ const siteName = computed(() => t('site.name') || cfgSiteName || 'TL Keys')
 const siteUrl  = computed(() => cfgSiteUrl || `${url.origin}`)
 const pathOnly  = computed(() => route.fullPath.split('#')[0].split('?')[0] || '/')
 const canonical = computed(() => `${siteUrl.value}${pathOnly.value}`)
-const localizedHref = (lang: string) => {
-  const base = pathOnly.value.startsWith('/') ? pathOnly.value : `/${pathOnly.value}`
-  return `${siteUrl.value}${lang === defaultLocale ? base : `/${lang}${base}`}`
-}
 const toAbs = (src?: string) => {
   if (!src) return `${siteUrl.value}${defaultOgImage || '/images/og-image.jpg'}`
   return src.startsWith('http') ? src : `${siteUrl.value}${src.startsWith('/') ? src : `/${src}`}`
@@ -309,8 +317,6 @@ const webPageLd = computed(() => ({
 useHead({
   link: [
     { rel: 'canonical', href: canonical.value },
-    // ...availableLocales.map((lang: string) => ({ rel: 'alternate', hreflang: lang, href: localizedHref(lang) })),
-    // { rel: 'alternate', hreflang: 'x-default', href: localizedHref(defaultLocale) }
   ],
   script: [
     { key: 'ld-website',  type: 'application/ld+json', innerHTML: JSON.stringify(websiteLd.value) },
@@ -321,7 +327,6 @@ useHead({
 </script>
 
 <template>
-  <!-- Hero Slider -->
   <section class="mt-3 hidden lg:block">
     <div class="relative left-1/2 right-1/2 -mx-[50vw] w-screen px-2 sm:px-3 md:px-4">
       <ProSlider
@@ -354,7 +359,6 @@ useHead({
     Techno Lock Keys Trading – Car Keys, Remotes, Emergency Keys, Key Cutting & Programming Machines
   </h1>
 
-  <!-- Categories -->
   <CategoriesGrid
     :title="t('home.browseCategories') || 'Browse Categories'"
     :items="categories"
@@ -363,8 +367,7 @@ useHead({
     containerClass="max-w-screen-2xl"
   />
 
-  <!-- Featured -->
-  <section ref="featuredEl" data-nosnippet>
+  <section data-nosnippet>
     <ProductCarousel
       v-if="featured.length"
       :title="t('home.featuredProducts') || 'FEATURED PRODUCTS'"
@@ -376,12 +379,11 @@ useHead({
       :lastPage="featuredLastRef"
       :show-arrows="true"
       :show-dots="featuredLastRef <= 12"
-      @request-page="fetchFeatured"
+      @request-page="fetchFeaturedClient"
     />
   </section>
 
-  <!-- New Arrivals -->
-  <section ref="newEl" data-nosnippet>
+  <section data-nosnippet>
     <ProductCarousel
       v-if="newArrivals.length"
       :title="t('home.newArrivals') || 'NEW ARRIVALS'"
@@ -395,12 +397,11 @@ useHead({
       overlayClass="bg-black/10"
       :show-arrows="true"
       :show-dots="newLastRef <= 12"
-      @request-page="fetchNew"
+      @request-page="fetchNewClient"
     />
   </section>
 
 
-  <!-- Brand sections -->
   <BrandSection
     data-nosnippet
     :title="t('home.xhorseRemotes') || 'Xhorse remotes'"

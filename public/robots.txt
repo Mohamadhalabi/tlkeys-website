@@ -108,13 +108,5 @@ Disallow: /es/paypal-pay-now
 Disallow: /ru/paypal-pay-now
 Disallow: /de/paypal-pay-now
 
-# Block all URLs with query parameters
-Disallow: /*?*
-
 # Sitemaps
-Sitemap: https://www.tlkeys.com/sitemap-english.xml
-Sitemap: https://www.tlkeys.com/sitemap-arabic.xml
-Sitemap: https://www.tlkeys.com/sitemap-french.xml
-Sitemap: https://www.tlkeys.com/sitemap-spanish.xml
-Sitemap: https://www.tlkeys.com/sitemap-russian.xml
-Sitemap: https://www.tlkeys.com/sitemap-deutsch.xml
+Sitemap: https://www.tlkeys.com/sitemap_index.xml
