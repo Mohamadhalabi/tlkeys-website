@@ -34,6 +34,7 @@ useCatalogSeo({
   siteNameFromI18n: () => t('site.name') as string,
   overrideTitle: computed(() => props.seoTitle),
   overrideDescription: computed(() => props.seoDescription),
+  lastPage: computed(() => Number(data.meta.value?.last_page || 1)),
 })
 
 const isRTL = computed(() => localeProperties.value?.dir === 'rtl')

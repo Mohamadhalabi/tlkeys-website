@@ -3,19 +3,22 @@
 import { useHead, useLocaleHead } from '#imports'
 import AlertContainer from '../app/components/common/AlertContainer.vue'
 import BackToTop from './components/ui/BackToTop.vue'
+const route = useRoute()
 
 const i18nHead = useLocaleHead({
   addDirAttribute: true,   // ✅ <html dir="ltr/rtl">
   addSeoAttributes: true,  // ✅ og:locale, alternates, etc.
 })
 
-useHead(() => ({
-  // ✅ fixes Seobility “Language detected es, HTML says en”
-  htmlAttrs: i18nHead.value.htmlAttrs,
-  // ✅ correct, absolute hreflang alternates for every route
-  link: i18nHead.value.link,
-  meta: i18nHead.value.meta,
-}))
+useHead(() => {
+  const pageParam = Number(route.query.page || 1)
+
+  return {
+    htmlAttrs: i18nHead.value.htmlAttrs,
+    link: pageParam <= 1 ? i18nHead.value.link : [],
+    meta: pageParam <= 1 ? i18nHead.value.meta : []
+  }
+})
 </script>
 
 <template>
