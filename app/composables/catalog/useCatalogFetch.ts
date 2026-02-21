@@ -102,6 +102,7 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
       euro_price: p.euro_price,
       gallery: p.gallery,
       stock,
+      part_number: p.part_number,
       sku: p.sku ?? '',
       category: (Array.isArray(p?.categories) && p.categories[0]?.name) ? String(p.categories[0].name) : '',
       categorySlug: (Array.isArray(p?.categories) && p.categories[0]?.slug) ? String(p.categories[0].slug).toLowerCase() : '',

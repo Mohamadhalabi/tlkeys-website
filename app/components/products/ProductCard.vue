@@ -10,6 +10,7 @@ type Product = {
   id: number | string
   slug?: string
   name: string
+  part_number?: string | null 
   image: string
   gallery?: string[] 
   price: number | string
@@ -67,16 +68,31 @@ const getFilename = (url: string) => {
   } catch (e) { return '' }
 }
 
+/* --- Clean Title Logic (Removes MPN, P/N:, and truncates) --- */
+const cleanTitle = computed(() => {
+  let t = props.product.name || ''
+  const mpn = props.product.part_number
+  
+  if (mpn && t.includes(mpn)) {
+    // Replace the MPN, and clean up any double spaces or leading/trailing hyphens left behind
+    t = t.replace(mpn, '').replace(/\s{2,}/g, ' ').replace(/^-\s*/, '').trim()
+  }
+  
+  // Strip out "P/N:" or "P/N" entirely
+  t = t.replace(/\s*P\/N:?\s*/gi, ' ').trim()
+  
+  // Apply the 50 character truncation from your previous request
+  return t.length > 70 ? t.substring(0, 80) + '...' : t
+})
+
 /* --- Gallery Logic (Smart Dedupe) --- */
 const imageList = computed(() => {
   const mainImg = props.product.image || ''
-  // Always start with main image
   const imgs = [mainImg]
 
   if (props.product.gallery && Array.isArray(props.product.gallery) && props.product.gallery.length > 0) {
     const mainName = getFilename(mainImg)
     
-    // Filter out duplicates based on filename (handles -min vs full differences)
     const unique = props.product.gallery.filter(g => {
       if (!g) return false
       const gName = getFilename(g)
@@ -234,7 +250,6 @@ onMounted(() => {
   visIO = new IntersectionObserver(([entry]) => { if (entry?.isIntersecting) animateOff(discountAmount.value) }, { threshold: 0.35 })
   if (cardEl.value) visIO.observe(cardEl.value)
   
-  // Start Timer
   timerTick = setInterval(() => { now.value = Date.now() }, 1000)
 })
 
@@ -328,18 +343,21 @@ async function onAdd() {
 
     <div class="flex flex-1 flex-col px-4 pb-4 pt-4">
       
-      <div class="mb-1 min-h-[15px]">
-        <div v-if="product.sku" class="text-[10px] font-bold uppercase tracking-wide text-gray-400">
+      <div class="mb-3 min-h-[15px] flex flex-col gap-2">
+        <div v-if="product.sku" class="text-xs font-bold uppercase tracking-wider text-green-600" data-nosnippet>
           {{ product.sku }}
+          <div v-if="product.part_number" class="w-max inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-[12px] font-semibold text-blue-700">
+            {{ product.part_number }}
+          </div>
         </div>
       </div>
 
       <NuxtLinkLocale
         :to="linkTo"
-        class="mb-3 block text-sm font-bold leading-snug text-gray-800 transition-colors hover:text-red-600 line-clamp-2 min-h-[2.5rem]"
+        class="mb-3 block text-sm font-bold leading-snug text-gray-800 transition-colors hover:text-red-600 min-h-[2.5rem]"
         :title="product.name"
       >
-        {{ product.name }}
+        {{ cleanTitle }}
       </NuxtLinkLocale>
 
       <div class="mt-auto"></div>
