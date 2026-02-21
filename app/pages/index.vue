@@ -135,6 +135,7 @@ function mapApiProduct(p: any) {
     id: p.id,
     name: p.title ?? p.short_title ?? '',
     image: p.image,
+    part_number: p.part_number ?? null, // <-- ADD THIS LINE
     stock: Number.isFinite(Number(p?.quantity ?? p?.stock ?? p?.available_quantity))
       ? Number(p?.quantity ?? p?.stock ?? p?.available_quantity)
       : null,

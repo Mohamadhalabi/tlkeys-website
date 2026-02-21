@@ -76,6 +76,7 @@ function mapApiProduct(p: any) {
     id: p.id,
     name: p.title ?? p.short_title ?? '',
     image: p.image,
+    part_number: p.part_number ?? null, // <-- ADDED THIS
     stock,
     price: hasSale ? p.sale_price : p.price,
     oldPrice: hasSale ? p.price : null,
@@ -86,6 +87,11 @@ function mapApiProduct(p: any) {
     discount_value: active ? valueNum : null,
     discount_start_date: d?.start_date ?? null,
     discount_end_date:   d?.end_date ?? null,
+    
+    // --> ADDED EURO PRICES to keep it consistent with index.vue
+    display_euro_price: Number(p?.display_euro_price ?? 0) === 1,
+    euro_price: p?.euro_price ?? null,
+
     sku: p.sku ?? '',
     category: categoryName,
     categorySlug,
