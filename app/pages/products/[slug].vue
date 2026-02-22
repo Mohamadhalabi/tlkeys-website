@@ -681,7 +681,22 @@ useHead(() => {
 })
 
 /* ---------------- Related products (lazy) ---------------- */
-type GridProduct = { id: number | string; name: string; image: string; price: number; oldPrice?: number | null; slug?: string; href?: string; sku?: string | null; category?: string | null; hide_price?: boolean | number | null; display_euro_price?: boolean | number | null; euro_price?: number | null }
+type GridProduct = { 
+  id: number | string; 
+  name: string; 
+  image: string; 
+  price: number; 
+  oldPrice?: number | null; 
+  slug?: string; 
+  href?: string; 
+  sku?: string | null; 
+  category?: string | null; 
+  hide_price?: boolean | number | null; 
+  display_euro_price?: boolean | number | null; 
+  euro_price?: number | null;
+  part_number?: string | null;
+}
+
 const relatedProducts   = ref<GridProduct[]>([])
 const relatedLoading    = ref(false)
 const relatedError      = ref<string | null>(null)
@@ -696,7 +711,18 @@ function normRelatedItem(x: any): GridProduct | null {
   const img  = x.image || x.images?.[0]?.src || ''
   const price = Number((typeof x.sale_price === 'number' && x.sale_price > 0 ? x.sale_price : typeof x.price === 'number' && x.price > 0 ? x.price : x.regular_price) ?? 0)
   const old = (x.regular_price && Number(x.regular_price) > price) ? Number(x.regular_price) : null
-  return { id, name, image: img, price, oldPrice: old, slug: x.slug, sku: x.sku, hide_price: x.hide_price ?? null }
+  
+  return { 
+    id, 
+    name, 
+    image: img, 
+    price, 
+    oldPrice: old, 
+    slug: x.slug, 
+    sku: x.sku, 
+    part_number: x.mpn ?? x.part_number,
+    hide_price: x.hide_price ?? null 
+  }
 }
 
 async function fetchRelatedOnce() {

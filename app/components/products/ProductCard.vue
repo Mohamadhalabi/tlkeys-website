@@ -4,7 +4,7 @@ import { useCart } from '~/composables/useCart'
 import { useCurrency } from '~/composables/useCurrency'
 import { useRuntimeConfig, useI18n } from '#imports'
 import { computeUnitPrice, type PriceTableRow as TRow } from '~/utils/pricing'
-
+import MpnImage from '~/components/products/MpnImage.vue'
 /* --- Types --- */
 type Product = {
   id: number | string
@@ -69,19 +69,28 @@ const getFilename = (url: string) => {
 }
 
 /* --- Clean Title Logic (Removes MPN, P/N:, and truncates) --- */
+/* --- Clean Title Logic (Case-Insensitive MPN Removal) --- */
 const cleanTitle = computed(() => {
   let t = props.product.name || ''
-  const mpn = props.product.part_number
+  let mpn = props.product.part_number
   
-  if (mpn && t.includes(mpn)) {
-    // Replace the MPN, and clean up any double spaces or leading/trailing hyphens left behind
-    t = t.replace(mpn, '').replace(/\s{2,}/g, ' ').replace(/^-\s*/, '').trim()
+  if (mpn) {
+    mpn = mpn.trim()
+    
+    // 1. Escape any special characters in the MPN to prevent Regex errors
+    const safeMpn = mpn.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    
+    // 2. Create a global (g), case-insensitive (i) Regular Expression
+    const regex = new RegExp(safeMpn, 'ig')
+    
+    // 3. Remove the MPN regardless of upper/lower case matching
+    t = t.replace(regex, '').replace(/\s{2,}/g, ' ').replace(/^-\s*/, '').trim()
   }
   
   // Strip out "P/N:" or "P/N" entirely
   t = t.replace(/\s*P\/N:?\s*/gi, ' ').trim()
   
-  // Apply the 50 character truncation from your previous request
+  // Apply the 50 character truncation
   return t.length > 70 ? t.substring(0, 80) + '...' : t
 })
 
@@ -343,15 +352,15 @@ async function onAdd() {
 
     <div class="flex flex-1 flex-col px-4 pb-4 pt-4">
       
-      <div class="mb-3 min-h-[15px] flex flex-col gap-2">
-        <div v-if="product.sku" class="text-xs font-bold uppercase tracking-wider text-green-600" data-nosnippet>
-          {{ product.sku }}
-          <div v-if="product.part_number" class="w-max inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-[12px] font-semibold text-blue-700">
-            {{ product.part_number }}
-          </div>
-        </div>
+    <div class="mb-3 min-h-[15px] flex flex-wrap items-center gap-2">
+      <div v-if="product.sku" class="text-xs font-bold uppercase tracking-wider text-green-600" data-nosnippet>
+        {{ product.sku }}
       </div>
-
+      
+      <div v-if="product.part_number" class="w-max inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5">
+        <MpnImage :mpn="product.part_number" />
+      </div>
+    </div>
       <NuxtLinkLocale
         :to="linkTo"
         class="mb-3 block text-sm font-bold leading-snug text-gray-800 transition-colors hover:text-red-600 min-h-[2.5rem]"
