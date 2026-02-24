@@ -79,9 +79,9 @@ export default defineNuxtConfig({
       lastmod: new Date().toISOString(),
     },
     exclude: [
-      '/checkout/**', '/account/**', '/cart', '/complete-order',
-      '/**/checkout/**', '/**/account/**', '/**/cart',
-      '/3e00ce51bde3addf1fa11b7', '/6b750ddca9d27708692942d7d85ee5a16b3fc2e6'
+      '/checkout/**', '/account/**', '/cart', '/complete-order', '/complete-custom-order', '/custom-order',
+      '/**/checkout/**', '/**/account/**', '/**/cart', '/**/complete-order', '/**/complete-custom-order', '/**/custom-order',
+      '/3e00ce51bde3addf1fa11b7', '/6b750ddca9d27708692942d7d85ee5a16b3fc2e6', '/435d7eb240c0e460cbb0281d1956b68c0ca99c33'
     ]
   },
 
