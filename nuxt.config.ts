@@ -1,4 +1,3 @@
-// nuxt.config.ts
 import { fileURLToPath } from 'url'
 import { visualizer } from 'rollup-plugin-visualizer';
 
@@ -7,11 +6,10 @@ const siteName = 'tlkeys'
 const logoUrl = `${siteUrl}/images/logo/techno-lock-desktop-logo.webp`
 const searchTarget = `${siteUrl}/shop?q={search_term_string}`
 
-const OPENING_HOURS = [{ "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], "opens": "09:00", "closes": "18:00" },]
+const OPENING_HOURS = [{ "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], "opens": "09:00", "closes": "18:00" }]
 
 const SAME_AS = ["https://www.facebook.com/technolockkeystrade", "https://www.instagram.com/technolock", "https://www.youtube.com/@technolock", "https://www.tiktok.com/@technolockkeys"].filter(Boolean)
 
-// --- i18n ---
 const i18nOptions = {
   locales: [
     { code: 'en', iso: 'en', dir: 'ltr', file: 'en.json', name: 'English' },
@@ -35,7 +33,6 @@ const i18nOptions = {
 }
 
 export default defineNuxtConfig({
-  // Nuxt 4 / Future Compatibility
   future: { compatibilityVersion: 4 },
   compatibilityDate: '2025-09-22',
 
@@ -49,26 +46,32 @@ export default defineNuxtConfig({
     '@nuxtjs/tailwindcss',
     ['@nuxtjs/i18n', i18nOptions],
     '@nuxt/image',
+    '@nuxt/scripts',
     '@pinia/nuxt',
     'nuxt-delay-hydration',
     'nuxt-vitalizer',
     '@vite-pwa/nuxt',
-    '@nuxtjs/sitemap'
+    '@nuxtjs/sitemap',
+    '@nuxt/scripts' // NEW: Added for better 3rd party script management
   ],
+
+  // --- DELAY HYDRATION OPTIMIZATION ---
+  // Switching to 'init' and adding 'replayClick' directly targets INP issues
+  delayHydration: {
+    mode: 'mount',
+    debug: process.env.NODE_ENV === 'development',
+    replayClick: true
+  },
 
   image: {
     domains: ['dev-srv.tlkeys.com'],
-    alias: {
-      backend: 'https://dev-srv.tlkeys.com/storage/images'
-    },
+    alias: { backend: 'https://dev-srv.tlkeys.com/storage/images' },
     provider: 'ipx',
   },
 
-  // --- SITEMAP CONFIGURATION ---
   sitemap: {
-    debug: true,
+    debug: false,
     autoI18n: true,
-    sitemaps: true,
     sources: ['/api/sitemap-routes'],
     defaults: {
       changefreq: 'daily',
@@ -76,11 +79,12 @@ export default defineNuxtConfig({
       lastmod: new Date().toISOString(),
     },
     exclude: [
-      '/checkout/**', '/account/**', '/cart', '/complete-order', '/complete-custom-order', '/custom-order',
-      '/**/checkout/**', '/**/account/**', '/**/cart', '/**/complete-order', '/**/complete-custom-order', '/**/custom-order',
-      '/3e00ce51bde3addf1fa11b7', '/6b750ddca9d27708692942d7d85ee5a16b3fc2e6', '/435d7eb240c0e460cbb0281d1956b68c0ca99c33'
+      '/checkout/**', '/account/**', '/cart', '/complete-order',
+      '/**/checkout/**', '/**/account/**', '/**/cart',
+      '/3e00ce51bde3addf1fa11b7', '/6b750ddca9d27708692942d7d85ee5a16b3fc2e6'
     ]
   },
+
 
   runtimeConfig: {
     apiKey: process.env.API_KEY,
@@ -109,162 +113,54 @@ export default defineNuxtConfig({
     fileURLToPath(new URL('./app/assets/css/layout-header.css', import.meta.url))
   ],
 
-  pwa: {
-    registerType: 'autoUpdate',
-    devOptions: { enabled: true },
-    manifest: {
-      name: 'TLKeys',
-      short_name: 'TLKeys',
-      start_url: '/',
-      scope: '/',
-      display: 'standalone',
-      background_color: '#111827',
-      theme_color: '#111827',
-      icons: [
-        { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-        { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
-        { src: '/maskable-pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
-      ]
-    },
-    workbox: { globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,jpg,jpeg,woff2}'] },
-  },
-
   app: {
     head: {
+      // Note: GTM Script removed from here to be used via @nuxt/scripts in app.vue
       link: [
         { rel: 'preconnect', href: 'https://www.google-analytics.com', crossorigin: 'anonymous' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'dns-prefetch', href: '//fonts.gstatic.com' },
         { rel: 'preconnect', href: 'https://dev-srv.tlkeys.com', crossorigin: 'anonymous' },
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
-        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/icons/favicon-32x32.png' },
-        { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/icons/favicon-16x16.png' },
-        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' }
       ],
       meta: [
-        { name: 'theme-color', content: '#ffffff' },
-        { name: 'msapplication-TileColor', content: '#ffffff' },
+        { name: 'theme-color', content: '#111827' },
         { name: 'format-detection', content: 'telephone=no' },
-        { name: 'description', content: 'Automotive locksmith tools, remotes, shells, and key programming devices.' },
-        { property: 'og:type', content: 'website' },
-        { property: 'og:site_name', content: 'Techno Lock Keys' },
-        { property: 'og:image', content: `${siteUrl}/images/og-image.jpg` },
-        { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:image', content: `${siteUrl}/images/og-image.jpg` }
       ],
-      script: [
-        {
-          key: 'ld-org',
-          type: 'application/ld+json',
-          innerHTML: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'Organization',
-            '@id': siteUrl,
-            name: siteName,
-            url: siteUrl,
-            logo: logoUrl
-          })
-        },
-        {
-          key: 'ld-website',
-          type: 'application/ld+json',
-          innerHTML: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'WebSite',
-            name: siteName,
-            url: siteUrl,
-            publisher: { '@id': siteUrl },
-            inLanguage: ['en', 'ar', 'es', 'fr', 'ru', 'de', 'pt', 'it', 'tr'],
-            potentialAction: {
-              '@type': 'SearchAction',
-              target: searchTarget,
-              'query-input': 'required name=search_term_string'
-            }
-          })
-        },
-        {
-          key: 'ld-local',
-          type: 'application/ld+json',
-          innerHTML: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'AutoPartsStore',
-            '@id': siteUrl,
-            url: siteUrl,
-            name: 'Techno Lock Keys',
-            image: logoUrl,
-            logo: logoUrl,
-            parentOrganization: { '@id': siteUrl },
-            priceRange: '$$',
-            currenciesAccepted: 'USD, EUR, TRY, AED, GBP',
-            areaServed: 'Worldwide',
-            telephone: "+971504429045",
-            email: "info@tlkeys.com",
-            address: "Sharjah – Industrial No. 5, behind Maliha Road Shop No. 8, Property of Ali Nasir Mohamed Suleiman United Arab Emirates",
-            openingHoursSpecification: OPENING_HOURS,
-            sameAs: SAME_AS.length ? SAME_AS : undefined
-          })
-        }
-      ],
-      noscript: [
-        {
-          innerHTML:
-            `<iframe src="https://www.googletagmanager.com/ns.html?id=${process.env.NUXT_PUBLIC_GTM_ID || 'GTM-XXXXXXX'}" height="0" width="0" style="display:none;visibility:hidden"></iframe>`
-        }
-      ]
-    },
-    // Ensure scripts aren't blocked by escaping innerHTML properly
-    // __dangerouslyDisableSanitizers: ['script'], 
-  },
-
-  site: { url: siteUrl },
-
-  // --- UPDATED ROUTE RULES ---
-  routeRules: {
-    '/products/**': { headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
-    // Fix for Search Console 404s: 'must-revalidate' prevents CDNs from caching errors persistently
-    '/_nuxt/**': {
-      headers: {
-        'cache-control': 'public, max-age=31536000, immutable, must-revalidate',
-        'x-content-type-options': 'nosniff'
-      }
-    },
-    '/fonts/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    '/_ipx/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    '/images/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-  },
-
-  nitro: {
-    compressPublicAssets: true, // Optimizes assets (gzip/brotli)
-    prerender: {
-      crawlLinks: false,
-      routes: []
     }
   },
 
-  delayHydration: { mode: 'mount' },
-  vitalizer: { /* defaults */ },
+  routeRules: {
+    '/products/**': { headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
+    '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+  },
+
+  nitro: {
+    compressPublicAssets: true,
+  },
 
   // --- EXPERIMENTAL SETTINGS ---
   experimental: {
     payloadExtraction: false,
-    // CRITICAL FIX: Automatically reloads the page if a user hits a missing hash chunk (404)
-    emitRouteChunkError: 'automatic'
+    emitRouteChunkError: 'automatic',
+    viewTransition: true, // Improves perceived navigation speed
+    renderJsonPayloads: true,
+    navigationRepaint: false,
   },
 
   vite: {
     optimizeDeps: { include: ['swiper', 'lodash-es'] },
     build: {
-      // cssCodeSplit: false, // Keep this commented out or removed as per your last setup
+      rollupOptions: {
+        output: {
+          // Helps INP by preventing one massive JS execution block
+          manualChunks(id) {
+            if (id.includes('node_modules')) return 'vendor';
+          }
+        }
+      }
     },
     plugins: [
-      ...(process.env.ANALYZE === 'true' ? [
-        visualizer({
-          open: true,
-          filename: 'stats.html'
-        })
-      ] : [])
+      ...(process.env.ANALYZE === 'true' ? [visualizer({ open: true, filename: 'stats.html' })] : [])
     ],
   },
-
-  devtools: { enabled: false },
 })

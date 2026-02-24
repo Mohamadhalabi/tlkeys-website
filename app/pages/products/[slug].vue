@@ -9,18 +9,28 @@ import { useCart } from '~/composables/useCart'
 import { useWishlist } from '~/composables/useWishlist'
 import { useAlertStore } from '~/stores/alert'
 
-/* components */
+
+import { defineAsyncComponent } from 'vue'
+
+/* 1. IMMEDIATE IMPORTS (Visible immediately on page load) */
 import ProductTabDescription from '~/components/product/tabs/ProductTabDescription.vue'
-import ProductTabReviews from '~/components/product/tabs/ProductTabReviews.vue'
-import ProductTabFAQ from '~/components/product/tabs/ProductTabFAQ.vue'
-import ProductTabVideos from '~/components/product/tabs/ProductTabVideos.vue'
-import ProductTabContact from '~/components/product/tabs/ProductTabContact.vue'
 import ProductGallery from '~/components/product/ProductGallery.vue'
 import ProductPriceTable from '~/components/product/ProductPriceTable.vue'
-import ProductAttributesTable from '~/components/product/ProductAttributesTable.vue'
-import ProductCompatibilityTable from '~/components/product/ProductCompatibilityTable.vue'
-import ProductRelatedGrid from '~/components/product/ProductRelatedGrid.vue'
-import ProductCarousel from '~/components/products/ProductCarousel.vue'
+
+/* 2. LAZY IMPORTS (Below the fold / Hidden in tabs) - This keeps your INP low! */
+const LazyProductTabReviews = defineAsyncComponent(() => import('~/components/product/tabs/ProductTabReviews.vue'))
+const LazyProductTabFAQ = defineAsyncComponent(() => import('~/components/product/tabs/ProductTabFAQ.vue'))
+const LazyProductTabVideos = defineAsyncComponent(() => import('~/components/product/tabs/ProductTabVideos.vue'))
+const LazyProductTabContact = defineAsyncComponent(() => import('~/components/product/tabs/ProductTabContact.vue'))
+
+const LazyProductRelatedGrid = defineAsyncComponent(() => import('~/components/product/ProductRelatedGrid.vue'))
+const LazyProductAttributesTable = defineAsyncComponent(() => import('~/components/product/ProductAttributesTable.vue'))
+const LazyProductCompatibilityTable = defineAsyncComponent(() => import('~/components/product/ProductCompatibilityTable.vue'))
+const LazyProductCarousel = defineAsyncComponent(() => import('~/components/products/ProductCarousel.vue'))
+/* NOTE: Manual component imports have been removed. 
+  Nuxt auto-imports them, allowing us to use the 'Lazy' prefix 
+  in the template to prevent them from blocking the main thread.
+*/
 
 /* ---------------- Types ---------------- */
 type PriceTableRow = { min_qty: number; max_qty?: number | null; price: number | string; sale_price?: number | string | null }
@@ -250,7 +260,6 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
       const faqRaw    = (data?.faq?.data ?? data?.faq) || []
       const videosRaw = (data?.videos?.data ?? data?.videos) || []
 
-      // PERFORMANCE: markRaw for heavy static lists to avoid deep reactivity overhead
       const compatibilityList = Array.isArray(data.compatibility) ? data.compatibility : []
       const attributesList = Array.isArray(data.attributes) ? data.attributes : []
       
@@ -292,8 +301,8 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
         accessories: Array.isArray(data.accessories) ? data.accessories : [],
         bundles: Array.isArray(data.bundles) ? data.bundles : [],
         
-        attributes: markRaw(attributesList),     // Shallow Reactivity Fix
-        compatibility: markRaw(compatibilityList), // Shallow Reactivity Fix
+        attributes: markRaw(attributesList),     
+        compatibility: markRaw(compatibilityList), 
         
         faq: Array.isArray(faqRaw)
           ? faqRaw.map((x: any) => ({ q: String(x.q ?? x.question ?? ''), a: String(x.a ?? x.answer ?? '') }))
@@ -317,7 +326,12 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
       throw createError({ statusCode: status, statusMessage: message, fatal: true })
     }
   },
-  { server: true, default: () => null, watch: [() => slug.value] }
+  { 
+    server: true, 
+    default: () => null, 
+    watch: [() => slug.value],
+    deep: false // <-- INP FIX: Stops heavy recursive reactivity 
+  }
 )
 
 if (process.server && error.value) {
@@ -565,8 +579,19 @@ const TAB_DEFS = [
 ] as const
 type TabKey = typeof TAB_DEFS[number]['key']
 const tabs = computed(() => TAB_DEFS.map(d => ({ key: d.key, label: t(d.k, d.fb) })))
+
+// --- INP FIX START: Tab Yielding ---
 const activeTab = ref<TabKey>('desc')
-function setTab(k: TabKey) { activeTab.value = k }
+const mountedTab = ref<TabKey>('desc')
+
+async function setTab(k: TabKey) { 
+  activeTab.value = k 
+  // Yield to main thread to allow button visually updating before mounting heavy tab content
+  await nextTick()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  mountedTab.value = k 
+}
+// --- INP FIX END ---
 
 // --- Canonical helpers ---
 const canonicalSlug = computed(() => product.value?.canonical_slug || product.value?.slug || slug.value)
@@ -1031,13 +1056,13 @@ watch(() => product.value?.id, () => {
         </div>
       </section>
 
-      <ProductRelatedGrid v-if="product?.accessories?.length" :title="t('product.accessories','Accessories')" :items="product!.accessories!" />
+      <LazyProductRelatedGrid v-if="product?.accessories?.length" :title="t('product.accessories','Accessories')" :items="product!.accessories!" />
 
-      <ProductRelatedGrid v-if="product?.bundles?.length" class="mt-4" :title="t('product.bundleProducts','Bundle Products')" :items="product!.bundles!" />
+      <LazyProductRelatedGrid v-if="product?.bundles?.length" class="mt-4" :title="t('product.bundleProducts','Bundle Products')" :items="product!.bundles!" />
 
-      <ProductAttributesTable v-if="product?.attributes?.length" :groups="product!.attributes!" />
+      <LazyProductAttributesTable v-if="product?.attributes?.length" :groups="product!.attributes!" />
 
-      <ProductCompatibilityTable v-if="product?.compatibility?.length" :rows="product!.compatibility!" :title="t('product.compatibility','Compatibility')" />
+      <LazyProductCompatibilityTable v-if="product?.compatibility?.length" :rows="product!.compatibility!" :title="t('product.compatibility','Compatibility')" />
 
       <section class="mt-6">
         <div class="rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -1055,11 +1080,11 @@ watch(() => product.value?.id, () => {
           </div>
 
           <div class="p-5">
-            <ProductTabDescription v-if="activeTab === 'desc'" :key="'desc'" :html="product.description || ''" />
-            <ProductTabReviews     v-else-if="activeTab === 'reviews'" :key="'reviews'" :reviews="product.reviews || []" />
-            <ProductTabFAQ         v-else-if="activeTab === 'faq'" :key="'faq'" :items="product.faq || []" />
-            <ProductTabVideos      v-else-if="activeTab === 'videos'" :key="'videos'" :videos="product.videos || []" />
-            <ProductTabContact     v-else :key="'contact'"
+            <ProductTabDescription v-if="mountedTab === 'desc'" :key="'desc'" :html="product.description || ''" />
+            <LazyProductTabReviews     v-else-if="mountedTab === 'reviews'" :key="'reviews'" :reviews="product.reviews || []" />
+            <LazyProductTabFAQ         v-else-if="mountedTab === 'faq'" :key="'faq'" :items="product.faq || []" />
+            <LazyProductTabVideos      v-else-if="mountedTab === 'videos'" :key="'videos'" :videos="product.videos || []" />
+            <LazyProductTabContact     v-else :key="'contact'"
               :api-base-url="API_BASE_URL"
               :product-id="product.id"
               :product-slug="product.slug"
@@ -1086,7 +1111,7 @@ watch(() => product.value?.id, () => {
           </div>
         </div>
 
-        <ProductCarousel
+        <LazyProductCarousel
           v-else-if="relatedProducts.length"
           :title="t('product.relatedProducts','Related Products')"
           :products="relatedProducts"

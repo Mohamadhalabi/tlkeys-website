@@ -9,7 +9,9 @@ const i18nHead = useLocaleHead({
   addDirAttribute: true,   // ✅ <html dir="ltr/rtl">
   addSeoAttributes: true,  // ✅ og:locale, alternates, etc.
 })
-
+useScriptGoogleTagManager({
+ id: 'GTM-PWSSMVC7'
+})
 useHead(() => {
   const pageParam = Number(route.query.page || 1)
 
