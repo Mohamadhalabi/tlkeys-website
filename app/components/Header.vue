@@ -1,17 +1,19 @@
 <template>
-  <div class="hidden lg:block">
+  <!-- Desktop (>= 993px) -->
+  <template v-if="!isMobile">
     <header>
       <HeaderTopBar />
       <HeaderMiddle />
     </header>
     <HeaderMainNav />
     <SecondaryStickyBar />
-  </div>
+  </template>
 
-  <div class="block lg:hidden">
+  <!-- Mobile (< 993px) -->
+  <template v-else>
+      <!-- <HeaderTopBar  /> -->
     <HeaderMiddleMobile />
-    <MobileBottomAppModal />
-  </div>
+  </template>
 </template>
 
 <script setup lang="ts">
