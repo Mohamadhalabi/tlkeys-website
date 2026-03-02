@@ -787,5 +787,9 @@
     "orderLoadTitle": "تعذر تحميل طلبك",
     "missingOrderId": "رقم الطلب مفقود",
     "loadOrderFailed": "فشل تحميل الطلب"
+  },
+  "appModal": {
+    "title": "لتجربة أفضل",
+    "button": "افتح في التطبيق"
   }
 }

@@ -769,5 +769,9 @@
     "orderLoadTitle": "Impossible de charger votre commande",
     "missingOrderId": "Identifiant de commande manquant",
     "loadOrderFailed": "Échec du chargement de la commande"
+  },
+  "appModal": {
+    "title": "Pour une meilleure expérience",
+    "button": "Ouvrir dans l'application"
   }
 }

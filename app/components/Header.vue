@@ -1,19 +1,17 @@
 <template>
-  <!-- Desktop (>= 993px) -->
-  <template v-if="!isMobile">
+  <div class="hidden lg:block">
     <header>
       <HeaderTopBar />
       <HeaderMiddle />
     </header>
     <HeaderMainNav />
     <SecondaryStickyBar />
-  </template>
+  </div>
 
-  <!-- Mobile (< 993px) -->
-  <template v-else>
-      <!-- <HeaderTopBar  /> -->
+  <div class="block lg:hidden">
     <HeaderMiddleMobile />
-  </template>
+    <MobileBottomAppModal />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -25,7 +23,7 @@ import HeaderMiddle from '~/components/header/HeaderMiddle.vue'
 import HeaderMainNav from '~/components/header/HeaderMainNav.vue'
 import SecondaryStickyBar from '~/components/header/SecondaryStickyBar.vue'
 import HeaderMiddleMobile from '~/components/header/mobile/HeaderMiddleMobile.vue'
-
+import MobileBottomAppModal from './header/mobile/MobileBottomAppModal.vue'
 /** Use the same cutoff you use in CSS: < 993px is mobile */
 const BREAKPOINT = 992
 

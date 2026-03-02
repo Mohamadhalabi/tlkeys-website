@@ -801,5 +801,9 @@
     "orderLoadTitle": "Siparişiniz yüklenemedi",
     "missingOrderId": "Sipariş numarası eksik",
     "loadOrderFailed": "Sipariş yüklenemedi"
+  },
+  "appModal": {
+    "title": "Daha iyi bir deneyim için",
+    "button": "Uygulamada Aç"
   }
 }

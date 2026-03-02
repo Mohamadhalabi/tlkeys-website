@@ -770,5 +770,9 @@
     "orderLoadTitle": "No se pudo cargar tu pedido",
     "missingOrderId": "Falta el ID del pedido",
     "loadOrderFailed": "Error al cargar el pedido"
+  },
+  "appModal": {
+    "title": "Para una mejor experiencia",
+    "button": "Abrir en la aplicación"
   }
 }

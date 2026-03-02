@@ -1,7 +1,6 @@
 <template>
   <div class="header-topbar bg-gray-100 text-sm py-2">
     <div class="container mx-auto flex justify-between items-center px-4">
-      <!-- Left: Swapping Text -->
       <div class="flex items-center h-5 overflow-hidden">
         <transition name="fade" mode="out-in">
           <span
@@ -14,9 +13,19 @@
         </transition>
       </div>
 
-      <!-- Right: WhatsApp, Currency, Language -->
       <div class="flex items-center text-sm text-gray-700 gap-3">
-        <!-- WhatsApp -->
+        
+        <div class="flex items-center gap-2">
+          <a href="https://apps.apple.com/app/techno-lock-keys/id6758512167" target="_blank" rel="noopener" class="hover:opacity-80 transition-opacity flex items-center">
+            <NuxtImg src="/images/app/download-on-the-app-store.svg" alt="App Store" class="h-9 w-auto" />
+          </a>
+          <a href="https://play.google.com/store/apps/details?id=com.technolockkeys.app" target="_blank" rel="noopener" class="hover:opacity-80 transition-opacity flex items-center">
+            <NuxtImg src="/images/app/get-it-on-google-play.svg" alt="Google Play" class="h-9 w-auto" />
+          </a>
+        </div>
+
+        <span class="text-gray-300">|</span>
+
         <a
           href="https://wa.me/971504429045"
           target="_blank"
@@ -24,7 +33,6 @@
           class="flex items-center gap-1.5 text-green-600 hover:text-green-700"
           aria-label="WhatsApp us"
         >
-          <!-- WhatsApp icon (as-is) -->
           <svg id='WhatsApp_32' width='32' height='32' viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'><rect width='32' height='32' stroke='none' fill='#000000' opacity='0'/>
           <g transform="matrix(0.58 0 0 0.58 16 16)" >
           <g style="" >
@@ -51,7 +59,6 @@
 
         <span class="text-gray-300">|</span>
 
-        <!-- Currency -->
         <select
           v-model="selectedCurrency"
           @change="onCurrencyChange"
@@ -62,7 +69,6 @@
 
         <span class="text-gray-300">|</span>
 
-        <!-- Language (custom dropdown with SVG flags) -->
         <div class="relative" ref="langMenuRef">
           <button
             @click="openLang = !openLang"
@@ -103,12 +109,12 @@
 </template>
 
 <script setup lang="ts">
+/* ... Keep your exact same script setup logic here ... */
 import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSwitchLocalePath } from '#i18n'
 import { useCurrency, type CurrencyCode } from '~/composables/useCurrency'
 
-/** Locales we support */
 type LocaleCode = 'en' | 'ar' | 'es' | 'fr' | 'ru' | 'de' | 'tr' | 'pt' | 'it'
 type CountryCode = 'US' | 'SA' | 'ES' | 'FR' | 'RU' | 'DE' | 'TR' | 'PT' | 'IT'
 
@@ -124,11 +130,9 @@ const languages: Array<{ code: LocaleCode; label: string; country: CountryCode; 
   { code: 'it', label: 'Italian', country: 'IT', dir: 'ltr'}
 ]
 
-/** i18n */
 const { t, locale } = useI18n()
 const switchLocalePath = useSwitchLocalePath()
 
-/** Currency (SSR-safe via cookie+state) */
 const { currency, setCurrency, options: currencyOptions } = useCurrency()
 const selectedCurrency = ref<CurrencyCode>(currency.value)
 const onCurrencyChange = () => {
@@ -137,14 +141,12 @@ const onCurrencyChange = () => {
   window.location.reload()
 }
 
-/** Language dropdown state */
 const openLang = ref(false)
 const langMenuRef = ref<HTMLElement | null>(null)
 const currentLang = computed(
   () => languages.find((l) => l.code === (locale.value as LocaleCode)) ?? languages[0]
 )
 
-// Close the dropdown when clicking outside
 const onDocClick = (e: MouseEvent) => {
   if (!langMenuRef.value) return
   if (!langMenuRef.value.contains(e.target as Node)) openLang.value = false
@@ -167,7 +169,6 @@ async function switchLang(code: LocaleCode) {
   }
 }
 
-/** Swapping topbar messages */
 const currentMessage = ref<string>('')
 const currentMessageKey = computed<string>(() => currentMessage.value ?? '')
 const isVisible = ref(true)
@@ -201,37 +202,23 @@ watch(() => locale.value, () => {
   currentMessage.value = String(t(keys[idx]))
 })
 
-/** Tiny inline flag SVGs */
 function flagSvg(country: CountryCode) {
   switch (country) {
-    case 'US':
-      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="24" fill="#b22234"/><g fill="#fff"><rect y="3" width="36" height="3"/><rect y="9" width="36" height="3"/><rect y="15" width="36" height="3"/><rect y="21" width="36" height="3"/></g><rect width="16" height="12" fill="#3c3b6e"/></svg>`
-    case 'SA':
-      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="24" fill="#007a3d"/></svg>`
-    case 'ES':
-      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="24" fill="#aa151b"/><rect y="6" width="36" height="12" fill="#f1bf00"/></svg>`
-    case 'FR':
-      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="12" height="24" fill="#0055a4"/><rect x="12" width="12" height="24" fill="#fff"/><rect x="24" width="12" height="24" fill="#ef4135"/></svg>`
-    case 'RU':
-      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="8" fill="#fff"/><rect y="8" width="36" height="8" fill="#0039a6"/><rect y="16" width="36" height="8" fill="#d52b1e"/></svg>`
-    case 'DE':
-      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="8" fill="#000"/><rect y="8" width="36" height="8" fill="#dd0000"/><rect y="16" width="36" height="8" fill="#ffce00"/></svg>`
-    case 'TR':
-      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="24" fill="#e30a17"/><circle cx="13" cy="12" r="5" fill="#fff"/><circle cx="14.5" cy="12" r="3.2" fill="#e30a17"/><polygon fill="#fff" points="18,12 21.5,13.8 20.2,10.2 22.5,8 19,8 18,4.5 17,8 13.5,8 15.8,10.2 14.5,13.8"/></svg>`
-    case 'IT':
-      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="12" height="24" fill="#009246"/><rect x="12" width="12" height="24" fill="#fff"/><rect x="24" width="12" height="24" fill="#ce2b37"/></svg>`
-    case 'PT':
-      return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="14" height="24" fill="#006600"/><rect x="14" width="22" height="24" fill="#ff0000"/><circle cx="14" cy="12" r="4" fill="#ffcc00"/></svg>`
+    case 'US': return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="24" fill="#b22234"/><g fill="#fff"><rect y="3" width="36" height="3"/><rect y="9" width="36" height="3"/><rect y="15" width="36" height="3"/><rect y="21" width="36" height="3"/></g><rect width="16" height="12" fill="#3c3b6e"/></svg>`
+    case 'SA': return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="24" fill="#007a3d"/></svg>`
+    case 'ES': return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="24" fill="#aa151b"/><rect y="6" width="36" height="12" fill="#f1bf00"/></svg>`
+    case 'FR': return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="12" height="24" fill="#0055a4"/><rect x="12" width="12" height="24" fill="#fff"/><rect x="24" width="12" height="24" fill="#ef4135"/></svg>`
+    case 'RU': return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="8" fill="#fff"/><rect y="8" width="36" height="8" fill="#0039a6"/><rect y="16" width="36" height="8" fill="#d52b1e"/></svg>`
+    case 'DE': return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="8" fill="#000"/><rect y="8" width="36" height="8" fill="#dd0000"/><rect y="16" width="36" height="8" fill="#ffce00"/></svg>`
+    case 'TR': return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="36" height="24" fill="#e30a17"/><circle cx="13" cy="12" r="5" fill="#fff"/><circle cx="14.5" cy="12" r="3.2" fill="#e30a17"/><polygon fill="#fff" points="18,12 21.5,13.8 20.2,10.2 22.5,8 19,8 18,4.5 17,8 13.5,8 15.8,10.2 14.5,13.8"/></svg>`
+    case 'IT': return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="12" height="24" fill="#009246"/><rect x="12" width="12" height="24" fill="#fff"/><rect x="24" width="12" height="24" fill="#ce2b37"/></svg>`
+    case 'PT': return `<svg width="18" height="12" viewBox="0 0 36 24"><rect width="14" height="24" fill="#006600"/><rect x="14" width="22" height="24" fill="#ff0000"/><circle cx="14" cy="12" r="4" fill="#ffcc00"/></svg>`
   }
 }
-
 </script>
-
 
 <style>
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
-.z-60{
-  z-index: 60;
-}
+.z-60 { z-index: 60; }
 </style>

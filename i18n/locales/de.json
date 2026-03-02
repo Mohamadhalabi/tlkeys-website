@@ -770,5 +770,9 @@
     "orderLoadTitle": "Ihre Bestellung konnte nicht geladen werden",
     "missingOrderId": "Bestell-ID fehlt",
     "loadOrderFailed": "Bestellung konnte nicht geladen werden"
+  },
+  "appModal": {
+    "title": "Für ein besseres Erlebnis",
+    "button": "In der App öffnen"
   }
 }

@@ -803,5 +803,9 @@
     "orderLoadTitle": "Impossibile caricare il tuo ordine",
     "missingOrderId": "ID ordine mancante",
     "loadOrderFailed": "Caricamento ordine fallito"
+  },
+  "appModal": {
+    "title": "Per un'esperienza migliore",
+    "button": "Apri nell'app"
   }
 }

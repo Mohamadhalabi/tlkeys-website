@@ -819,5 +819,9 @@
     "orderLoadTitle": "Couldn't load your order",
     "missingOrderId": "Missing order id",
     "loadOrderFailed": "Failed to load order"
+  },
+  "appModal": {
+    "title": "For a better experience",
+    "button": "Open in Mobile App"
   }
 }

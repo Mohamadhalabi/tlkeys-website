@@ -92,22 +92,6 @@ async function copyCoupon() {
       </div>
     </transition>
 
-    <!-- Mobile FAB -->
-    <transition name="fade">
-      <button
-        v-if="showFab && isMobile && !showSheet"
-        class="coupon-fab"
-        :style="{ bottom: `calc(${props.bottomOffsetPx}px + env(safe-area-inset-bottom))` }"
-        :class="dirClass"
-        aria-label="Open coupon"
-        @click="openSheet"
-      >
-        <span class="fab-text">{{ t('coupon.get', 'Get') }}</span>
-        <span class="fab-off">10%</span>
-        <span class="fab-text">{{ t('coupon.off', 'OFF') }}</span>
-      </button>
-    </transition>
-
     <!-- Mobile bottom sheet -->
     <transition name="slide-up">
       <div v-if="showSheet && isMobile" class="sheet-backdrop" @click.self="dismissSheet">
@@ -180,27 +164,6 @@ async function copyCoupon() {
 .coupon-desktop-card .code-pill { background: #4caf50; color: #fff; font-weight: 700; padding: 5px 14px; border-radius: 20px; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
 .coupon-desktop-card .note { font-size: 11px; color: #f5f5f5; text-align: center; margin-top: 6px; }
 .coupon-desktop-card .close { position: absolute; top: 6px; right: 8px; background: none; border: none; font-size: 16px; color: #fff; cursor: pointer; line-height: 1; }
-
-/* --- Mobile centered FAB pill --- */
-.coupon-fab {
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  /* bottom is set via inline style to allow prop control + safe areas */
-  z-index: 10000;
-  border: none;
-  border-radius: 999px;
-  padding: 8px 12px;
-  background: #111;
-  color: #fff;
-  font-weight: 700;
-  font-size: 13px;
-  box-shadow: 0 6px 18px rgba(0,0,0,.3);
-  display: inline-flex; align-items: baseline; gap: 6px;
-  opacity: .95;
-}
-.coupon-fab .fab-off { background: #4caf50; color: #fff; border-radius: 999px; padding: 2px 8px; font-size: 12px; line-height: 1; }
-.coupon-fab:active { transform: translateX(-50%) translateY(1px); }
 
 /* --- Mobile bottom sheet --- */
 .sheet-backdrop {
