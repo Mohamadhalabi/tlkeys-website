@@ -11,8 +11,8 @@
 
   <!-- Mobile (< 993px) -->
   <template v-else>
-      <!-- <HeaderTopBar  /> -->
     <HeaderMiddleMobile />
+    <MobileBottomAppModal />
   </template>
 </template>
 
