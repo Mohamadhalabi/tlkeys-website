@@ -773,5 +773,9 @@
   "appModal": {
     "title": "Pour une meilleure expérience",
     "button": "Ouvrir dans l'application"
+  },
+  "shipping_advisory": {
+    "title": "Avis d'expédition : ",
+    "text": "Nous nous excusons sincèrement pour les éventuels retards d'expédition dus aux tensions actuelles au Moyen-Orient, affectant particulièrement les opérations aux Émirats arabes unis. Soyez assuré que votre colis arrivera intact et conforme. Nous vous remercions de votre patience."
   }
 }

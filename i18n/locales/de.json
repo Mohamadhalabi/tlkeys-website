@@ -774,5 +774,9 @@
   "appModal": {
     "title": "Für ein besseres Erlebnis",
     "button": "In der App öffnen"
+  },
+  "shipping_advisory": {
+    "title": "Versandhinweis: ",
+    "text": "Wir entschuldigen uns aufrichtig für mögliche Lieferverzögerungen aufgrund der aktuellen Spannungen im Nahen Osten, die insbesondere den Betrieb in den VAE beeinträchtigen. Bitte seien Sie versichert, dass Ihr Paket unversehrt und vollständig ankommen wird. Wir danken Ihnen für Ihre Geduld."
   }
 }

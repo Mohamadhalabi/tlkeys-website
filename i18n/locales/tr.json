@@ -805,5 +805,9 @@
   "appModal": {
     "title": "Daha iyi bir deneyim için",
     "button": "Uygulamada Aç"
+  },
+  "shipping_advisory": {
+    "title": "Kargo Bilgilendirmesi: ",
+    "text": "Orta Doğu'daki mevcut gerginlikler ve özellikle BAE'deki operasyonları etkileyen durumlar nedeniyle olası kargo gecikmeleri için içtenlikle özür dileriz. Paketinizin eksiksiz ve sağlam bir şekilde ulaşacağından emin olabilirsiniz. Sabrınız için teşekkür ederiz."
   }
 }

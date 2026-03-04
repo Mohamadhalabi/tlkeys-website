@@ -807,5 +807,9 @@
   "appModal": {
     "title": "Per un'esperienza migliore",
     "button": "Apri nell'app"
+  },
+  "shipping_advisory": {
+    "title": "Avviso di spedizione: ",
+    "text": "Ci scusiamo sinceramente per possibili ritardi nella spedizione dovuti alle attuali tensioni in Medio Oriente, che colpiscono in particolare le operazioni negli Emirati Arabi Uniti. Vi assicuriamo che il vostro pacco arriverà intatto e conforme. Apprezziamo la vostra pazienza."
   }
 }

@@ -774,5 +774,9 @@
   "appModal": {
     "title": "Para una mejor experiencia",
     "button": "Abrir en la aplicación"
+  },
+  "shipping_advisory": {
+    "title": "Aviso de envío: ",
+    "text": "Nos disculpamos sinceramente por posibles retrasos en los envíos debido a las tensiones actuales en Oriente Medio, afectando particularmente las operaciones en los EAU. Tenga la seguridad de que su paquete llegará intacto y correcto. Agradecemos su paciencia."
   }
 }

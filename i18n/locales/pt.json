@@ -808,5 +808,9 @@
   "appModal": {
     "title": "Para uma melhor experiência",
     "button": "Abrir no aplicativo"
+  },
+  "shipping_advisory": {
+    "title": "Aviso de Envio: ",
+    "text": "Pedimos sinceras desculpas por possíveis atrasos no envio devido às atuais tensões no Oriente Médio, afetando particularmente as operações nos Emirados Árabes Unidos. Tenha a certeza de que seu pacote chegará intacto e correto. Agradecemos a sua paciência."
   }
 }
