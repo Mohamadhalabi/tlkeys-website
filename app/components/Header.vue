@@ -96,7 +96,7 @@ if (process.client) {
   background-color: #f8f9fa; /* Light Gray (Neutral) */
   color: #333333;            /* Dark Gray Text */
   border-bottom: 1px solid #e9ecef;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.4;
   position: relative;
   z-index: 10;
