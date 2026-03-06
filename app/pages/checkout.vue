@@ -722,11 +722,11 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
             {{ quote?.checkout_block?.message || `Some items cannot be shipped to ${blockedCountryName}.` }}
           </p>
           <p v-if="blockedSkus.length" class="mt-1 text-sm">
-            {{ $t('checkout.blockedSkus') || 'Blocked SKUs for this country' }}:
+            Blocked SKUs for this country:
             <span class="font-mono">{{ blockedSkus.join(', ') }}</span>
           </p>
           <p class="mt-1 text-xs text-rose-700">
-            {{ quote?.checkout_block?.action_hint || ($t('checkout.blockedActionHint') || 'Remove restricted items or change the shipping country to proceed.') }}
+            {{ quote?.checkout_block?.action_hint || 'Remove restricted items or change the shipping country to proceed.' }}
           </p>
         </div>
       </div>

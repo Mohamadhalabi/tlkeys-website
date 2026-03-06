@@ -6,11 +6,6 @@ import { useAlertStore } from '~/stores/alert'
 import { computeUnitPrice } from '~/utils/pricing'
 import { useCurrency } from '~/composables/useCurrency'
 
-useHead({
-  title: 'Buy Now — Checkout',
-  meta: [{ name: 'robots', content: 'noindex,nofollow' }]
-})
-
 const router = useRouter()
 
 /* ---------------- Types ---------------- */
@@ -66,6 +61,15 @@ const loadingProduct = ref(false)
 const productError = ref<string|null>(null)
 const product = ref<ProductLite|null>(null)
 
+// --- DYNAMIC TITLE WITH SKU ---
+useHead({
+  title: computed(() => {
+    const skuPart = product.value?.sku ? ` - ${product.value.sku}` : ''
+    return `Buy Now${skuPart} — Checkout`
+  }),
+  meta: [{ name: 'robots', content: 'noindex,nofollow' }]
+})
+
 const qty = ref<number>(initialQty)
 const countries = ref<Country[]>([])
 const countriesLoading = ref(false)
@@ -91,6 +95,7 @@ const phone = ref('')
 const paymentMethod = ref<PayMethod>('card')
 
 const shipmentValue = ref<number>(0)
+const shipmentValueEdited = ref<boolean>(false)
 
 /* placing state */
 const placingOrder = ref(false)
@@ -322,16 +327,18 @@ const canPlaceOrder = computed(() =>
 )
 
 const displayedShipping = computed(() => isFreeShipping.value ? 0 : (quote.value?.summary.shipping ?? 0))
+// `lineTotal` is the product subtotal
 const subtotal = computed(() => +(lineTotal.value + displayedShipping.value).toFixed(2))
 const feeRate = computed(() => (paymentMethod.value === 'card' || paymentMethod.value === 'paypal') ? 0.03 : 0)
 const paymentFee = computed(() => +(subtotal.value * feeRate.value).toFixed(2))
 const grandTotal = computed(() => +(subtotal.value + paymentFee.value).toFixed(2))
 
-// --- WATCH SUBTOTAL FOR SHIPMENT VALUE DEFAULT ---
-watch(subtotal, (val) => {
-  // Update shipment value to match subtotal as default behavior
-  // You can remove this watch if you want the user's manual entry to persist across quantity changes
-  shipmentValue.value = val
+// --- WATCH LINETOTAL (PRODUCT SUBTOTAL) INSTEAD OF OVERALL SUBTOTAL ---
+watch(lineTotal, (val) => {
+  // Update shipment value to match the product's subtotal only if the user hasn't edited it manually
+  if (!shipmentValueEdited.value) {
+    shipmentValue.value = val
+  }
 }, { immediate: true })
 
 function markInvalid(v: string | number | '') {
@@ -383,7 +390,6 @@ async function handlePlaceOrder() {
       subtotal: subtotal.value,
       total: grandTotal.value
     },
-    // --- NEW: Pass the shipment value ---
     shipment_value: Number(shipmentValue.value),
     payment_method: backendPaymentMethod,
     serial: serialFromQuery || null
@@ -594,6 +600,7 @@ onMounted(async () => {
                     step="0.01"
                     min="0"
                     v-model.number="shipmentValue"
+                    @input="shipmentValueEdited = true"
                     class="w-full rounded-lg border border-gray-300 px-3 py-2"
                     :placeholder="t('checkout.declaredValue')" 
                   />
@@ -684,7 +691,7 @@ onMounted(async () => {
                 :disabled="!canPlaceOrder"
                 @click="handlePlaceOrder"
               >
-                {{ placingOrder ? (t('checkout.processing') || 'Processing…') : t('checkout.createOrder') }}
+                {{ placingOrder ?  'Processing…' : 'Create Order' }}
               </button>
             </div>
           </div>
