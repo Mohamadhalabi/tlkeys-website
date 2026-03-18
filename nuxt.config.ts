@@ -148,7 +148,7 @@ export default defineNuxtConfig({
   },
 
   vite: {
-    optimizeDeps: { include: ['swiper', 'lodash-es'] },
+    optimizeDeps: { include: ['swiper'] },
     build: {
       rollupOptions: {
         output: {

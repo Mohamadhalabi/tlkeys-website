@@ -6,18 +6,18 @@ type User = Record<string, any> | null
 
 // State
 const _token = () => useState<string | null>('auth:token', () => null)
-const _user  = () => useState<User>('auth:user', () => null)
-const _busy  = () => useState<boolean>('auth:busy', () => false)
+const _user = () => useState<User>('auth:user', () => null)
+const _busy = () => useState<boolean>('auth:busy', () => false)
 
 // Helper: Save to LocalStorage & Cookie
 function saveToStorage(token: string | null, user: User) {
   if (!process.client) return
 
   if (token) localStorage.setItem('auth_token', token)
-  else       localStorage.removeItem('auth_token')
+  else localStorage.removeItem('auth_token')
 
-  if (user)  localStorage.setItem('auth_user', JSON.stringify(user))
-  else       localStorage.removeItem('auth_user')
+  if (user) localStorage.setItem('auth_user', JSON.stringify(user))
+  else localStorage.removeItem('auth_user')
 
   // SETTING COOKIE TO 10 YEARS for "Never Expire" on frontend
   // 315360000 seconds = ~10 years
@@ -28,8 +28,8 @@ function saveToStorage(token: string | null, user: User) {
 
 export function useAuth() {
   const token = _token()
-  const user  = _user()
-  const busy  = _busy()
+  const user = _user()
+  const busy = _busy()
   const isAuthenticated = computed(() => Boolean(token.value))
   const router = useRouter() // Useful if you need to redirect on logout
 
@@ -37,15 +37,15 @@ export function useAuth() {
    */
   async function hydrate() {
     if (!process.client) return
-    
+
     // 1. Initial Load from Storage (Fast UI)
     try {
       const t = localStorage.getItem('auth_token')
       const u = localStorage.getItem('auth_user')
-      
+
       if (t) {
         token.value = t
-        user.value  = u ? JSON.parse(u) : null
+        user.value = u ? JSON.parse(u) : null
       }
     } catch {
       // If parsing fails, clean up
@@ -58,7 +58,7 @@ export function useAuth() {
     // If we have a token, we MUST check if it's actually valid on the server.
     if (token.value) {
       try {
-        await me() 
+        await me()
       } catch (e) {
         // If me() fails (e.g. 401), it will trigger logout logic internally
         // No extra action needed here as me() handles the cleanup
@@ -74,7 +74,7 @@ export function useAuth() {
         method: 'POST',
         body: payload
       })
-      
+
       const t = res?.authorisation?.token || res?.token
       const u = res?.user || null
 
@@ -108,17 +108,17 @@ export function useAuth() {
     try {
       // Try to tell server to invalidate token
       if (token.value) {
-         await $apiV2('/auth/logout', { method: 'POST' })
+        await $apiV2('/auth/logout', { method: 'POST' })
       }
     } catch { /* ignore server errors on logout */ }
-    
+
     // Always clear local state
     token.value = null
     user.value = null
     saveToStorage(null, null)
-    
+
     if (process.client) window.dispatchEvent(new CustomEvent('auth:changed'))
-    
+
     // Optional: Redirect to login
     // router.push('/auth/login-register') 
   }
@@ -127,11 +127,11 @@ export function useAuth() {
     const { $apiV2 } = useNuxtApp()
     try {
       const res: any = await $apiV2('/auth/me', { method: 'GET' })
-      
+
       // Update local user data with fresh server data
       user.value = res?.user ?? null
       saveToStorage(token.value, user.value)
-      
+
       return res?.user ?? null
     } catch (err: any) {
       // FIX: If 401 Unauthenticated, kill the session immediately

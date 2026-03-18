@@ -3,6 +3,7 @@ import ProSlider from '~/components/ProSlider.vue'
 import CategoriesGrid from '~/components/home/CategoriesGrid.vue'
 import ProductCarousel from '~/components/products/ProductCarousel.vue'
 import BrandSection from '~/components/home/BrandSection.vue'
+import VinLookup from '~/components/home/VinLookup.vue'
 import { ref, computed, watch } from 'vue'
 import { useSeoMeta, useHead, useRoute, useRequestURL, useRuntimeConfig, useNuxtApp, useAsyncData } from '#imports'
 import { useI18n } from 'vue-i18n'
@@ -359,6 +360,8 @@ useHead({
   <h1 class="text-center font-bold text-base text-xs text-transparent">
     Techno Lock Keys Trading – Car Keys, Remotes, Emergency Keys, Key Cutting & Programming Machines
   </h1>
+
+  <VinLookup />
 
   <CategoriesGrid
     :title="t('home.browseCategories') || 'Browse Categories'"
