@@ -132,6 +132,10 @@ export default defineNuxtConfig({
   routeRules: {
     '/products/**': { headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
     '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    // NEW: Cache the sitemap endpoint and the XML files for 24 hours
+    '/api/sitemap-routes': { cache: { maxAge: 86400 } },
+    '/sitemap.xml': { cache: { maxAge: 86400 } },
+    '/sitemap-*.xml': { cache: { maxAge: 86400 } }
   },
 
   nitro: {

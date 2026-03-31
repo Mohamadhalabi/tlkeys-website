@@ -1,20 +1,15 @@
 // server/api/sitemap-routes.ts
 
-export default defineEventHandler(async (event) => {
-    // 1. Load the Secure Configuration from server runtime (private)
+// 1. Change to defineCachedEventHandler
+export default defineCachedEventHandler(async (event) => {
     const config = useRuntimeConfig();
-
-    // 2. Get the Base URL
     const baseUrl = config.apiBaseUrl || 'https://dev-srv.tlkeys.com/api';
     const targetUrl = `${baseUrl}/sitemap-data`;
-
-    // 3. Define your extra languages (Exclude 'en' because it's default)
     const extraLocales = ['ar', 'es', 'fr', 'ru', 'de', 'tr', 'pt', 'it'];
 
     console.log(`🔌 [Proxy] Fetching English sitemap from: ${targetUrl}`);
 
     try {
-        // 4. Fetch the data using the PRIVATE keys (config.apiKey)
         const englishData = await $fetch(targetUrl, {
             responseType: 'json',
             timeout: 25000,
@@ -32,19 +27,15 @@ export default defineEventHandler(async (event) => {
 
         console.log(`✅ [Proxy] Received ${englishData.length} English URLs. Generating other languages...`);
 
-        // 5. MASTER LOOP: Create entries for ALL languages manually
         let finalUrls = [...englishData];
 
         englishData.forEach(item => {
             if (item.loc) {
-                // Fix slash if missing
                 const originalLoc = item.loc.startsWith('/') ? item.loc : `/${item.loc}`;
-
-                // Create a duplicate for every extra language
                 extraLocales.forEach(lang => {
                     finalUrls.push({
                         ...item,
-                        loc: `/${lang}${originalLoc}` // e.g., /tr/products/key-123
+                        loc: `/${lang}${originalLoc}`
                     });
                 });
             }
@@ -57,4 +48,9 @@ export default defineEventHandler(async (event) => {
         console.error('❌ [Proxy] Failed to fetch sitemap:', err);
         return [];
     }
+}, {
+    // 2. Add Cache Configuration Here
+    maxAge: 60 * 60 * 24, // Cache for 24 hours (in seconds)
+    swr: true, // Stale-while-revalidate (serves old cache immediately while fetching new data in background)
+    getKey: () => 'sitemap-urls' // Forces a single static cache key for all requests
 });
