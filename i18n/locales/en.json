@@ -785,6 +785,28 @@
     "continueShopping": "Continue shopping",
     "notPaidYet": "Not Paid Yet"
   },
+  "toyota_passcode": {
+    "seo_title": "Toyota Passcode Calculator | Techno Lock Keys",
+    "seo_description": "Calculate Toyota passcodes instantly using VIN, Data 1, Data 2, and Data 3. Fast and reliable token-based calculation.",
+    "title": "Toyota Passcode Calculator",
+    "subtitle": "Advanced Calculation System",
+    "available_tokens": "Available Toyota Tokens",
+    "placeholder_vin": "ENTER 17-CHARACTER VIN",
+    "placeholder_data1": "DATA 1",
+    "placeholder_data2": "DATA 2",
+    "placeholder_data3": "DATA 3",
+    "login_btn": "Login to Access This Service",
+    "no_tokens_msg": "You need at least 1 Toyota token to calculate. Purchase below.",
+    "calculating": "Calculating Passcode...",
+    "fill_all_fields": "Fill All Fields to Calculate",
+    "calculate_btn": "Calculate Passcode (Costs 1 Token)",
+    "success_title": "Calculation Successful",
+    "passcode_label": "Generated Passcode",
+    "error_general": "Calculation failed. Please check your inputs.",
+    "purchase_title": "Purchase Toyota Tokens",
+    "purchase_desc": "Add Toyota tokens to your account to instantly calculate passcodes.",
+    "loading_packages": "Loading Toyota packages..."
+  },
   "vin_to_pin": {
     "page_title": "Vin To Pin",
     "title": "Vin Request",
@@ -827,5 +849,25 @@
   "shipping_advisory": {
     "title": "Shipping Advisory: ",
     "text": "We sincerely apologize for possible shipment delays due to current tensions in the Middle East, particularly affecting operations in the UAE. Please rest assured that your package will arrive intact and accurate when received. We appreciate your patience."
+  },
+  "vin_lookup": {
+    "seo_title": "Kia & Hyundai VIN to Part Number Lookup | Techno Lock Keys",
+    "seo_description": "Instantly find the exact OEM part number for any Kia or Hyundai vehicle using our exclusive 17-character VIN lookup database.",
+    "title": "Kia & Hyundai Vin To Part Number Lookup",
+    "subtitle": "Exclusive For Kia / Hyundai",
+    "available_tokens": "Available Tokens",
+    "placeholder": "ENTER 17-CHARACTER VIN...",
+    "login_btn": "Login to Access This Service",
+    "no_tokens_msg": "You need at least 1 token to search. Purchase below.",
+    "searching": "Searching...",
+    "enter_17": "Enter the VIN number to Search",
+    "search_btn": "Search Part Number (Costs 1 Token)",
+    "match_found": "Match Found",
+    "oem_part": "OEM Part Number",
+    "error_not_found": "No part number found for this VIN.",
+    "error_general": "An error occurred while fetching the part number.",
+    "purchase_title": "Purchase Tokens",
+    "purchase_desc": "Add search tokens to your account to instantly unlock the VIN lookup.",
+    "loading_packages": "Loading packages..."
   }
 }

@@ -811,5 +811,25 @@
   "shipping_advisory": {
     "title": "Avviso di spedizione: ",
     "text": "Ci scusiamo sinceramente per possibili ritardi nella spedizione dovuti alle attuali tensioni in Medio Oriente, che colpiscono in particolare le operazioni negli Emirati Arabi Uniti. Vi assicuriamo che il vostro pacco arriverà intatto e conforme. Apprezziamo la vostra pazienza."
+  },
+  "vin_lookup": {
+    "seo_title": "Ricerca Numero di Parte tramite VIN Kia e Hyundai | Techno Lock Keys",
+    "seo_description": "Trova immediatamente il numero di parte OEM esatto per qualsiasi veicolo Kia o Hyundai utilizzando il nostro esclusivo database di ricerca VIN a 17 caratteri.",
+    "title": "Ricerca Numero di Parte tramite VIN Kia e Hyundai",
+    "subtitle": "Esclusivo per Kia / Hyundai",
+    "available_tokens": "Gettoni Disponibili",
+    "placeholder": "INSERISCI IL VIN DI 17 CARATTERI...",
+    "login_btn": "Accedi per Utilizzare Questo Servizio",
+    "no_tokens_msg": "Hai bisogno di almeno 1 gettone per la ricerca. Acquista qui sotto.",
+    "searching": "Ricerca in corso...",
+    "enter_17": "Inserisci il numero VIN da cercare",
+    "search_btn": "Cerca Numero di Parte (Costo: 1 Gettone)",
+    "match_found": "Corrispondenza Trovata",
+    "oem_part": "Numero di Parte OEM",
+    "error_not_found": "Nessun numero di parte trovato per questo VIN.",
+    "error_general": "Si è verificato un errore durante il recupero del numero di parte.",
+    "purchase_title": "Acquista Gettoni",
+    "purchase_desc": "Aggiungi gettoni di ricerca al tuo account per sbloccare immediatamente la ricerca del VIN.",
+    "loading_packages": "Caricamento pacchetti..."
   }
 }

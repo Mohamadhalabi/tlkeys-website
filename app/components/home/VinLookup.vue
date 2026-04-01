@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useNuxtApp, useRuntimeConfig } from '#imports'
+
 // Assuming useAuth is your custom composable for authentication
 const { isAuthenticated, user } = useAuth() 
 
@@ -14,26 +15,24 @@ const errorMsg = ref<string | null>(null)
 
 const isVinValid = computed(() => searchInput.value.trim().length === 17)
 
-const handlePaypalCheckout = async () => {
-  // We will build this out next to connect to your Laravel backend!
-  console.log("Redirecting to PayPal for $5.00 checkout...")
+// Check if user has zero tokens
+const hasNoTokens = computed(() => {
+  return isAuthenticated.value && (user.value?.tokens || 0) <= 0
+})
+
+// Updated checkout handler to accept price and token amount
+const handlePaypalCheckout = async (price: number, tokens: number) => {
+  console.log(`Redirecting to PayPal for $${price}.00 to buy ${tokens} token(s)...`)
+  // Build your PayPal redirect/modal logic here
 }
 
-// Format input: force uppercase and remove spaces
 const handleInput = (e: Event) => {
   const target = e.target as HTMLInputElement
   searchInput.value = target.value.toUpperCase().replace(/\s/g, '')
 }
 
-const isLimitReached = computed(() => {
-  return isAuthenticated.value && 
-         !user.value?.is_premium && 
-         (user.value?.lookup_count || 0) >= 1
-})
-
 const handleSearch = async () => {
-  // Hard block: Do absolutely nothing if not logged in, invalid, or limit reached
-  if (!isVinValid.value || !isAuthenticated.value || isLimitReached.value) return
+  if (!isVinValid.value || !isAuthenticated.value || hasNoTokens.value) return
 
   errorMsg.value = null
   partNumber.value = null
@@ -45,7 +44,6 @@ const handleSearch = async () => {
       body: { vin: searchInput.value }
     })
 
-    // Safely extract just the part number from your nested JSON response
     const fetchedPartNumber = res?.part_details?.part_number 
                            || res?.data?.part_details?.part_number 
                            || res?.part_number 
@@ -54,26 +52,23 @@ const handleSearch = async () => {
     if (fetchedPartNumber) {
       partNumber.value = fetchedPartNumber
       
-      // Increment local search count if they aren't premium
-      if (user.value && !user.value.is_premium) {
-        user.value.lookup_count = (user.value.lookup_count || 0) + 1
+      // Deduct 1 token locally so the UI updates instantly
+      if (user.value && user.value.tokens > 0) {
+        user.value.tokens -= 1
       }
     } else {
       errorMsg.value = 'No part number found for this VIN.'
     }
   } catch (err: any) {
-    // FIXED: Catch the 429 Rate Limit status from Laravel
     const status = err?.status || err?.statusCode || err?.response?.status;
     
-    if (status === 429) {
-      // Force the local user state to 1. This instantly hides the red error box 
-      // and reveals the yellow PayPal button!
+    // We'll use 402 (Payment Required) or 403 for insufficient tokens from Laravel
+    if (status === 402 || status === 403) {
       if (user.value) {
-        user.value.lookup_count = 1;
+        user.value.tokens = 0; // Force to 0 to trigger purchase UI
       }
       errorMsg.value = null; 
     } else {
-      // Handle actual server errors normally
       errorMsg.value = err?.data?.message || err?.message || 'An error occurred while fetching the part number.'
     }
   } finally {
@@ -91,6 +86,10 @@ const handleSearch = async () => {
         <p class="text-sm font-bold text-blue-600 mt-2 uppercase tracking-widest">
           EXCLUSIVE DATABASE FOR KIA / HYUNDAI VEHICLES
         </p>
+        <p v-if="isAuthenticated" class="mt-3 font-bold text-lg" :class="hasNoTokens ? 'text-red-500' : 'text-green-600'">
+          <svg class="w-5 h-5 inline-block mb-1 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          Available Tokens: {{ user?.tokens || 0 }}
+        </p>
       </div>
 
       <div class="max-w-2xl mx-auto space-y-6">
@@ -102,9 +101,7 @@ const handleSearch = async () => {
             maxlength="17"
             placeholder="ENTER 17-CHARACTER VIN NUMBER..." 
             class="w-full px-6 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed text-center text-lg uppercase tracking-widest"
-            
             :disabled="loading" 
-            
             @keyup.enter="handleSearch"
             />
         </div>
@@ -120,18 +117,26 @@ const handleSearch = async () => {
             </p>
           </template>
 
-          <template v-else-if="isLimitReached">
-            <button 
-              @click="handlePaypalCheckout"
-              class="w-full flex justify-center items-center bg-[#FFC439] text-[#003087] py-4 rounded-xl font-extrabold hover:bg-[#f2ba36] transition shadow-md text-lg transform active:scale-[0.99]"
-            >
-              <svg class="w-6 h-6 mr-2" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M26.4 11.3C26.4 15.6 22.9 19 18.6 19H14.8L13.3 28.5H8.6L11.3 11.5H16.8C18.4 11.5 19.9 12.1 21 13.2C22.1 14.3 22.7 15.8 22.7 17.4C22.7 18.2 22.5 18.9 22.2 19.6C22 20.2 21.6 20.8 21.1 21.3C20.6 21.8 20 22.2 19.3 22.5C18.6 22.8 17.8 22.9 17 22.9H13.6L14.7 16.2H17.8C20.5 16.2 22.6 14.1 22.6 11.4C22.6 8.7 20.5 6.6 17.8 6.6H10.5L8.2 21H3.5L6.6 1.5H16.8C22.1 1.5 26.4 5.8 26.4 11.3Z" fill="#003087"/>
-              </svg>
-              Pay $5.00 via PayPal
-            </button>
+          <template v-else-if="hasNoTokens">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button 
+                @click="handlePaypalCheckout(7, 1)"
+                class="w-full flex flex-col justify-center items-center bg-[#FFC439] text-[#003087] py-4 rounded-xl font-extrabold hover:bg-[#f2ba36] transition shadow-md text-lg transform active:scale-[0.99]"
+              >
+                <span>Buy 1 Token</span>
+                <span class="text-sm font-semibold opacity-80">$7.00 USD</span>
+              </button>
+              
+              <button 
+                @click="handlePaypalCheckout(50, 10)"
+                class="w-full flex flex-col justify-center items-center bg-[#FFC439] text-[#003087] py-4 border-2 border-[#003087] rounded-xl font-extrabold hover:bg-[#f2ba36] transition shadow-md text-lg transform active:scale-[0.99]"
+              >
+                <span>Buy 10 Tokens</span>
+                <span class="text-sm font-semibold opacity-80">$50.00 USD (Save $20)</span>
+              </button>
+            </div>
             <p class="mt-4 text-sm text-gray-500 font-medium">
-              You have used your free lookup. Additional searches are <span class="font-bold text-gray-800">$5.00 each</span>.
+              You need at least 1 token to perform a VIN lookup.
             </p>
           </template>
 
@@ -149,19 +154,14 @@ const handleSearch = async () => {
                 Searching Database...
               </span>
               <span v-else-if="!isVinValid">Enter 17 Characters to Search</span>
-              <span v-else>Search Part Database</span>
+              <span v-else>Search Part Database (Costs 1 Token)</span>
             </button>
-            
-            <p v-if="!user?.is_premium && !isLimitReached" class="mt-4 text-sm text-green-600 font-bold">
-              ★ 1 Free search remaining in your account.
-            </p>
           </template>
         </div>
       </div>
 
       <transition name="fade">
         <div v-if="partNumber || errorMsg" class="max-w-md mx-auto mt-8">
-          
           <div v-if="partNumber" class="bg-blue-50 border border-blue-100 rounded-xl p-6 text-center shadow-sm">
             <span class="inline-block px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full uppercase tracking-widest mb-3">
               Match Found
@@ -169,11 +169,9 @@ const handleSearch = async () => {
             <div class="text-sm text-gray-500 uppercase font-semibold mb-1">OEM Part Number</div>
             <div class="text-3xl font-black text-gray-900">{{ partNumber }}</div>
           </div>
-
           <div v-if="errorMsg" class="bg-red-50 border border-red-100 rounded-xl p-4 text-center">
             <div class="text-red-600 font-semibold">{{ errorMsg }}</div>
           </div>
-
         </div>
       </transition>
 

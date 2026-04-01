@@ -7,7 +7,7 @@
         <!-- Brand / about -->
         <section class="md:col-span-5">
           <NuxtLinkLocale to="/" class="inline-flex items-center gap-2">
-            <NuxtImg :src="logoSrc" alt="Logo" class="w-auto object-contain" width="160" />
+            <NuxtImg :src="logoSrc" alt="Logo" class="w-auto object-contain brightness-0 invert" width="160" />
           </NuxtLinkLocale>
 
           <p class="mt-4 text-sm leading-6 text-neutral-300">

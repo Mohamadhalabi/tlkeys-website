@@ -809,5 +809,25 @@
   "shipping_advisory": {
     "title": "Kargo Bilgilendirmesi: ",
     "text": "Orta Doğu'daki mevcut gerginlikler ve özellikle BAE'deki operasyonları etkileyen durumlar nedeniyle olası kargo gecikmeleri için içtenlikle özür dileriz. Paketinizin eksiksiz ve sağlam bir şekilde ulaşacağından emin olabilirsiniz. Sabrınız için teşekkür ederiz."
+  },
+  "vin_lookup": {
+    "seo_title": "Kia & Hyundai Şasi No (VIN) ile Parça Numarası Sorgulama | Techno Lock Keys",
+    "seo_description": "Özel 17 haneli Şasi No (VIN) sorgulama veritabanımızı kullanarak herhangi bir Kia veya Hyundai aracı için tam OEM parça numarasını anında bulun.",
+    "title": "Kia & Hyundai Şasi No (VIN) ile Parça Numarası Sorgulama",
+    "subtitle": "Kia / Hyundai İçin Özel",
+    "available_tokens": "Mevcut Jetonlar",
+    "placeholder": "17 HANELİ ŞASİ NUMARASINI (VIN) GİRİN...",
+    "login_btn": "Bu Hizmete Erişmek İçin Giriş Yapın",
+    "no_tokens_msg": "Arama yapmak için en az 1 jetona ihtiyacınız var. Aşağıdan satın alabilirsiniz.",
+    "searching": "Aranıyor...",
+    "enter_17": "Aramak için Şasi Numarasını (VIN) girin",
+    "search_btn": "Parça Numarası Ara (1 Jeton Gerekir)",
+    "match_found": "Eşleşme Bulundu",
+    "oem_part": "OEM Parça Numarası",
+    "error_not_found": "Bu Şasi No (VIN) için parça numarası bulunamadı.",
+    "error_general": "Parça numarası getirilirken bir hata oluştu.",
+    "purchase_title": "Jeton Satın Al",
+    "purchase_desc": "Şasi No (VIN) sorgulama kilidini anında açmak için hesabınıza arama jetonu ekleyin.",
+    "loading_packages": "Paketler yükleniyor..."
   }
 }

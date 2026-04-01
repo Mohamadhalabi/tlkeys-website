@@ -777,5 +777,25 @@
   "shipping_advisory": {
     "title": "Avis d'expédition : ",
     "text": "Nous nous excusons sincèrement pour les éventuels retards d'expédition dus aux tensions actuelles au Moyen-Orient, affectant particulièrement les opérations aux Émirats arabes unis. Soyez assuré que votre colis arrivera intact et conforme. Nous vous remercions de votre patience."
+  },
+  "vin_lookup": {
+    "seo_title": "Recherche de Numéro de Pièce par VIN pour Kia & Hyundai | Techno Lock Keys",
+    "seo_description": "Trouvez instantanément le numéro de pièce OEM exact pour tout véhicule Kia ou Hyundai à l'aide de notre base de données exclusive de recherche de VIN à 17 caractères.",
+    "title": "Recherche de Numéro de Pièce par VIN pour Kia & Hyundai",
+    "subtitle": "Exclusif Pour Kia / Hyundai",
+    "available_tokens": "Jetons Disponibles",
+    "placeholder": "ENTREZ LE VIN À 17 CARACTÈRES...",
+    "login_btn": "Connectez-vous pour Accéder à ce Service",
+    "no_tokens_msg": "Vous avez besoin d'au moins 1 jeton pour rechercher. Achetez ci-dessous.",
+    "searching": "Recherche en cours...",
+    "enter_17": "Entrez le numéro VIN pour rechercher",
+    "search_btn": "Rechercher le Numéro de Pièce (Coûte 1 Jeton)",
+    "match_found": "Correspondance Trouvée",
+    "oem_part": "Numéro de Pièce OEM",
+    "error_not_found": "Aucun numéro de pièce trouvé pour ce VIN.",
+    "error_general": "Une erreur s'est produite lors de la récupération du numéro de pièce.",
+    "purchase_title": "Acheter des Jetons",
+    "purchase_desc": "Ajoutez des jetons de recherche à votre compte pour débloquer instantanément la recherche de VIN.",
+    "loading_packages": "Chargement des forfaits..."
   }
 }

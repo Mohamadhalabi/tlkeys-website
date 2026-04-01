@@ -6,7 +6,6 @@ type P = {
   id: number | string
   name: string
   image: string
-  // Ensure this field exists in your Type
   gallery?: string[] 
   price: number
   oldPrice?: number | null
@@ -43,6 +42,14 @@ const props = withDefaults(defineProps<{
   containerClass: 'max-w-screen-2xl'
 })
 
+// Check the current route to conditionally display the lookup link
+const { t } = useI18n()
+const route = useRoute()
+const showPartLookup = computed(() => {
+  const path = route.path.toLowerCase()
+  return path.includes('/kia') || path.includes('/hyundai')
+})
+
 const gridColsClass = computed(() => {
   const lg = props.productsPerRow ?? 6
   switch (lg) {
@@ -62,10 +69,19 @@ const visible = computed(() => (props.products || []).slice(0, limit.value))
   <section class="mt-6">
     <div class="mx-auto w-full" :class="containerClass">
       <div class="mb-3 flex items-center justify-between px-3 sm:px-4">
+        
+        <NuxtLinkLocale
+          v-if="showPartLookup"
+          to="/kia-hyundai-part-number-lookup" 
+          class="text-md font-semibold text-blue-700 underline hover:underline"
+        >
+          {{ t('vin_lookup.title') }}
+        </NuxtLinkLocale>
+
         <NuxtLinkLocale
           v-if="linkMoreHref"
           :to="linkMoreHref"
-          class="text-sm font-medium text-red-600 hover:text-red-700"
+          class="text-sm font-medium text-red-600 hover:text-red-700 ml-auto"
         >
           View all →
         </NuxtLinkLocale>

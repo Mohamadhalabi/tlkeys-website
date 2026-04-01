@@ -412,8 +412,19 @@
                   {{ $t('pinCodes') || 'Pin Codes' }}
                 </NuxtLinkLocale>
               </li>
+
+              <li>
+                <NuxtLinkLocale
+                  to="/kia-hyundai-part-number-lookup"
+                  class="block px-3 py-3 hover:bg-gray-50"
+                  @click="close"
+                >
+                  {{ $t('vin_lookup.title') || 'Kia / Hyundai Part Number Lookup' }}
+                </NuxtLinkLocale>
+              </li>
             </ul>
           </div>
+          
 
         </div>
 

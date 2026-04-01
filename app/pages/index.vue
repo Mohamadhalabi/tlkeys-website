@@ -361,7 +361,7 @@ useHead({
     Techno Lock Keys Trading – Car Keys, Remotes, Emergency Keys, Key Cutting & Programming Machines
   </h1>
 
-  <VinLookup />
+  <!-- <VinLookup /> -->
 
   <CategoriesGrid
     :title="t('home.browseCategories') || 'Browse Categories'"

@@ -70,7 +70,7 @@ async function copyCoupon() {
 <template>
   <ClientOnly>
     <!-- Desktop card -->
-    <transition name="fade">
+    <!-- <transition name="fade">
       <div
         v-if="showDesktopCard && !isMobile"
         class="coupon-desktop-card"
@@ -90,7 +90,7 @@ async function copyCoupon() {
         </div>
         <button class="close" aria-label="Close" @click="closeDesktopCard">×</button>
       </div>
-    </transition>
+    </transition> -->
 
     <!-- Mobile bottom sheet -->
     <transition name="slide-up">
