@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { useNuxtApp, useRuntimeConfig, useHead } from '#imports'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useNuxtApp, useRuntimeConfig, useHead, useCookie } from '#imports'
 import { useI18n } from 'vue-i18n'
 
 definePageMeta({
   layout: 'pincode_layout',
-  analytics: false, // ⬅️ disable GA4 here
+  analytics: false,
 })
 
 type ApiResponse = {
@@ -19,30 +19,47 @@ type ApiResponse = {
   requests_this_month?: number
   requests_left_today?: number
   requests_left_month?: number
+  has_token?: number
   available_in_db?: boolean
 }
 
+type UserCheckResponse = {
+  username?: string
+  has_token?: number
+  requests_this_month?: number
+  tokens_left?: number | null
+  error?: string
+}
+
 const vin = ref('')
-const username = ref('')
+const usernameInput = ref('')
 const keyCode = ref('')
 const pinCode = ref('')
 const showVinError = ref(false)
 const isLoading = ref(false)
 const errorMessage = ref<string | null>(null)
-const requestsToday = ref<number | undefined>(undefined)
-const requestsThisMonth = ref<number | undefined>(undefined)
-const requestsLeftToday = ref<number | undefined>(undefined)
-const requestsLeftMonth = ref<number | undefined>(undefined)
-const greenTextState = ref(false) // turn inputs neon-green when condition matches
+
+// Session & Stats State
+const isLoggedIn = ref(false)
+const hasToken = ref(false)
+const requestsThisMonth = ref<number>(0)
+const tokensLeft = ref<number | null>(null)
+const greenTextState = ref(false)
 
 const { $customApi } = useNuxtApp()
 const { public: { API_BASE_URL, API_KEY, SECRET_KEY } } = useRuntimeConfig()
 const { t, locale } = (useI18n?.() as any) || { t: (s: string) => s, locale: ref('en') }
 
 const currencyCookie = useCookie<string>('currency', { default: () => 'USD', sameSite: 'lax', path: '/' })
-const usernameCookie = useCookie<string | null>('username', { default: () => null, maxAge: 60 * 60 * 12, sameSite: 'lax', path: '/' })
+// 604800 seconds = 1 week
+const usernameCookie = useCookie<string | null>('username', { default: () => null, maxAge: 604800, sameSite: 'lax', path: '/' })
 
-if (process.client && usernameCookie.value) username.value = usernameCookie.value
+onMounted(() => {
+  if (usernameCookie.value) {
+    usernameInput.value = usernameCookie.value
+    verifyLogin()
+  }
+})
 
 watch(vin, (v) => { if (v.length === 17) showVinError.value = false })
 
@@ -53,20 +70,63 @@ function formatVin() {
 const successState = computed(() => !!(keyCode.value && pinCode.value))
 const disabled = computed(() => isLoading.value || vin.value.length !== 17)
 
+async function verifyLogin() {
+  if (!usernameInput.value) return
+  isLoading.value = true
+  errorMessage.value = null
+
+  try {
+    const res: any = await $customApi(`${API_BASE_URL}/check-user`, {
+      method: 'POST',
+      headers: {
+        'Accept-Language': String(locale?.value || 'en'),
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'currency': currencyCookie.value || 'USD',
+        'secret-key': SECRET_KEY,
+        'api-key': API_KEY,
+      },
+      body: { username: usernameInput.value, api_type: 'new' },
+    })
+
+    const data: UserCheckResponse = (res?.data && typeof res.data === 'object') ? res.data : res
+
+    if (data?.error) {
+      errorMessage.value = data.error
+      logout()
+    } else {
+      isLoggedIn.value = true
+      usernameCookie.value = usernameInput.value
+      hasToken.value = !!data.has_token
+      requestsThisMonth.value = data.requests_this_month || 0
+      tokensLeft.value = data.tokens_left ?? null
+    }
+  } catch (e: any) {
+    errorMessage.value = e?.response?.data?.error || t('vin_to_pin.generic_error')
+    logout()
+  } finally {
+    isLoading.value = false
+  }
+}
+
+function logout() {
+  usernameCookie.value = null
+  isLoggedIn.value = false
+  usernameInput.value = ''
+  vin.value = ''
+  keyCode.value = ''
+  pinCode.value = ''
+  errorMessage.value = null
+}
+
 async function handleSubmit() {
   if (vin.value.length !== 17) { showVinError.value = true; return }
 
-  // reset before request
   showVinError.value = false
   errorMessage.value = null
   keyCode.value = ''
   pinCode.value = ''
-  requestsToday.value = undefined
-  requestsThisMonth.value = undefined
-  requestsLeftToday.value = undefined
-  requestsLeftMonth.value = undefined
   greenTextState.value = false
-  usernameCookie.value = username.value
 
   isLoading.value = true
   try {
@@ -80,7 +140,7 @@ async function handleSubmit() {
         'secret-key': SECRET_KEY,
         'api-key': API_KEY,
       },
-      body: { username: username.value, vin: vin.value },
+      body: { username: usernameCookie.value, vin: vin.value },
     })
 
     const data: ApiResponse = (res?.data && typeof res.data === 'object') ? res.data : res
@@ -92,30 +152,24 @@ async function handleSubmit() {
     } else {
       keyCode.value = data?.key_code || ''
       pinCode.value = data?.pin_code || ''
-      errorMessage.value = null
-      if (data?.available_in_db && username.value === '4immo8110') greenTextState.value = true
-    }
+      
+      // Update stats based on request
+      requestsThisMonth.value = data?.requests_this_month ?? requestsThisMonth.value
+      if (data?.has_token) {
+        tokensLeft.value = data?.requests_left_month ?? tokensLeft.value
+      }
 
-    requestsToday.value     = data?.requests_today       ?? 0
-    requestsThisMonth.value = data?.requests_this_month  ?? 0
-    requestsLeftToday.value = data?.requests_left_today  ?? 0
-    requestsLeftMonth.value = data?.requests_left_month  ?? 0
-  } catch (e: any) {
-    if (e?.data?.errors?.vin?.[0]) {
-      errorMessage.value = e.data.errors.vin[0]
-    } else if (e?.data?.message) {
-      errorMessage.value = e.data.message
-    } else if (e?.data?.error) {
-      errorMessage.value = e.data.error
-    } else if (e?.response?.data?.error) {
-      errorMessage.value = e.response.data.error
-    } else if (e?.response?.data?.message) {
-      errorMessage.value = e.response.data.message
-    } else {
-      errorMessage.value = t('vin_to_pin.generic_error')
+      if (data?.available_in_db && usernameCookie.value === '4immo8110') greenTextState.value = true
     }
-    keyCode.value = ''
-    pinCode.value = ''
+  } catch (e: any) {
+    if (e?.data?.errors?.vin?.[0]) errorMessage.value = e.data.errors.vin[0]
+    else if (e?.response?.data?.error) errorMessage.value = e.response.data.error
+    else errorMessage.value = t('vin_to_pin.generic_error')
+    
+    // If auth failure during request, boot them out
+    if (e?.response?.status === 400 && e?.response?.data?.error?.includes('username')) {
+       logout()
+    }
   } finally {
     isLoading.value = false
   }
@@ -141,12 +195,10 @@ useHead(() => ({
     :dir="(locale === 'ar' || locale?.value === 'ar') ? 'rtl' : 'ltr'"
   >
     <div class="w-full max-w-[760px] px-4 m-auto">
-      <!-- Title -->
       <h3 class="text-white text-center font-semibold tracking-wide text-[22px] mt-16 mb-6">
         {{ $t('vin_to_pin.title') }}
       </h3>
 
-      <!-- Error -->
       <div
         v-if="errorMessage"
         class="mx-auto mb-5 max-w-[680px] text-center rounded-md border border-red-400 bg-red-400 text-white text-xl px-4 py-3 text-sm"
@@ -155,142 +207,127 @@ useHead(() => ({
         {{ errorMessage }}
       </div>
 
-      <!-- Loading overlay -->
       <transition name="fade">
         <div
           v-if="isLoading"
           class="fixed inset-0 z-10 bg-black/55 flex items-center justify-center"
-          aria-live="polite" aria-busy="true"
         >
           <div class="h-12 w-12 rounded-full border-4 border-white/25 border-t-white animate-spin"></div>
-          <span class="sr-only">{{ $t('vin_to_pin.loading') }}</span>
         </div>
       </transition>
 
-      <!-- Counters -->
-      <div
-        v-if="requestsToday !== undefined
-               && requestsThisMonth !== undefined
-               && requestsLeftToday !== undefined
-               && requestsLeftMonth !== undefined"
-        class="mx-auto mb-5 max-w-[680px] text-center text-zinc-400 text-md text-white"
-      >
-        {{ $t('vin_to_pin.today') }}: {{ requestsToday }}
-        |
-        {{ $t('vin_to_pin.this_month') }}: {{ requestsThisMonth }}
-        |
-        {{ $t('vin_to_pin.left_month') }}: {{ requestsLeftMonth }}
-      </div>
-
-      <!-- Form -->
-      <form @submit.prevent="handleSubmit" class="flex flex-col items-center">
-        <!-- VIN -->
+      <form v-if="!isLoggedIn" @submit.prevent="verifyLogin" class="flex flex-col items-center">
         <div class="row-gap">
-          <div
-            v-if="showVinError"
-            class="mx-auto mb-2 max-w-[680px] rounded-md border border-red-400 bg-red-500/10 text-red-200 px-3 py-2 text-sm"
-            role="alert"
-          >
-            {{ $t('vin_to_pin.vin_size') }}
-          </div>
           <input
             type="text"
-            v-model="vin"
-            @input="formatVin"
-            maxlength="17"
+            v-model="usernameInput"
             required
-            autocomplete="off"
-            :placeholder="$t('vin_to_pin.vin_placeholder')"
-            class="pill-input vin-width"
-            :class="[
-              successState ? 'success-border' : '',
-              greenTextState ? 'green-text' : ''
-            ]"
-          />
-        </div>
-
-        <!-- Username -->
-        <div class="row-gap">
-          <input
-            type="password"
-            v-model="username"
-            autocomplete="new-password"
-            required
-            :placeholder="$t('vin_to_pin.username_placeholder')"
+            :placeholder="$t('vin_to_pin.username_placeholder') || 'Enter Username'"
             class="pill-input username-width"
-            :class="[
-              successState ? 'success-border' : '',
-              greenTextState ? 'green-text' : ''
-            ]"
           />
         </div>
-
-        <!-- Key Code -->
-        <div class="row-gap">
-          <input
-            type="text"
-            v-model="keyCode"
-            :placeholder="$t('vin_to_pin.key_code_placeholder')"
-            readonly
-            class="pill-input key-width"
-            :class="[
-              successState ? 'success-border' : '',
-              greenTextState ? 'green-text' : ''
-            ]"
-          />
-        </div>
-
-        <!-- Pin Code -->
-        <div class="row-gap">
-          <input
-            type="text"
-            v-model="pinCode"
-            :placeholder="$t('vin_to_pin.pin_code_placeholder')"
-            readonly
-            class="pill-input pin-width pin-accent"
-            :class="[
-              successState ? 'success-border' : '',
-              greenTextState ? 'green-text' : ''
-            ]"
-          />
-        </div>
-
-        <!-- Actions -->
-        <div class="actions-row">
-          <button type="submit" class="get-button" :disabled="disabled">
-            <svg v-if="isLoading" class="h-5 w-5 mr-2 animate-spin" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.25" stroke-width="4"/>
-              <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-            </svg>
-            <span>{{ isLoading ? $t('vin_to_pin.loading') : $t('vin_to_pin.get_button') }}</span>
-          </button>
-
-          <button
-            v-if="keyCode && pinCode && !isLoading"
-            type="button"
-            class="copy-button"
-            @click="copyToClipboard"
-          >
-            {{ $t('vin_to_pin.copy_button') }}
-          </button>
-        </div>
+        <button type="submit" class="get-button" :disabled="isLoading">
+          <span>{{ isLoading ? 'Loading...' : 'LOGIN' }}</span>
+        </button>
       </form>
+
+      <div v-else>
+        <div class="mx-auto mb-5 max-w-[680px] text-center text-zinc-400 text-md text-white font-medium">
+          <template v-if="hasToken">
+            Tokens Left: <span class="text-green-400">{{ tokensLeft }}</span> | Used this month: {{ requestsThisMonth }}
+          </template>
+          <template v-else>
+            Used this month: {{ requestsThisMonth }}
+          </template>
+        </div>
+
+        <form @submit.prevent="handleSubmit" class="flex flex-col items-center">
+          <div class="row-gap">
+            <div
+              v-if="showVinError"
+              class="mx-auto mb-2 max-w-[680px] rounded-md border border-red-400 bg-red-500/10 text-red-200 px-3 py-2 text-sm"
+              role="alert"
+            >
+              {{ $t('vin_to_pin.vin_size') }}
+            </div>
+            <input
+              type="text"
+              v-model="vin"
+              @input="formatVin"
+              maxlength="17"
+              required
+              autocomplete="off"
+              :placeholder="$t('vin_to_pin.vin_placeholder')"
+              class="pill-input vin-width"
+              :class="[
+                successState ? 'success-border' : '',
+                greenTextState ? 'green-text' : ''
+              ]"
+            />
+          </div>
+
+          <div class="row-gap">
+            <input
+              type="text"
+              v-model="keyCode"
+              :placeholder="$t('vin_to_pin.key_code_placeholder')"
+              readonly
+              class="pill-input key-width"
+              :class="[
+                successState ? 'success-border' : '',
+                greenTextState ? 'green-text' : ''
+              ]"
+            />
+          </div>
+
+          <div class="row-gap">
+            <input
+              type="text"
+              v-model="pinCode"
+              :placeholder="$t('vin_to_pin.pin_code_placeholder')"
+              readonly
+              class="pill-input pin-width pin-accent"
+              :class="[
+                successState ? 'success-border' : '',
+                greenTextState ? 'green-text' : ''
+              ]"
+            />
+          </div>
+
+          <div class="actions-row">
+            <button type="submit" class="get-button" :disabled="disabled">
+              <span>{{ isLoading ? $t('vin_to_pin.loading') : $t('vin_to_pin.get_button') }}</span>
+            </button>
+
+            <button
+              v-if="keyCode && pinCode && !isLoading"
+              type="button"
+              class="copy-button"
+              @click="copyToClipboard"
+            >
+              {{ $t('vin_to_pin.copy_button') }}
+            </button>
+            
+            <button type="button" class="logout-button" @click="logout">
+              Logout
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   </main>
 </template>
 
 <style scoped>
-/* ---------- layout helpers ---------- */
 .row-gap { margin: 20px 0; }
 .actions-row {
   display: flex; align-items: center; justify-content: center;
   gap: 14px; margin-top: 26px; flex-wrap: wrap;
 }
 
-/* ---------- Visual style ---------- */
 .pill-input {
   height: 56px;
-  background: #E40000;         /* red background */
+  background: #E40000;
   border: 2px solid #6b6b6b;
   color: #f2f2f2;
   border-radius: 14px;
@@ -335,11 +372,18 @@ useHead(() => ({
   font-weight: 700; letter-spacing: 0.3px;
 }
 
+.logout-button {
+  height: 56px; padding: 0 20px; border-radius: 16px;
+  border: 2px solid #6b6b6b; background: transparent; color: #9a9a9a;
+  font-weight: 700; font-size: 16px; transition: 0.2s;
+}
+.logout-button:hover { color: #fff; border-color: #fff; }
+
 .fade-enter-active, .fade-leave-active { transition: opacity .25s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
 @media (max-width: 480px) {
   .pill-input { height: 54px; font-size: 18px; }
-  .get-button, .copy-button { height: 54px; font-size: 18px; }
+  .get-button, .copy-button, .logout-button { height: 54px; font-size: 18px; }
 }
 </style>
