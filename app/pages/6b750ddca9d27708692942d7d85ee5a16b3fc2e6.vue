@@ -11,6 +11,7 @@ definePageMeta({
 type ApiResponse = {
   error?: string
   message?: string
+  status?: string // Added for the confirmation check
   errors?: { vin?: string[] }
   vin?: string
   key_code?: string | null
@@ -45,6 +46,9 @@ const hasToken = ref(false)
 const requestsThisMonth = ref<number>(0)
 const tokensLeft = ref<number | null>(null)
 const greenTextState = ref(false)
+
+// Confirmation State
+const forceOrder = ref(false)
 
 const { $customApi } = useNuxtApp()
 const { public: { API_BASE_URL, API_KEY, SECRET_KEY } } = useRuntimeConfig()
@@ -117,16 +121,22 @@ function logout() {
   keyCode.value = ''
   pinCode.value = ''
   errorMessage.value = null
+  forceOrder.value = false
 }
 
-async function handleSubmit() {
+async function handleSubmit(isRetry = false) {
+  if (!isRetry) forceOrder.value = false // Reset order flag on fresh attempts
+
   if (vin.value.length !== 17) { showVinError.value = true; return }
 
   showVinError.value = false
   errorMessage.value = null
-  keyCode.value = ''
-  pinCode.value = ''
-  greenTextState.value = false
+  
+  if (!isRetry) {
+    keyCode.value = ''
+    pinCode.value = ''
+    greenTextState.value = false
+  }
 
   isLoading.value = true
   try {
@@ -140,10 +150,28 @@ async function handleSubmit() {
         'secret-key': SECRET_KEY,
         'api-key': API_KEY,
       },
-      body: { username: usernameCookie.value, vin: vin.value },
+      body: { 
+        username: usernameCookie.value, 
+        vin: vin.value,
+        force_order: forceOrder.value 
+      },
     })
 
     const data: ApiResponse = (res?.data && typeof res.data === 'object') ? res.data : res
+
+    // Catch the confirmation request from the backend
+    if (data?.status === 'requires_confirmation') {
+      isLoading.value = false // Pause loading for user prompt
+      const wantsToOrder = confirm('This VIN is not in the database. Would you like to order it from the external server?')
+      
+      if (wantsToOrder) {
+        forceOrder.value = true
+        await handleSubmit(true) // Retry with force_order = true
+      } else {
+        errorMessage.value = 'Order cancelled.'
+      }
+      return // Stop execution of the current loop
+    }
 
     if (data?.error) {
       errorMessage.value = data.error
@@ -241,7 +269,7 @@ useHead(() => ({
           </template>
         </div>
 
-        <form @submit.prevent="handleSubmit" class="flex flex-col items-center">
+        <form @submit.prevent="() => handleSubmit(false)" class="flex flex-col items-center">
           <div class="row-gap">
             <div
               v-if="showVinError"
