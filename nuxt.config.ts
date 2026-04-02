@@ -71,9 +71,20 @@ export default defineNuxtConfig({
 
   sitemap: {
     debug: false,
-    autoI18n: true, // This properly generates your /ar, /es versions automatically
-    sitemaps: true, // NEW: Turns on Sitemap Indexing (chunks the XML files to save CPU)
-    sources: ['/api/sitemap-routes'],
+    autoI18n: true,
+    cacheMaxAgeSeconds: 86400, // NEW: Caches the final XML output for 24 hours to eliminate CPU spikes
+    // NEW: We split the sitemap by language, calling the API only for the language being requested
+    sitemaps: {
+      en: { sources: ['/api/sitemap-routes?lang=en'] },
+      ar: { sources: ['/api/sitemap-routes?lang=ar'] },
+      es: { sources: ['/api/sitemap-routes?lang=es'] },
+      fr: { sources: ['/api/sitemap-routes?lang=fr'] },
+      ru: { sources: ['/api/sitemap-routes?lang=ru'] },
+      de: { sources: ['/api/sitemap-routes?lang=de'] },
+      tr: { sources: ['/api/sitemap-routes?lang=tr'] },
+      pt: { sources: ['/api/sitemap-routes?lang=pt'] },
+      it: { sources: ['/api/sitemap-routes?lang=it'] },
+    },
     defaults: {
       changefreq: 'daily',
       priority: 0.8,
@@ -84,6 +95,16 @@ export default defineNuxtConfig({
       '/**/checkout/**', '/**/account/**', '/**/cart', '/**/complete-order', '/**/complete-custom-order', '/**/custom-order',
       '/3e00ce51bde3addf1fa11b7', '/6b750ddca9d27708692942d7d85ee5a16b3fc2e6', '/435d7eb240c0e460cbb0281d1956b68c0ca99c33'
     ]
+  },
+
+  routeRules: {
+    '/products/**': { headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
+    '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    // NEW: Aggressive edge-caching to prevent Nuxt from regenerating sitemaps constantly
+    '/api/sitemap-routes': { cache: { maxAge: 86400 } },
+    '/sitemap.xml': { cache: { maxAge: 86400 } },
+    '/*-sitemap.xml': { cache: { maxAge: 86400 } },
+    '/sitemap_*.xml': { cache: { maxAge: 86400 } }
   },
 
 
