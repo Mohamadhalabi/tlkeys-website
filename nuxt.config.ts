@@ -71,7 +71,8 @@ export default defineNuxtConfig({
 
   sitemap: {
     debug: false,
-    autoI18n: true,
+    autoI18n: true, // This properly generates your /ar, /es versions automatically
+    sitemaps: true, // NEW: Turns on Sitemap Indexing (chunks the XML files to save CPU)
     sources: ['/api/sitemap-routes'],
     defaults: {
       changefreq: 'daily',
