@@ -2,13 +2,6 @@ import { fileURLToPath } from 'url'
 import { visualizer } from 'rollup-plugin-visualizer';
 
 const siteUrl = (process.env.SITE_URL || 'https://www.tlkeys.com').replace(/\/+$/, '')
-const siteName = 'tlkeys'
-const logoUrl = `${siteUrl}/images/logo/techno-lock-desktop-logo.webp`
-const searchTarget = `${siteUrl}/shop?q={search_term_string}`
-
-const OPENING_HOURS = [{ "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], "opens": "09:00", "closes": "18:00" }]
-
-const SAME_AS = ["https://www.facebook.com/technolockkeystrade", "https://www.instagram.com/technolock", "https://www.youtube.com/@technolock", "https://www.tiktok.com/@technolockkeys"].filter(Boolean)
 
 const i18nOptions = {
   locales: [
@@ -51,12 +44,10 @@ export default defineNuxtConfig({
     'nuxt-delay-hydration',
     'nuxt-vitalizer',
     '@vite-pwa/nuxt',
-    '@nuxtjs/sitemap',
-    '@nuxt/scripts' // NEW: Added for better 3rd party script management
+    '@nuxtjs/sitemap'
   ],
 
   // --- DELAY HYDRATION OPTIMIZATION ---
-  // Switching to 'init' and adding 'replayClick' directly targets INP issues
   delayHydration: {
     mode: 'mount',
     debug: process.env.NODE_ENV === 'development',
@@ -72,8 +63,7 @@ export default defineNuxtConfig({
   sitemap: {
     debug: false,
     autoI18n: true,
-    cacheMaxAgeSeconds: 86400, // NEW: Caches the final XML output for 24 hours to eliminate CPU spikes
-    // NEW: We split the sitemap by language, calling the API only for the language being requested
+    cacheMaxAgeSeconds: 86400,
     sitemaps: {
       en: { sources: ['/api/sitemap-routes?lang=en'] },
       ar: { sources: ['/api/sitemap-routes?lang=ar'] },
@@ -97,16 +87,30 @@ export default defineNuxtConfig({
     ]
   },
 
+  // --- MERGED AND FIXED ROUTE RULES ---
   routeRules: {
-    '/products/**': { headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
+    // Cache the English products route
+    '/products/**': { swr: 3600 },
+
+    // Cache the localized products routes (matching your i18n locales)
+    '/ar/products/**': { swr: 3600 },
+    '/es/products/**': { swr: 3600 },
+    '/fr/products/**': { swr: 3600 },
+    '/ru/products/**': { swr: 3600 },
+    '/de/products/**': { swr: 3600 },
+    '/tr/products/**': { swr: 3600 },
+    '/pt/products/**': { swr: 3600 },
+    '/it/products/**': { swr: 3600 },
+
+    // Static assets
     '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    // NEW: Aggressive edge-caching to prevent Nuxt from regenerating sitemaps constantly
+
+    // Sitemap caching
     '/api/sitemap-routes': { cache: { maxAge: 86400 } },
     '/sitemap.xml': { cache: { maxAge: 86400 } },
     '/*-sitemap.xml': { cache: { maxAge: 86400 } },
     '/sitemap_*.xml': { cache: { maxAge: 86400 } }
   },
-
 
   runtimeConfig: {
     apiKey: process.env.API_KEY,
@@ -137,7 +141,6 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      // Note: GTM Script removed from here to be used via @nuxt/scripts in app.vue
       link: [
         { rel: 'preconnect', href: 'https://www.google-analytics.com', crossorigin: 'anonymous' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -151,15 +154,6 @@ export default defineNuxtConfig({
     }
   },
 
-  routeRules: {
-    '/products/**': { headers: { 'cache-control': 'public, max-age=300, s-maxage=3600' } },
-    '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-    // NEW: Cache the sitemap endpoint and the XML files for 24 hours
-    '/api/sitemap-routes': { cache: { maxAge: 86400 } },
-    '/sitemap.xml': { cache: { maxAge: 86400 } },
-    '/sitemap-*.xml': { cache: { maxAge: 86400 } }
-  },
-
   nitro: {
     compressPublicAssets: true,
   },
@@ -168,7 +162,7 @@ export default defineNuxtConfig({
   experimental: {
     payloadExtraction: false,
     emitRouteChunkError: 'automatic',
-    viewTransition: true, // Improves perceived navigation speed
+    viewTransition: true,
     renderJsonPayloads: true,
     navigationRepaint: false,
   },
@@ -178,7 +172,6 @@ export default defineNuxtConfig({
     build: {
       rollupOptions: {
         output: {
-          // Helps INP by preventing one massive JS execution block
           manualChunks(id) {
             if (id.includes('node_modules')) return 'vendor';
           }

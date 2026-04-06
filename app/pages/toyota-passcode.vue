@@ -21,6 +21,7 @@ const form = ref({
 const loading = ref(false)
 const passcodeResult = ref<string | null>(null)
 const errorMsg = ref<string | null>(null)
+const attemptsLeft = ref<number | null>(null)
 
 // Validation: VIN must be 17 chars, and all data fields must have some value
 const isFormValid = computed(() => {
@@ -30,19 +31,26 @@ const isFormValid = computed(() => {
          form.value.data3.trim().length > 0
 })
 
-// Check Toyota Tokens instead of standard tokens
 const hasNoTokens = computed(() => isAuthenticated.value && (user.value?.toyota_tokens || 0) <= 0)
 
 const formatInput = (key: keyof typeof form.value, e: Event) => {
   const target = e.target as HTMLInputElement
-  form.value[key] = target.value.toUpperCase().replace(/\s/g, '')
+  let formattedValue = target.value.toUpperCase().replace(/\s/g, '')
+  
+  // Replace 'O' with '0' for data fields
+  if (key === 'data1' || key === 'data2' || key === 'data3') {
+    formattedValue = formattedValue.replace(/O/g, '0')
+  }
+  
+  form.value[key] = formattedValue
 }
 
 const handleCalculate = async () => {
-  if (!isFormValid.value || !isAuthenticated.value || hasNoTokens.value) return
+  if (!isFormValid.value || !isAuthenticated.value) return
 
   errorMsg.value = null
   passcodeResult.value = null
+  attemptsLeft.value = null
   loading.value = true
 
   try {
@@ -55,10 +63,11 @@ const handleCalculate = async () => {
 
     if (fetchedPasscode) {
       passcodeResult.value = fetchedPasscode
+      attemptsLeft.value = res?.attempts_left ?? res?.data?.attempts_left ?? 0
       
-      // Deduct TOYOTA token locally
-      if (user.value && user.value.toyota_tokens > 0) {
-        user.value.toyota_tokens -= 1 
+      // Update tokens from backend response
+      if (user.value && res?.tokens_remaining !== undefined) {
+        user.value.toyota_tokens = res.tokens_remaining
       }
     } else {
       errorMsg.value = t('toyota_passcode.error_general')
@@ -67,7 +76,7 @@ const handleCalculate = async () => {
     const status = err?.status || err?.statusCode || err?.response?.status;
     if (status === 402 || status === 403) {
       if (user.value) user.value.toyota_tokens = 0; 
-      errorMsg.value = null; 
+      errorMsg.value = err?.data?.message || err?.message || t('toyota_passcode.no_tokens_msg'); 
     } else {
       errorMsg.value = err?.data?.message || err?.message || t('toyota_passcode.error_general')
     }
@@ -125,7 +134,7 @@ async function fetchTokens() {
         page: 1,
         rows: 1,
         per_row: 12,
-        category_id: 5, // ⚠️ IMPORTANT: Update to your TOYOTA Tokens Category ID
+        category_id: 5,
         only_featured: 0, 
         currency: 'USD',
       }
@@ -185,12 +194,16 @@ useHead({
           
           <div v-if="isAuthenticated" 
                class="inline-flex items-center justify-center mt-6 px-5 py-2 rounded-full border shadow-sm"
-               :class="hasNoTokens ? 'bg-red-50 border-red-100 text-red-600' : 'bg-green-50 border-green-100 text-green-700'">
+               :class="hasNoTokens ? 'bg-orange-50 border-orange-100 text-orange-700' : 'bg-green-50 border-green-100 text-green-700'">
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
             <span class="font-bold text-sm sm:text-base">{{ t('toyota_passcode.available_tokens') }}: {{ user?.toyota_tokens || 0 }}</span>
           </div>
+          
+          <p v-if="hasNoTokens" class="text-xs text-orange-600 mt-2 font-medium">
+            You can still calculate if you have free attempts remaining for a previously searched VIN.
+          </p>
         </div>
 
         <div class="relative z-10 max-w-xl mx-auto space-y-4 sm:space-y-6">
@@ -251,12 +264,6 @@ useHead({
               </NuxtLinkLocale>
             </template>
             
-            <template v-else-if="hasNoTokens">
-              <div class="w-full py-4 sm:py-5 bg-red-50 text-red-600 rounded-2xl font-bold border border-red-200 shadow-sm text-sm sm:text-base">
-                {{ t('toyota_passcode.no_tokens_msg') }}
-              </div>
-            </template>
-
             <template v-else>
               <button 
                 @click="handleCalculate"
@@ -288,6 +295,15 @@ useHead({
               </span>
               <div class="text-xs sm:text-sm text-gray-500 uppercase font-bold tracking-wider mb-1">{{ t('toyota_passcode.passcode_label') }}</div>
               <div class="text-3xl sm:text-5xl font-black text-gray-900 tracking-tight">{{ passcodeResult }}</div>
+
+              <div class="mt-5 pt-5 border-t border-blue-200/60">
+                <p class="text-sm text-blue-800 font-medium">
+                  Note: 1 Token allows 3 calculations per VIN.
+                </p>
+                <p class="text-xs text-blue-600 font-bold mt-1.5 uppercase tracking-wider">
+                  Free attempts remaining for this VIN: {{ attemptsLeft }}
+                </p>
+              </div>
             </div>
 
             <div v-if="errorMsg" class="bg-red-50 border border-red-200 rounded-2xl p-5 sm:p-6 text-center shadow-sm">

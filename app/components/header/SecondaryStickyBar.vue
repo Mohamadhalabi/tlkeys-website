@@ -62,7 +62,7 @@ const items = computed(() => ([
   { key: 'bundled',         label: t('subnav.bundles',       'Bundles'),                          to: '/shop?bundled' },
   { key: 'new-arrival',     label: t('subnav.newArrival',    'New Arrival'),                      to: '/shop?new-arrival=&sort=newest&per_page=25' },
   { key: 'part-number',     label: t('vin_lookup.title',    'Kia / Hyundai Part Number Lookup'), to: '/kia-hyundai-part-number-lookup' },
-  // { key: 'toyota-passcode', label: t('subnav.toyotaPasscode','Toyota Passcode'),                  to: '/toyota-passcode' },
+  { key: 'toyota-passcode', label: t('subnav.toyotaPasscode','Toyota Passcode'),                  to: '/toyota-passcode' },
 ]))
 
 /* ----------------- Improved Active State Logic ----------------------- */
