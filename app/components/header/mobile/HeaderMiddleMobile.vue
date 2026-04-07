@@ -425,7 +425,7 @@
 
                             <li>
                 <NuxtLinkLocale
-                  to="/kia-hyundai-part-number-lookup"
+                  to="/toyota-passcode"
                   class="block px-3 py-3 hover:bg-gray-50"
                   @click="close"
                 >
