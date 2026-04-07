@@ -1,20 +1,27 @@
 <!-- app.vue -->
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useHead, useLocaleHead } from '#imports'
 import AlertContainer from '../app/components/common/AlertContainer.vue'
 import BackToTop from './components/ui/BackToTop.vue'
+
 const route = useRoute()
 
+// ✅ Fetch rates once for the entire app lifetime
+const { refreshRates } = useCurrency()
+if (process.client) {
+  onMounted(() => refreshRates())
+}
+
 const i18nHead = useLocaleHead({
-  addDirAttribute: true,   // ✅ <html dir="ltr/rtl">
-  addSeoAttributes: true,  // ✅ og:locale, alternates, etc.
+  addDirAttribute: true,
+  addSeoAttributes: true,
 })
 useScriptGoogleTagManager({
- id: 'GTM-PWSSMVC7'
+  id: 'GTM-PWSSMVC7'
 })
 useHead(() => {
   const pageParam = Number(route.query.page || 1)
-
   return {
     htmlAttrs: i18nHead.value.htmlAttrs,
     link: pageParam <= 1 ? i18nHead.value.link : [],

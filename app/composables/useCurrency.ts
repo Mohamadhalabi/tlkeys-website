@@ -1,11 +1,14 @@
 // composables/useCurrency.ts
-import { watch, onMounted } from 'vue'
-import { useCookie, useState, useNuxtApp } from '#imports'
+import { watch } from 'vue'
+import { useCookie, useState, useNuxtApp, useAsyncData } from '#imports'
 
 export type CurrencyCode = 'USD' | 'EUR' | 'TRY' | 'AED' | 'GBP'
 
+// Module-level singleton — shared across ALL composable instances
+let ratesFetchedAt = 0
+const CACHE_TTL_MS = 1000 * 60 * 30 // 30 minutes — fetch at most once per 30min
+
 export const useCurrency = () => {
-  // cookie + reactive selected currency
   const cookie = useCookie<CurrencyCode>('currency', {
     default: () => 'USD',
     path: '/',
@@ -15,43 +18,46 @@ export const useCurrency = () => {
   const current = useState<CurrencyCode>('currency', () => cookie.value!)
   watch(current, (val) => { cookie.value = val })
 
-  // FX table (1 USD = value)
+  // Shared state — initialized once, reused everywhere
   const rates = useState<Record<CurrencyCode, number>>('fx-rates', () => ({
     USD: 1,
-    EUR: 0.93,
-    GBP: 0.78,
+    EUR: 0.87,
+    GBP: 0.76,
     AED: 3.6725,
-    TRY: 33,
+    TRY: 45.00,
   }))
 
-  // ---- fetch rates from backend once and on demand
-  let inflight: Promise<void> | null = null
+  // Shared in-flight promise — if two components call this simultaneously,
+  // the second one waits for the first instead of firing a new request
+  const isFetching = useState<boolean>('fx-fetching', () => false)
+
   async function refreshRates(force = false) {
-    if (inflight && !force) return inflight
-    const { $customApi } = useNuxtApp()
+    const now = Date.now()
 
-    inflight = (async () => {
-      try {
-        // Expecting { base: "USD", rates: { USD:1, EUR:0.88, ... }, updated_at: "..." }
-        const r: any = await $customApi('/v2/currencies/rates', { method: 'GET' })
-        const map = r?.rates || r?.data?.rates || null
-        if (map && typeof map === 'object') {
-          const next = { ...rates.value }
-          Object.entries(map).forEach(([k, v]) => {
-            if (k in next) (next as any)[k] = Number(v)
-          })
-          rates.value = next
-        }
-      } catch {/* keep last known rates */}
-      finally { inflight = null }
-    })()
+    // Skip if: already fetching, cache still valid (and not forced)
+    if (isFetching.value) return
+    if (!force && ratesFetchedAt > 0 && now - ratesFetchedAt < CACHE_TTL_MS) return
 
-    return inflight
+    isFetching.value = true
+    try {
+      const { $customApi } = useNuxtApp()
+      const r: any = await $customApi('/v2/currencies/rates', { method: 'GET' })
+      const map = r?.rates || r?.data?.rates || null
+      if (map && typeof map === 'object') {
+        const next = { ...rates.value }
+        Object.entries(map).forEach(([k, v]) => {
+          if (k in next) (next as any)[k] = Number(v)
+        })
+        rates.value = next
+        ratesFetchedAt = Date.now() // stamp successful fetch
+      }
+    } catch {
+      // keep last known rates, don't update timestamp so next call retries
+    } finally {
+      isFetching.value = false
+    }
   }
 
-  if (process.client) onMounted(() => { refreshRates().catch(() => {}) })
-
-  /** Convert amount between two ISO codes using USD as base. */
   function convert(amount: number | null | undefined, from: CurrencyCode, to: CurrencyCode) {
     const a = Number(amount || 0)
     if (!Number.isFinite(a) || from === to) return a
@@ -59,7 +65,6 @@ export const useCurrency = () => {
     return to === 'USD' ? toUSD : toUSD * (rates.value[to] || 1)
   }
 
-  /** Format using the active currency. */
   function formatMoney(amount: number | null | undefined) {
     return new Intl.NumberFormat(undefined, {
       style: 'currency',
@@ -67,7 +72,6 @@ export const useCurrency = () => {
     }).format(Number(amount || 0))
   }
 
-  /** Format explicitly in a certain currency. */
   function formatIn(amount: number | null | undefined, code: CurrencyCode) {
     return new Intl.NumberFormat(undefined, {
       style: 'currency',
@@ -78,11 +82,11 @@ export const useCurrency = () => {
   return {
     currency: current,
     setCurrency: (c: CurrencyCode) => (current.value = c),
-    options: ['USD','EUR','TRY','AED','GBP'] as CurrencyCode[],
+    options: ['USD', 'EUR', 'TRY', 'AED', 'GBP'] as CurrencyCode[],
     rates,
     convert,
     formatMoney,
     formatIn,
-    refreshRates, // <-- export so you can force-refresh (e.g., from a settings page)
+    refreshRates,
   }
 }

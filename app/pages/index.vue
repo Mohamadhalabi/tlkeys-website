@@ -3,10 +3,10 @@ import ProSlider from '~/components/ProSlider.vue'
 import CategoriesGrid from '~/components/home/CategoriesGrid.vue'
 import ProductCarousel from '~/components/products/ProductCarousel.vue'
 import BrandSection from '~/components/home/BrandSection.vue'
-import VinLookup from '~/components/home/VinLookup.vue'
 import { ref, computed, watch } from 'vue'
 import { useSeoMeta, useHead, useRoute, useRequestURL, useRuntimeConfig, useNuxtApp, useAsyncData } from '#imports'
 import { useI18n } from 'vue-i18n'
+import { useIntersectionFetch } from '~/composables/useIntersectionFetch'
 
 type SliderItem = { image: string; link?: string; title?: string; alt?: string; type?: string }
 
@@ -22,7 +22,7 @@ const t = i18n?.t ?? ((s: string) => s)
 const locale = i18n?.locale ?? ref('en')
 const defaultLocale: string = i18n?.defaultLocale ?? 'en'
 
-/* ---------------- Slider ---------------- */
+/* ---------------- Slider (SSR) ---------------- */
 const sanitize = (arr: any[]): SliderItem[] =>
   (arr || []).map((x: any) => ({
     image: String(x.image || x.image_url || x.src || ''),
@@ -51,24 +51,22 @@ const slidersError = computed(() =>
 
 /* ---------------- Categories ---------------- */
 const categories = [
-  { title: t('home.categories.carRemotes') || 'Car Remotes',      href: '/car-remotes',    image: '/images/home/categories/car-remotes.webp' },
-  { title: t('home.categories.xhorseRemotes') || 'Xhorse Remotes',  href: '/xhorse-remotes', image: '/images/home/categories/xhorse-remote.webp' },
-  { title: t('home.categories.keydiyRemotes') || 'Keydiy Remotes',  href: '/keydiy-remotes', image: '/images/home/categories/keydiy-kd-remote.webp' },
-  { title: t('home.categories.remotePcb') || 'Remote PCB',      href: '/remote-pcb',     image: '/images/home/categories/pcb-remote.webp' },
-
+  { title: t('home.categories.carRemotes') || 'Car Remotes',                   href: '/car-remotes',                        image: '/images/home/categories/car-remotes.webp' },
+  { title: t('home.categories.xhorseRemotes') || 'Xhorse Remotes',             href: '/xhorse-remotes',                     image: '/images/home/categories/xhorse-remote.webp' },
+  { title: t('home.categories.keydiyRemotes') || 'Keydiy Remotes',             href: '/keydiy-remotes',                     image: '/images/home/categories/keydiy-kd-remote.webp' },
+  { title: t('home.categories.remotePcb') || 'Remote PCB',                     href: '/remote-pcb',                         image: '/images/home/categories/pcb-remote.webp' },
   { title: t('home.categories.keyProgrammingDevices') || 'Key Programming Devices', href: '/key-programming-diagnostics-tools', image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/devices%20and%20machine.jpg' },
-  { title: t('home.categories.keyCuttingMachines') || 'Key Cutting Machines',    href: '/key-cutting-machine',                image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/key%20cutting%20machines.jpg' },
-  { title: t('home.categories.cables') || 'Cables',                    href: '/cables',                             image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/cables%202.jpg' },
-  { title: t('home.categories.adapter') || 'Adapter',                  href: '/adapter',                            image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/adapers.jpg' },
-
-  { title: t('home.categories.cutter') || 'Cutter',                    href: '/cutter',                             image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/1698760907-Cutter.jpg' },
-  { title: t('home.categories.emulators') || 'Emulators',                href: '/emulators',                          image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/emulators.jpg' },
-  { title: t('home.categories.openingTools') || 'Opening Tools',            href: '/opening-tools',                      image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/opening%20tools.jpg' },
-  { title: t('home.categories.immobilizerSmartBox') || 'Immobilizer Smart Box',    href: '/immobilizer-smart-box',              image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/immobilizer-smart-box.jpg' },
+  { title: t('home.categories.keyCuttingMachines') || 'Key Cutting Machines',  href: '/key-cutting-machine',                image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/key%20cutting%20machines.jpg' },
+  { title: t('home.categories.cables') || 'Cables',                            href: '/cables',                             image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/cables%202.jpg' },
+  { title: t('home.categories.adapter') || 'Adapter',                          href: '/adapter',                            image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/adapers.jpg' },
+  { title: t('home.categories.cutter') || 'Cutter',                            href: '/cutter',                             image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/1698760907-Cutter.jpg' },
+  { title: t('home.categories.emulators') || 'Emulators',                      href: '/emulators',                          image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/devices-and-machines/emulators.jpg' },
+  { title: t('home.categories.openingTools') || 'Opening Tools',               href: '/opening-tools',                      image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/opening%20tools.jpg' },
+  { title: t('home.categories.immobilizerSmartBox') || 'Immobilizer Smart Box', href: '/immobilizer-smart-box',             image: 'https://dev-srv.tlkeys.com/storage/images/main-menu/accessories-tools/immobilizer-smart-box.jpg' },
 ]
 const catRows = computed(() => Math.ceil((categories?.length || 0) / 5))
 
-/* ---------------- LIMIT LOGIC & API HELPERS ---------------- */
+/* ---------------- API Helpers ---------------- */
 const MAX_PER_SECTION = 48
 
 function pageSizeFrom(meta: any, fallbackRows: number, fallbackPerRow: number, itemsLen: number) {
@@ -77,6 +75,7 @@ function pageSizeFrom(meta: any, fallbackRows: number, fallbackPerRow: number, i
   const byProps = Math.max(1, (fallbackRows || 1) * (fallbackPerRow || 1))
   return Math.max(1, byMeta || byProps || itemsLen || 1)
 }
+
 function lastFromMeta(meta: any) {
   const lp = Number(meta?.last_page)
   if (Number.isFinite(lp) && lp > 1) return lp
@@ -85,6 +84,7 @@ function lastFromMeta(meta: any) {
   const calc  = Math.ceil(total / size)
   return calc > 0 ? calc : 1
 }
+
 function cappedLastPage(meta: any, rows: number, perRow: number, itemsLen: number) {
   const size = pageSizeFrom(meta, rows, perRow, itemsLen)
   const serverLast = lastFromMeta(meta)
@@ -105,13 +105,13 @@ function mapApiProduct(p: any) {
   const hasSale = p?.sale_price != null && p?.sale_price !== 0
 
   const d = p?.discount || {}
-  const typeRaw = d?.type
+  const typeRaw  = d?.type
   const valueNum =
     typeof d?.value === 'number' ? d.value
     : d?.value != null ? Number(d.value)
     : null
-  const start = d?.start_date ?? null
-  const end   = d?.end_date ?? null
+  const start  = d?.start_date ?? null
+  const end    = d?.end_date   ?? null
   const active = !!d?.active && (typeRaw === 'fixed' || typeRaw === 'percent') && valueNum != null
 
   const tablePrice: any[] =
@@ -124,196 +124,190 @@ function mapApiProduct(p: any) {
     p?.is_free_shipping === '1' ||
     p?.is_free_shipping === true
 
-  const cats = Array.isArray(p?.categories) ? p.categories : []
-  const catIds = cats.map((c:any) => Number(c?.id)).filter((n:number) => Number.isFinite(n))
+  const cats     = Array.isArray(p?.categories) ? p.categories : []
+  const catIds   = cats.map((c: any) => Number(c?.id)).filter((n: number) => Number.isFinite(n))
   const requiresSerial = catIds.includes(47) || catIds.includes(48)
-  const hidePrice = Number(p?.hide_price ?? 0) === 1
+  const hidePrice      = Number(p?.hide_price ?? 0) === 1
 
   const categoryName = cats[0]?.name ? String(cats[0].name) : ''
   const categorySlug = cats[0]?.slug ? String(cats[0].slug).toLowerCase() : ''
 
   return {
-    id: p.id,
-    name: p.title ?? p.short_title ?? '',
-    image: p.image,
-    part_number: p.part_number ?? null, // <-- ADD THIS LINE
+    id:           p.id,
+    name:         p.title ?? p.short_title ?? '',
+    image:        p.image,
+    part_number:  p.part_number ?? null,
     stock: Number.isFinite(Number(p?.quantity ?? p?.stock ?? p?.available_quantity))
       ? Number(p?.quantity ?? p?.stock ?? p?.available_quantity)
       : null,
-    price: hasSale ? p.sale_price : p.price,
+    price:    hasSale ? p.sale_price : p.price,
     oldPrice: hasSale ? p.price : null,
 
-    regular_price: p.regular_price ?? p.price ?? null,
-    sale_price: p.sale_price ?? null,
-    table_price: tablePrice,
-    discount_type: active ? (typeRaw as 'fixed'|'percent') : null,
-    discount_value: active ? valueNum : null,
+    regular_price:       p.regular_price ?? p.price ?? null,
+    sale_price:          p.sale_price ?? null,
+    table_price:         tablePrice,
+    discount_type:       active ? (typeRaw as 'fixed' | 'percent') : null,
+    discount_value:      active ? valueNum : null,
     discount_start_date: start,
     discount_end_date:   end,
-    display_euro_price: Number(p?.display_euro_price ?? 0) === 1,
-    euro_price: p?.euro_price ?? null,
+    display_euro_price:  Number(p?.display_euro_price ?? 0) === 1,
+    euro_price:          p?.euro_price ?? null,
 
-    sku: p.sku ?? '',
-    category: categoryName,
+    sku:          p.sku ?? '',
+    category:     categoryName,
     categorySlug,
-    slug: p.slug,
-    href: p.slug ? `/products/${p.slug}` : `/products/${p.id}`,
+    slug:         p.slug,
+    href:         p.slug ? `/products/${p.slug}` : `/products/${p.id}`,
     freeShipping: isFree,
-    badgeText: isFree ? 'FREE SHIPPING' : null,
+    badgeText:    isFree ? 'FREE SHIPPING' : null,
 
-    hide_price: hidePrice,
+    hide_price:      hidePrice,
     requires_serial: requiresSerial,
   }
 }
 
-/* -------- FEATURED (SSR) -------- */
-const fetchFeaturedApi = async (page = 1, rows = 2, perRow = 6) => {
+/* -------- FEATURED (lazy — intersection) -------- */
+const featured        = ref<any[]>([])
+const featuredPage    = ref(1)
+const featuredLastRef = ref(1)
+
+async function fetchFeaturedApi(page = 1, rows = 2, perRow = 6) {
   const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
     method: 'GET',
     params: { page, rows, per_row: perRow, include: 'table_price,categories', currency: 'USD' }
   })
   const { items, meta } = unwrapApi(res)
   const capLast = cappedLastPage(meta, rows, perRow, items.length)
-  return { 
-    items: items.map(mapApiProduct), 
-    meta, 
-    page: Number(meta?.current_page || page || 1), 
-    lastPage: capLast 
+  return {
+    items:    items.map(mapApiProduct),
+    meta,
+    page:     Number(meta?.current_page || page || 1),
+    lastPage: capLast,
   }
 }
 
-// Fetch on server side
-const { data: featuredData, refresh: refreshFeatured } = await useAsyncData(
-  () => `home:featured:${locale.value}`,
-  () => fetchFeaturedApi(1, 2, 6),
-  { server: true, default: () => ({ items: [], meta: null, page: 1, lastPage: 1 }) }
-)
+const { el: featuredEl, loaded: featuredLoaded } = useIntersectionFetch(async () => {
+  const data        = await fetchFeaturedApi(1, 2, 6)
+  featured.value        = data.items
+  featuredPage.value    = data.page
+  featuredLastRef.value = data.lastPage
+})
 
-const featured        = ref<any[]>(featuredData.value.items)
-const featuredPage    = ref(featuredData.value.page)
-const featuredLastRef = ref(featuredData.value.lastPage)
-
-// Client-side paginator function
 async function fetchFeaturedClient(page = 1, rows = 2, perRow = 6) {
-  const data = await fetchFeaturedApi(page, rows, perRow)
-  featured.value = data.items
-  featuredPage.value = data.page
+  const data        = await fetchFeaturedApi(page, rows, perRow)
+  featured.value        = data.items
+  featuredPage.value    = data.page
   featuredLastRef.value = data.lastPage
 }
 
-/* -------- NEW ARRIVALS (SSR) -------- */
-const fetchNewApi = async (page = 1, rows = 1, perRow = 6) => {
+/* -------- NEW ARRIVALS (lazy — intersection) -------- */
+const newArrivals = ref<any[]>([])
+const newPage     = ref(1)
+const newLastRef  = ref(1)
+
+async function fetchNewApi(page = 1, rows = 1, perRow = 6) {
   const res = await $customApi(`${API_BASE_URL}/homepage-products/new-arrivals`, {
     method: 'GET',
     params: { page, rows, per_row: perRow, include: 'table_price,categories', currency: 'USD' }
   })
   const { items, meta } = unwrapApi(res)
   const capLast = cappedLastPage(meta, rows, perRow, items.length)
-  return { 
-    items: items.map(mapApiProduct), 
-    meta, 
-    page: Number(meta?.current_page || page || 1), 
-    lastPage: capLast 
+  return {
+    items:    items.map(mapApiProduct),
+    meta,
+    page:     Number(meta?.current_page || page || 1),
+    lastPage: capLast,
   }
 }
 
-// Fetch on server side
-const { data: newArrivalsData, refresh: refreshNew } = await useAsyncData(
-  () => `home:new-arrivals:${locale.value}`,
-  () => fetchNewApi(1, 1, 6),
-  { server: true, default: () => ({ items: [], meta: null, page: 1, lastPage: 1 }) }
-)
-
-const newArrivals = ref<any[]>(newArrivalsData.value.items)
-const newPage     = ref(newArrivalsData.value.page)
-const newLastRef  = ref(newArrivalsData.value.lastPage)
-
-// Client-side paginator function
-async function fetchNewClient(page = 1, rows = 1, perRow = 6) {
-  const data = await fetchNewApi(page, rows, perRow)
+const { el: newArrivalsEl, loaded: newLoaded } = useIntersectionFetch(async () => {
+  const data      = await fetchNewApi(1, 1, 6)
   newArrivals.value = data.items
-  newPage.value = data.page
-  newLastRef.value = data.lastPage
+  newPage.value     = data.page
+  newLastRef.value  = data.lastPage
+})
+
+async function fetchNewClient(page = 1, rows = 1, perRow = 6) {
+  const data      = await fetchNewApi(page, rows, perRow)
+  newArrivals.value = data.items
+  newPage.value     = data.page
+  newLastRef.value  = data.lastPage
 }
 
-// Watchers for i18n changes
+/* -------- Locale watcher -------- */
 if (process.client && typeof watch === 'function') {
   watch(() => locale.value, async () => {
     refreshSliders?.()
-    
-    // Refresh SSR data sources and update refs when locale changes
-    await Promise.all([refreshFeatured(), refreshNew()])
-    featured.value = featuredData.value.items
-    featuredPage.value = featuredData.value.page
-    featuredLastRef.value = featuredData.value.lastPage
-
-    newArrivals.value = newArrivalsData.value.items
-    newPage.value = newArrivalsData.value.page
-    newLastRef.value = newArrivalsData.value.lastPage
+    if (featuredLoaded.value) await fetchFeaturedClient(1)
+    if (newLoaded.value)      await fetchNewClient(1)
   })
 }
 
 /* ================= SEO ================= */
-const route = useRoute()
-const url = useRequestURL()
+const route    = useRoute()
+const url      = useRequestURL()
 const siteName = computed(() => t('site.name') || cfgSiteName || 'TL Keys')
 const siteUrl  = computed(() => cfgSiteUrl || `${url.origin}`)
 const pathOnly  = computed(() => route.fullPath.split('#')[0].split('?')[0] || '/')
 const canonical = computed(() => `${siteUrl.value}${pathOnly.value}`)
+
 const toAbs = (src?: string) => {
   if (!src) return `${siteUrl.value}${defaultOgImage || '/images/og-image.jpg'}`
   return src.startsWith('http') ? src : `${siteUrl.value}${src.startsWith('/') ? src : `/${src}`}`
 }
-const ogImage = computed(() => toAbs(itemsForSlider.value?.[0]?.image))
-const metaTitle   = computed(() => t('home.meta.title') || `${siteName.value} — ${t('home.meta.suffix') || 'Auto Keys & Remotes'}`)
-const metaDesc    = computed(() => t('home.meta.description') || 'Shop car remotes, Xhorse, vvdi, autel, KEYDIY key programmers, cutters, cables, and more.')
-const metaKeywords= computed(() => t('home.meta.keywords') || 'car remotes, xhorse, keydiy, key programming, key cutting, locksmith tools')
+
+const ogImage      = computed(() => toAbs(itemsForSlider.value?.[0]?.image))
+const metaTitle    = computed(() => t('home.meta.title') || `${siteName.value} — ${t('home.meta.suffix') || 'Auto Keys & Remotes'}`)
+const metaDesc     = computed(() => t('home.meta.description') || 'Shop car remotes, Xhorse, vvdi, autel, KEYDIY key programmers, cutters, cables, and more.')
+const metaKeywords = computed(() => t('home.meta.keywords') || 'car remotes, xhorse, keydiy, key programming, key cutting, locksmith tools')
 
 useSeoMeta({
-  title: metaTitle,
-  description: metaDesc,
-  ogTitle: metaTitle,
-  ogDescription: metaDesc,
-  ogType: 'website',
-  ogUrl: canonical,
-  ogImage: ogImage,
-  twitterCard: 'summary_large_image',
-  twitterTitle: metaTitle,
+  title:            metaTitle,
+  description:      metaDesc,
+  ogTitle:          metaTitle,
+  ogDescription:    metaDesc,
+  ogType:           'website',
+  ogUrl:            canonical,
+  ogImage:          ogImage,
+  twitterCard:      'summary_large_image',
+  twitterTitle:     metaTitle,
   twitterDescription: metaDesc,
-  twitterImage: ogImage,
-  robots: 'index,follow',
-  themeColor: '#000000',
-  keywords: metaKeywords,
+  twitterImage:     ogImage,
+  robots:           'index,follow',
+  themeColor:       '#000000',
+  keywords:         metaKeywords,
 })
 
 const websiteLd = computed(() => ({
   '@context': 'https://schema.org',
-  '@type': 'WebSite',
-  name: siteName.value,
-  url: siteUrl.value,
+  '@type':    'WebSite',
+  name:       siteName.value,
+  url:        siteUrl.value,
   inLanguage: locale.value,
   potentialAction: {
-    '@type': 'SearchAction',
-    target: `${siteUrl.value}/search?q={search_term_string}`,
-    'query-input': 'required name=search_term_string'
-  }
+    '@type':      'SearchAction',
+    target:       `${siteUrl.value}/search?q={search_term_string}`,
+    'query-input': 'required name=search_term_string',
+  },
 }))
+
 const orgLd = computed(() => ({
   '@context': 'https://schema.org',
-  '@type': 'Organization',
-  name: siteName.value,
-  url: siteUrl.value,
-  logo: toAbs('/images/logo/techno-lock-desktop-logo.webp')
+  '@type':    'Organization',
+  name:       siteName.value,
+  url:        siteUrl.value,
+  logo:       toAbs('/images/logo/techno-lock-desktop-logo.webp'),
 }))
+
 const webPageLd = computed(() => ({
-  '@context': 'https://schema.org',
-  '@type': 'WebPage',
-  name: metaTitle.value,
-  url: canonical.value,
-  description: metaDesc.value,
-  inLanguage: locale.value,
-  isPartOf: { '@type': 'WebSite', url: siteUrl.value, name: siteName.value },
-  primaryImageOfPage: { '@type': 'ImageObject', url: ogImage.value }
+  '@context':   'https://schema.org',
+  '@type':      'WebPage',
+  name:         metaTitle.value,
+  url:          canonical.value,
+  description:  metaDesc.value,
+  inLanguage:   locale.value,
+  isPartOf:     { '@type': 'WebSite', url: siteUrl.value, name: siteName.value },
+  primaryImageOfPage: { '@type': 'ImageObject', url: ogImage.value },
 }))
 
 useHead({
@@ -321,14 +315,15 @@ useHead({
     { rel: 'canonical', href: canonical.value },
   ],
   script: [
-    { key: 'ld-website',  type: 'application/ld+json', innerHTML: JSON.stringify(websiteLd.value) },
-    { key: 'ld-org',      type: 'application/ld+json', innerHTML: JSON.stringify(orgLd.value) },
-    { key: 'ld-webpage',  type: 'application/ld+json', innerHTML: JSON.stringify(webPageLd.value) },
-  ]
+    { key: 'ld-website', type: 'application/ld+json', innerHTML: JSON.stringify(websiteLd.value) },
+    { key: 'ld-org',     type: 'application/ld+json', innerHTML: JSON.stringify(orgLd.value) },
+    { key: 'ld-webpage', type: 'application/ld+json', innerHTML: JSON.stringify(webPageLd.value) },
+  ],
 })
 </script>
 
 <template>
+  <!-- ── Slider ── -->
   <section class="mt-3 hidden lg:block">
     <div class="relative left-1/2 right-1/2 -mx-[50vw] w-screen px-2 sm:px-3 md:px-4">
       <ProSlider
@@ -345,11 +340,15 @@ useHead({
         :height="heightClasses"
         class="w-full"
       />
-      <div v-else :class="heightClasses" class="w-full animate-pulse bg-gray-200 dark:bg-gray-800 rounded-2xl" />
+      <div
+        v-else
+        :class="heightClasses"
+        class="w-full animate-pulse bg-gray-200 dark:bg-gray-800 rounded-2xl"
+      />
     </div>
   </section>
 
-
+  <!-- Slider error -->
   <div
     v-if="slidersError"
     class="mx-auto max-w-screen-2xl mt-4 rounded-md border border-red-300/60 bg-red-50 text-red-700 px-4 py-2 text-sm"
@@ -357,12 +356,12 @@ useHead({
     {{ slidersError }}
   </div>
 
+  <!-- Hidden SEO h1 -->
   <h1 class="text-center font-bold text-base text-xs text-transparent">
     Techno Lock Keys Trading – Car Keys, Remotes, Emergency Keys, Key Cutting & Programming Machines
   </h1>
 
-  <!-- <VinLookup /> -->
-
+  <!-- ── Categories ── -->
   <CategoriesGrid
     :title="t('home.browseCategories') || 'Browse Categories'"
     :items="categories"
@@ -371,7 +370,8 @@ useHead({
     containerClass="max-w-screen-2xl"
   />
 
-  <section data-nosnippet>
+  <!-- ── Featured Products (lazy) ── -->
+  <section ref="featuredEl" data-nosnippet>
     <ProductCarousel
       v-if="featured.length"
       :title="t('home.featuredProducts') || 'FEATURED PRODUCTS'"
@@ -385,9 +385,14 @@ useHead({
       :show-dots="featuredLastRef <= 12"
       @request-page="fetchFeaturedClient"
     />
+    <div
+      v-else
+      class="h-64 animate-pulse bg-gray-100 dark:bg-gray-800 rounded-xl mx-4 my-6"
+    />
   </section>
 
-  <section data-nosnippet>
+  <!-- ── New Arrivals (lazy) ── -->
+  <section ref="newArrivalsEl" data-nosnippet>
     <ProductCarousel
       v-if="newArrivals.length"
       :title="t('home.newArrivals') || 'NEW ARRIVALS'"
@@ -403,9 +408,13 @@ useHead({
       :show-dots="newLastRef <= 12"
       @request-page="fetchNewClient"
     />
+    <div
+      v-else
+      class="h-52 animate-pulse bg-red-50 dark:bg-red-950/20 rounded-xl mx-4 my-6"
+    />
   </section>
 
-
+  <!-- ── Brand Sections (lazy via BrandSection internally) ── -->
   <BrandSection
     data-nosnippet
     :title="t('home.xhorseRemotes') || 'Xhorse remotes'"
