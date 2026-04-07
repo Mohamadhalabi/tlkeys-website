@@ -15,6 +15,7 @@ const searchInput = ref('')
 const loading = ref(false)
 const partNumber = ref<string | null>(null)
 const errorMsg = ref<string | null>(null)
+const copied = ref(false)
 
 const isVinValid = computed(() => searchInput.value.trim().length === 17)
 const hasNoTokens = computed(() => isAuthenticated.value && (user.value?.tokens || 0) <= 0)
@@ -60,6 +61,19 @@ const handleSearch = async () => {
     }
   } finally {
     loading.value = false
+  }
+}
+
+const copyResult = async () => {
+  if (!partNumber.value) return
+  try {
+    await navigator.clipboard.writeText(partNumber.value)
+    copied.value = true
+    setTimeout(() => {
+      copied.value = false
+    }, 2000)
+  } catch (err) {
+    console.error('Failed to copy text: ', err)
   }
 }
 
@@ -200,7 +214,32 @@ useHead({
 <template>
   <main class="vin-lookup-page pb-16 sm:pb-24 bg-gray-50/50 min-h-screen">
     
-    <div class="container mx-auto px-4 pt-10 sm:pt-16 max-w-4xl">
+    <div class="container mx-auto px-4 pt-10 sm:pt-16 max-w-4xl space-y-6">
+
+      <div class="bg-blue-50 border border-blue-100 rounded-2xl p-5 sm:p-7">
+        <h3 class="flex items-center gap-2 text-blue-800 font-bold text-base sm:text-lg mb-4">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          {{ t('vin_lookup.instructions_title') }}
+        </h3>
+        <ul class="space-y-2 text-sm text-blue-700">
+          <li class="flex items-start gap-2">
+            <span class="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold flex items-center justify-center">1</span>
+            {{ t('vin_lookup.instruction_1') }}
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold flex items-center justify-center">2</span>
+            {{ t('vin_lookup.instruction_2') }}
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold flex items-center justify-center">3</span>
+            {{ t('vin_lookup.instruction_3') }}
+          </li>
+        </ul>
+      </div>
+
       <div class="relative bg-white border border-gray-100 shadow-2xl shadow-blue-900/5 rounded-[2rem] p-6 sm:p-10 lg:p-14 text-center overflow-hidden">
         
         <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 bg-gradient-to-b from-blue-50 to-transparent opacity-60 pointer-events-none"></div>
@@ -274,6 +313,36 @@ useHead({
               </button>
             </template>
           </div>
+
+          <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 sm:p-7 mt-5 text-left">
+            <h3 class="flex items-center gap-2 text-orange-800 font-bold text-base sm:text-lg mb-4">
+              <svg class="w-5 h-5 shrink-0 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              </svg>
+              {{ t('vin_lookup.warning_title') }}
+            </h3>
+            <ul class="space-y-3 text-sm">
+              <li class="flex items-start gap-2 text-orange-700">
+                <svg class="w-4 h-4 mt-0.5 shrink-0 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                {{ t('vin_lookup.warning_1') }}
+              </li>
+              <li class="flex items-start gap-2 text-orange-800 font-semibold">
+                <svg class="w-4 h-4 mt-0.5 shrink-0 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                {{ t('vin_lookup.warning_2') }}
+              </li>
+              <li class="flex items-start gap-2 text-red-700 font-semibold">
+                <svg class="w-4 h-4 mt-0.5 shrink-0 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                {{ t('vin_lookup.warning_3') }}
+              </li>
+            </ul>
+          </div>
         </div>
 
         <transition name="fade">
@@ -285,8 +354,29 @@ useHead({
               <span class="inline-block px-4 py-1.5 bg-blue-100 text-blue-800 text-xs sm:text-sm font-bold rounded-full uppercase tracking-widest mb-4 shadow-sm">
                 {{ t('vin_lookup.match_found') }}
               </span>
-              <div class="text-xs sm:text-sm text-gray-500 uppercase font-bold tracking-wider mb-1">{{ t('vin_lookup.oem_part') }}</div>
-              <div class="text-3xl sm:text-5xl font-black text-gray-900 tracking-tight">{{ partNumber }}</div>
+              <div class="text-xs sm:text-sm text-gray-500 uppercase font-bold tracking-wider mb-1">
+                {{ t('vin_lookup.oem_part') }}
+              </div>
+              
+              <div class="flex items-center justify-center gap-4 my-2">
+                <div class="text-3xl sm:text-5xl font-black text-gray-900 tracking-tight">
+                  {{ partNumber }}
+                </div>
+                <button
+                  @click="copyResult"
+                  class="p-2.5 rounded-xl border transition-all active:scale-95 flex-shrink-0"
+                  :class="copied ? 'bg-green-50 border-green-200 text-green-600' : 'bg-white border-blue-200 text-blue-600 hover:bg-blue-50 shadow-sm'"
+                  title="Copy Result"
+                >
+                  <svg v-if="copied" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                  </svg>
+                  <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                  </svg>
+                </button>
+              </div>
+
             </div>
 
             <div v-if="errorMsg" class="bg-red-50 border border-red-200 rounded-2xl p-5 sm:p-6 text-center shadow-sm">

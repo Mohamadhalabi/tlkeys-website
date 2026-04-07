@@ -4,79 +4,63 @@ import { useNuxtApp, useRuntimeConfig, useHead, useSeoMeta, useRoute } from '#im
 import ProductGrid from '~/components/products/ProductGrid.vue'
 
 const { t, locale } = useI18n()
-const { isAuthenticated, user } = useAuth() 
+const { isAuthenticated, user } = useAuth()
 const route = useRoute()
 
 const { public: { API_BASE_URL } } = useRuntimeConfig()
 const { $customApi } = useNuxtApp() as any
 
-// --- 1. CALCULATION LOGIC ---
-const form = ref({
-  vin: '',
-  data1: '',
-  data2: '',
-  data3: ''
-})
-
-const loading = ref(false)
+/* ── Form ── */
+const form = ref({ vin: '', data1: '', data2: '', data3: '' })
+const loading        = ref(false)
 const passcodeResult = ref<string | null>(null)
-const errorMsg = ref<string | null>(null)
-const attemptsLeft = ref<number | null>(null)
+const errorMsg       = ref<string | null>(null)
+const attemptsLeft   = ref<number | null>(null)
+const copied         = ref(false)
 
-// Validation: VIN must be 17 chars, and all data fields must have some value
-const isFormValid = computed(() => {
-  return form.value.vin.trim().length === 17 &&
-         form.value.data1.trim().length > 0 &&
-         form.value.data2.trim().length > 0 &&
-         form.value.data3.trim().length > 0
-})
+const isFormValid = computed(() =>
+  form.value.vin.trim().length === 17 &&
+  form.value.data1.trim().length > 0 &&
+  form.value.data2.trim().length > 0 &&
+  form.value.data3.trim().length > 0
+)
 
-const hasNoTokens = computed(() => isAuthenticated.value && (user.value?.toyota_tokens || 0) <= 0)
+const hasNoTokens = computed(() =>
+  isAuthenticated.value && (user.value?.toyota_tokens || 0) <= 0
+)
 
 const formatInput = (key: keyof typeof form.value, e: Event) => {
   const target = e.target as HTMLInputElement
-  let formattedValue = target.value.toUpperCase().replace(/\s/g, '')
-  
-  // Replace 'O' with '0' for data fields
-  if (key === 'data1' || key === 'data2' || key === 'data3') {
-    formattedValue = formattedValue.replace(/O/g, '0')
-  }
-  
-  form.value[key] = formattedValue
+  let v = target.value.toUpperCase().replace(/\s/g, '')
+  if (key !== 'vin') v = v.replace(/O/g, '0')
+  form.value[key] = v
 }
 
 const handleCalculate = async () => {
   if (!isFormValid.value || !isAuthenticated.value) return
-
   errorMsg.value = null
   passcodeResult.value = null
   attemptsLeft.value = null
   loading.value = true
-
   try {
     const res = await $customApi(`${API_BASE_URL}/toyota-passcode`, {
       method: 'POST',
       body: form.value
     })
-
-    const fetchedPasscode = res?.passcode || res?.data?.passcode 
-
-    if (fetchedPasscode) {
-      passcodeResult.value = fetchedPasscode
-      attemptsLeft.value = res?.attempts_left ?? res?.data?.attempts_left ?? 0
-      
-      // Update tokens from backend response
-      if (user.value && res?.tokens_remaining !== undefined) {
+    const fetched = res?.passcode || res?.data?.passcode
+    if (fetched) {
+      passcodeResult.value = fetched
+      attemptsLeft.value   = res?.attempts_left ?? res?.data?.attempts_left ?? 0
+      if (user.value && res?.tokens_remaining !== undefined)
         user.value.toyota_tokens = res.tokens_remaining
-      }
     } else {
       errorMsg.value = t('toyota_passcode.error_general')
     }
   } catch (err: any) {
-    const status = err?.status || err?.statusCode || err?.response?.status;
+    const status = err?.status || err?.statusCode || err?.response?.status
     if (status === 402 || status === 403) {
-      if (user.value) user.value.toyota_tokens = 0; 
-      errorMsg.value = err?.data?.message || err?.message || t('toyota_passcode.no_tokens_msg'); 
+      if (user.value) user.value.toyota_tokens = 0
+      errorMsg.value = err?.data?.message || err?.message || t('toyota_passcode.no_tokens_msg')
     } else {
       errorMsg.value = err?.data?.message || err?.message || t('toyota_passcode.error_general')
     }
@@ -85,13 +69,25 @@ const handleCalculate = async () => {
   }
 }
 
-// --- 2. TOKEN PRODUCTS FETCHING LOGIC ---
-const items = ref<any[]>([])
+const copyPasscode = async () => {
+  if (!passcodeResult.value) return
+  try {
+    await navigator.clipboard.writeText(passcodeResult.value)
+    copied.value = true
+    setTimeout(() => {
+      copied.value = false
+    }, 2000)
+  } catch (err) {
+    console.error('Failed to copy text: ', err)
+  }
+}
+
+/* ── Token products ── */
+const items        = ref<any[]>([])
 const loadingItems = ref(false)
-const gridKey = 'grid-toyota-tokens'
 
 function unwrapApi(res: any) {
-  const body = (res && typeof res === 'object' && 'data' in res && !Array.isArray((res as any).data)) ? (res as any).data : res
+  const body      = (res && typeof res === 'object' && 'data' in res && !Array.isArray((res as any).data)) ? (res as any).data : res
   const itemsArray = Array.isArray(body?.data) ? body.data : Array.isArray(body) ? body : []
   return { items: itemsArray }
 }
@@ -99,12 +95,11 @@ function unwrapApi(res: any) {
 function mapApiProduct(p: any) {
   const hasSale = p?.sale_price != null && p?.sale_price !== 0
   return {
-    id: p.id,
-    name: p.title ?? p.short_title ?? '',
-    image: p.image,
+    id: p.id, name: p.title ?? p.short_title ?? '', image: p.image,
     price: hasSale ? p.sale_price : p.price,
     oldPrice: hasSale ? p.price : null,
-    stock: Number.isFinite(Number(p?.quantity ?? p?.stock ?? p?.available_quantity)) ? Number(p?.quantity ?? p?.stock ?? p?.available_quantity) : null,
+    stock: Number.isFinite(Number(p?.quantity ?? p?.stock ?? p?.available_quantity))
+      ? Number(p?.quantity ?? p?.stock ?? p?.available_quantity) : null,
     sku: p.sku ?? '',
     category: Array.isArray(p?.categories) && p.categories[0]?.name ? String(p.categories[0].name) : '',
     categorySlug: Array.isArray(p?.categories) && p.categories[0]?.slug ? String(p.categories[0].slug).toLowerCase() : '',
@@ -113,31 +108,21 @@ function mapApiProduct(p: any) {
   }
 }
 
-function useLazySection(cb: () => void) {
-  const el = ref<HTMLElement | null>(null)
-  onMounted(() => {
-    if (!el.value) return
-    const io = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) { cb(); io.disconnect() }
-    }, { rootMargin: '200px' })
-    io.observe(el.value)
-  })
-  return { el }
-}
+const tokenGridEl = ref<HTMLElement | null>(null)
+onMounted(() => {
+  if (!tokenGridEl.value) return
+  const io = new IntersectionObserver(([e]) => {
+    if (e.isIntersecting) { fetchTokens(); io.disconnect() }
+  }, { rootMargin: '200px' })
+  io.observe(tokenGridEl.value)
+})
 
 async function fetchTokens() {
+  loadingItems.value = true
   try {
-    loadingItems.value = true
     const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
       method: 'GET',
-      params: {
-        page: 1,
-        rows: 1,
-        per_row: 12,
-        category_id: 5,
-        only_featured: 0, 
-        currency: 'USD',
-      }
+      params: { page: 1, rows: 1, per_row: 12, category_id: 6687, only_featured: 0, currency: 'USD' }
     })
     const { items: list } = unwrapApi(res)
     items.value = list.map(mapApiProduct)
@@ -149,26 +134,21 @@ async function fetchTokens() {
   }
 }
 
-const { el: tokenGridEl } = useLazySection(() => fetchTokens())
-
-// --- 3. SEO & SCHEMA ---
+/* ── SEO ── */
 const siteName = 'Techno Lock Keys'
 const baseUrl  = 'https://www.tlkeys.com'
 const canonical = `${baseUrl}${route.path}`
-const ogImage = `${baseUrl}/images/og-image.jpg`
+const ogImage   = `${baseUrl}/images/og-image.jpg`
 
 useSeoMeta({
   title: t('toyota_passcode.seo_title'),
   description: t('toyota_passcode.seo_description'),
-  ogType: 'website',
-  ogSiteName: siteName,
+  ogType: 'website', ogSiteName: siteName,
   ogTitle: t('toyota_passcode.seo_title'),
   ogDescription: t('toyota_passcode.seo_description'),
-  ogUrl: canonical,
-  ogImage,
+  ogUrl: canonical, ogImage,
   twitterCard: 'summary_large_image'
 })
-
 useHead({
   htmlAttrs: { lang: locale.value },
   link: [{ rel: 'canonical', href: canonical }],
@@ -178,102 +158,155 @@ useHead({
 
 <template>
   <main class="toyota-passcode-page pb-16 sm:pb-24 bg-gray-50/50 min-h-screen">
-    
-    <div class="container mx-auto px-4 pt-10 sm:pt-16 max-w-4xl">
+    <div class="container mx-auto px-4 pt-10 sm:pt-16 max-w-4xl space-y-6">
+
+      <div class="bg-blue-50 border border-blue-100 rounded-2xl p-5 sm:p-7">
+        <h3 class="flex items-center gap-2 text-blue-800 font-bold text-base sm:text-lg mb-4">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          {{ t('toyota_passcode.instructions_title') }}
+        </h3>
+        <ul class="space-y-2 text-sm text-blue-700">
+          <li class="flex items-start gap-2">
+            <span class="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold flex items-center justify-center">1</span>
+            {{ t('toyota_passcode.instruction_1') }}
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold flex items-center justify-center">2</span>
+            {{ t('toyota_passcode.instruction_2') }}
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold flex items-center justify-center">3</span>
+            {{ t('toyota_passcode.instruction_3') }}
+          </li>
+        </ul>
+      </div>
+
       <div class="relative bg-white border border-gray-100 shadow-2xl shadow-blue-900/5 rounded-[2rem] p-6 sm:p-10 lg:p-14 text-center overflow-hidden">
-        
-        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 bg-gradient-to-b from-blue-50 to-transparent opacity-60 pointer-events-none"></div>
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 bg-gradient-to-b from-blue-50 to-transparent opacity-60 pointer-events-none"/>
 
         <div class="relative z-10 mb-8 sm:mb-10">
-          <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
+          <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
             {{ t('toyota_passcode.title') }}
-          </h2>
+          </h1>
           <p class="text-xs sm:text-sm font-bold text-blue-600 mt-3 uppercase tracking-[0.2em]">
             {{ t('toyota_passcode.subtitle') }}
           </p>
-          
-          <div v-if="isAuthenticated" 
+
+          <div v-if="isAuthenticated"
                class="inline-flex items-center justify-center mt-6 px-5 py-2 rounded-full border shadow-sm"
-               :class="hasNoTokens ? 'bg-orange-50 border-orange-100 text-orange-700' : 'bg-green-50 border-green-100 text-green-700'">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+               :class="hasNoTokens
+                 ? 'bg-orange-50 border-orange-100 text-orange-700'
+                 : 'bg-green-50 border-green-100 text-green-700'">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
-            <span class="font-bold text-sm sm:text-base">{{ t('toyota_passcode.available_tokens') }}: {{ user?.toyota_tokens || 0 }}</span>
+            <span class="font-bold text-sm sm:text-base">
+              {{ t('toyota_passcode.available_tokens') }}: {{ user?.toyota_tokens || 0 }}
+            </span>
           </div>
-          
+
           <p v-if="hasNoTokens" class="text-xs text-orange-600 mt-2 font-medium">
-            You can still calculate if you have free attempts remaining for a previously searched VIN.
+            {{ t('toyota_passcode.no_tokens_hint') }}
           </p>
         </div>
 
-        <div class="relative z-10 max-w-xl mx-auto space-y-4 sm:space-y-6">
-          
-          <div class="grid grid-cols-1 gap-4 sm:gap-6">
-            <div>
-              <input 
-                v-model="form.vin"
-                @input="e => formatInput('vin', e)"
-                type="text" 
-                maxlength="17"
-                :placeholder="t('toyota_passcode.placeholder_vin')" 
-                class="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all disabled:bg-gray-100 text-center text-base sm:text-lg font-bold uppercase tracking-widest shadow-inner"
-                :disabled="loading" 
-              />
-            </div>
+        <div class="relative z-10 max-w-xl mx-auto space-y-4 sm:space-y-5">
 
-            <div>
-              <input 
-                v-model="form.data1"
-                @input="e => formatInput('data1', e)"
-                type="text" 
-                :placeholder="t('toyota_passcode.placeholder_data1')" 
-                class="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all disabled:bg-gray-100 text-center text-base sm:text-lg font-bold uppercase tracking-widest shadow-inner"
-                :disabled="loading" 
-              />
-            </div>
-
-            <div>
-              <input 
-                v-model="form.data2"
-                @input="e => formatInput('data2', e)"
-                type="text" 
-                :placeholder="t('toyota_passcode.placeholder_data2')" 
-                class="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all disabled:bg-gray-100 text-center text-base sm:text-lg font-bold uppercase tracking-widest shadow-inner"
-                :disabled="loading" 
-              />
-            </div>
-
-            <div>
-              <input 
-                v-model="form.data3"
-                @input="e => formatInput('data3', e)"
-                type="text" 
-                :placeholder="t('toyota_passcode.placeholder_data3')" 
-                class="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all disabled:bg-gray-100 text-center text-base sm:text-lg font-bold uppercase tracking-widest shadow-inner"
-                :disabled="loading" 
-                @keyup.enter="handleCalculate"
-              />
-            </div>
+          <div class="text-left">
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">
+              {{ t('toyota_passcode.label_vin') }}
+              <span class="text-red-500 ml-0.5">*</span>
+            </label>
+            <input
+              v-model="form.vin"
+              @input="e => formatInput('vin', e)"
+              type="text"
+              maxlength="17"
+              :placeholder="t('toyota_passcode.placeholder_vin')"
+              :disabled="loading"
+              class="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all disabled:bg-gray-100 text-center text-base sm:text-lg font-bold uppercase tracking-widest shadow-inner"
+            />
+            <p class="text-xs text-gray-400 mt-1 ml-1">{{ t('toyota_passcode.vin_hint') }}</p>
           </div>
 
-          <div class="w-full mt-2">
+          <div class="text-left">
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">
+              {{ t('toyota_passcode.label_data1') }}
+              <span class="text-red-500 ml-0.5">*</span>
+            </label>
+            <input
+              v-model="form.data1"
+              @input="e => formatInput('data1', e)"
+              type="text"
+              :placeholder="t('toyota_passcode.placeholder_data1')"
+              :disabled="loading"
+              class="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all disabled:bg-gray-100 text-center text-base sm:text-lg font-bold uppercase tracking-widest shadow-inner"
+            />
+          </div>
+
+          <div class="text-left">
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">
+              {{ t('toyota_passcode.label_data2') }}
+              <span class="text-red-500 ml-0.5">*</span>
+            </label>
+            <input
+              v-model="form.data2"
+              @input="e => formatInput('data2', e)"
+              type="text"
+              :placeholder="t('toyota_passcode.placeholder_data2')"
+              :disabled="loading"
+              class="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all disabled:bg-gray-100 text-center text-base sm:text-lg font-bold uppercase tracking-widest shadow-inner"
+            />
+          </div>
+
+          <div class="text-left">
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">
+              {{ t('toyota_passcode.label_data3') }}
+              <span class="text-red-500 ml-0.5">*</span>
+            </label>
+            <input
+              v-model="form.data3"
+              @input="e => formatInput('data3', e)"
+              type="text"
+              :placeholder="t('toyota_passcode.placeholder_data3')"
+              :disabled="loading"
+              @keyup.enter="handleCalculate"
+              class="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all disabled:bg-gray-100 text-center text-base sm:text-lg font-bold uppercase tracking-widest shadow-inner"
+            />
+          </div>
+
+          <p class="text-xs text-gray-400 text-left ml-1">
+            <span class="text-red-500">*</span> {{ t('toyota_passcode.required_fields_note') }}
+          </p>
+
+          <div class="w-full pt-1">
             <template v-if="!isAuthenticated">
-              <NuxtLinkLocale to="/auth/login-register" class="w-full flex justify-center items-center bg-gray-900 text-white py-4 sm:py-5 rounded-2xl font-bold hover:bg-black transition-all shadow-lg hover:-translate-y-0.5 text-base sm:text-lg">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+              <NuxtLinkLocale
+                to="/auth/login-register"
+                class="w-full flex justify-center items-center bg-gray-900 text-white py-4 sm:py-5 rounded-2xl font-bold hover:bg-black transition-all shadow-lg hover:-translate-y-0.5 text-base sm:text-lg"
+              >
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
                 {{ t('toyota_passcode.login_btn') }}
               </NuxtLinkLocale>
             </template>
-            
+
             <template v-else>
-              <button 
+              <button
                 @click="handleCalculate"
                 :disabled="loading || !isFormValid"
                 class="w-full flex justify-center items-center bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 sm:py-5 rounded-2xl font-bold hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-blue-500/30 disabled:from-gray-300 disabled:to-gray-300 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed text-base sm:text-lg transform active:scale-[0.98]"
               >
                 <span v-if="loading" class="flex items-center gap-2">
-                  <svg class="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                   </svg>
                   {{ t('toyota_passcode.calculating') }}
                 </span>
@@ -282,55 +315,117 @@ useHead({
               </button>
             </template>
           </div>
-        </div>
 
-        <transition name="fade">
-          <div v-if="passcodeResult || errorMsg" class="max-w-xl mx-auto mt-8 sm:mt-10">
-            
-            <div v-if="passcodeResult" class="relative bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/50 rounded-2xl p-6 sm:p-8 text-center shadow-md overflow-hidden">
-              <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
-              
-              <span class="inline-block px-4 py-1.5 bg-blue-100 text-blue-800 text-xs sm:text-sm font-bold rounded-full uppercase tracking-widest mb-4 shadow-sm">
-                {{ t('toyota_passcode.success_title') }}
-              </span>
-              <div class="text-xs sm:text-sm text-gray-500 uppercase font-bold tracking-wider mb-1">{{ t('toyota_passcode.passcode_label') }}</div>
-              <div class="text-3xl sm:text-5xl font-black text-gray-900 tracking-tight">{{ passcodeResult }}</div>
+          <transition name="fade">
+            <div v-if="passcodeResult || errorMsg" class="max-w-xl mx-auto mt-8 sm:mt-10">
 
-              <div class="mt-5 pt-5 border-t border-blue-200/60">
-                <p class="text-sm text-blue-800 font-medium">
-                  Note: 1 Token allows 3 calculations per VIN.
-                </p>
-                <p class="text-xs text-blue-600 font-bold mt-1.5 uppercase tracking-wider">
-                  Free attempts remaining for this VIN: {{ attemptsLeft }}
-                </p>
+              <div v-if="passcodeResult"
+                   class="relative bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/50 rounded-2xl p-6 sm:p-8 text-center shadow-md overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10"/>
+                <span class="inline-block px-4 py-1.5 bg-blue-100 text-blue-800 text-xs sm:text-sm font-bold rounded-full uppercase tracking-widest mb-4 shadow-sm">
+                  {{ t('toyota_passcode.success_title') }}
+                </span>
+                <div class="text-xs sm:text-sm text-gray-500 uppercase font-bold tracking-wider mb-1">
+                  {{ t('toyota_passcode.passcode_label') }}
+                </div>
+                
+                <div class="flex items-center justify-center gap-4 my-2">
+                  <div class="text-3xl sm:text-5xl font-black text-gray-900 tracking-tight">
+                    {{ passcodeResult }}
+                  </div>
+                  <button
+                    @click="copyPasscode"
+                    class="p-2.5 rounded-xl border transition-all active:scale-95 flex-shrink-0"
+                    :class="copied ? 'bg-green-50 border-green-200 text-green-600' : 'bg-white border-blue-200 text-blue-600 hover:bg-blue-50 shadow-sm'"
+                    title="Copy Passcode"
+                  >
+                    <svg v-if="copied" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                  </button>
+                </div>
+
+                <div class="mt-5 pt-5 border-t border-blue-200/60 space-y-1.5">
+                  <p class="text-sm text-blue-800 font-medium">
+                    {{ t('toyota_passcode.result_note') }}
+                  </p>
+                  <p class="text-xs text-blue-600 font-bold uppercase tracking-wider">
+                    {{ t('toyota_passcode.attempts_remaining') }}: {{ attemptsLeft }}
+                  </p>
+                  <p v-if="attemptsLeft === 0" class="text-xs text-orange-600 font-semibold">
+                    {{ t('toyota_passcode.next_calc_costs_token') }}
+                  </p>
+                </div>
               </div>
-            </div>
 
-            <div v-if="errorMsg" class="bg-red-50 border border-red-200 rounded-2xl p-5 sm:p-6 text-center shadow-sm">
-              <div class="flex items-center justify-center gap-2 text-red-600 font-bold text-sm sm:text-base">
-                <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                {{ errorMsg }}
+              <div v-if="errorMsg"
+                   class="bg-red-50 border border-red-200 rounded-2xl p-5 sm:p-6 text-center shadow-sm">
+                <div class="flex items-center justify-center gap-2 text-red-600 font-bold text-sm sm:text-base">
+                  <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  {{ errorMsg }}
+                </div>
               </div>
+
             </div>
-            
+          </transition>
+
+          <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 sm:p-7 mt-5 text-left">
+            <h3 class="flex items-center gap-2 text-orange-800 font-bold text-base sm:text-lg mb-4">
+              <svg class="w-5 h-5 shrink-0 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              </svg>
+              {{ t('toyota_passcode.warning_title') }}
+            </h3>
+            <ul class="space-y-3 text-sm">
+              <li class="flex items-start gap-2 text-orange-700">
+                <svg class="w-4 h-4 mt-0.5 shrink-0 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                {{ t('toyota_passcode.warning_1') }}
+              </li>
+              <li class="flex items-start gap-2 text-orange-800 font-semibold">
+                <svg class="w-4 h-4 mt-0.5 shrink-0 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                {{ t('toyota_passcode.warning_2') }}
+              </li>
+              <li class="flex items-start gap-2 text-orange-700">
+                <svg class="w-4 h-4 mt-0.5 shrink-0 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                {{ t('toyota_passcode.warning_3') }}
+              </li>
+              <li class="flex items-start gap-2 text-red-700 font-semibold">
+                <svg class="w-4 h-4 mt-0.5 shrink-0 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                {{ t('toyota_passcode.warning_4') }}
+              </li>
+            </ul>
           </div>
-        </transition>
 
+        </div>
       </div>
     </div>
 
     <section ref="tokenGridEl" class="container mx-auto max-w-7xl px-4 mt-16 sm:mt-24">
-      
       <div class="text-center mb-8 sm:mb-12">
-        <h3 class="text-3xl sm:text-4xl font-black tracking-tight text-gray-900">{{ t('toyota_passcode.purchase_title') }}</h3>
+        <h3 class="text-3xl sm:text-4xl font-black tracking-tight text-gray-900">
+          {{ t('toyota_passcode.purchase_title') }}
+        </h3>
         <p class="text-base sm:text-lg text-gray-500 mt-3 max-w-2xl mx-auto">
           {{ t('toyota_passcode.purchase_desc') }}
         </p>
       </div>
-
       <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-4 sm:p-8">
         <ProductGrid
-          :key="gridKey"
           title=""
           :products="items"
           :rows="1"
@@ -340,25 +435,19 @@ useHead({
           :show-qty="true"
           container-class="max-w-full"
         />
-        
-        <div v-if="loadingItems" class="px-3 py-10 text-center text-gray-400 font-medium animate-pulse">
+        <div v-if="loadingItems"
+             class="px-3 py-10 text-center text-gray-400 font-medium animate-pulse">
           {{ t('toyota_passcode.loading_packages') }}
         </div>
       </div>
-      
     </section>
-
   </main>
 </template>
 
 <style scoped>
 input { text-transform: uppercase; }
-
-.fade-enter-active, .fade-leave-active { 
-  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.fade-enter-from, .fade-leave-to { 
-  opacity: 0; 
-  transform: translateY(-10px) scale(0.98); 
-}
+.fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-10px) scale(0.98); }
 </style>

@@ -422,6 +422,16 @@
                   {{ $t('vin_lookup.title') || 'Kia / Hyundai Part Number Lookup' }}
                 </NuxtLinkLocale>
               </li>
+
+                            <li>
+                <NuxtLinkLocale
+                  to="/kia-hyundai-part-number-lookup"
+                  class="block px-3 py-3 hover:bg-gray-50"
+                  @click="close"
+                >
+                  {{ $t('toyota_passcode.title') || 'Toyota Passcode Online Calculator' }}
+                </NuxtLinkLocale>
+              </li>
             </ul>
           </div>
           
