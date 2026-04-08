@@ -20,7 +20,6 @@
       <HeaderMiddle />
     </header>
     <HeaderMainNav />
-    <SecondaryStickyBar />
   </template>
 
   <template v-else>
@@ -45,56 +44,64 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRequestHeaders, useCookie } from '#app'
 
 import HeaderTopBar from '~/components/header/HeaderTopBar.vue'
 import HeaderMiddle from '~/components/header/HeaderMiddle.vue'
 import HeaderMainNav from '~/components/header/HeaderMainNav.vue'
-import SecondaryStickyBar from '~/components/header/SecondaryStickyBar.vue'
 import HeaderMiddleMobile from '~/components/header/mobile/HeaderMiddleMobile.vue'
 import MobileBottomAppModal from './header/mobile/MobileBottomAppModal.vue'
 
 // --- ADVISORY LOGIC ---
-// Cookie expires in 7 days (seconds * minutes * hours * days)
 const isAdvisoryClosed = useCookie('shipping_advisory_closed', {
-  maxAge: 60 * 60 * 24 * 7, 
+  maxAge: 60 * 60 * 24 * 7,
   default: () => false
 })
 
 const closeAdvisory = () => {
   isAdvisoryClosed.value = true
 }
-// ----------------------
 
+// --- MOBILE DETECTION ---
 const BREAKPOINT = 992
 const MOBILE_UA = /(Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini)/i
 
-const ssrIsMobile = process.server
-  ? MOBILE_UA.test((useRequestHeaders()['user-agent'] || ''))
-  : window.matchMedia(`(max-width: ${BREAKPOINT}px)`).matches
+// Always use UA for the initial value — consistent between SSR and first client render
+const headers = useRequestHeaders(['user-agent'])
+const uaIsMobile = MOBILE_UA.test(headers['user-agent'] || '')
 
-const isMobile = ref<boolean>(ssrIsMobile)
+const isMobile = ref<boolean>(uaIsMobile)
 
-if (process.client) {
-  const mq = window.matchMedia(`(max-width: ${BREAKPOINT}px)`)
-  const apply = () => { isMobile.value = mq.matches }
-  apply()
+// Only sync to matchMedia AFTER hydration to avoid SSR mismatch flash
+let mq: MediaQueryList | null = null
+
+onMounted(() => {
+  mq = window.matchMedia(`(max-width: ${BREAKPOINT}px)`)
+
+  const apply = () => { isMobile.value = mq!.matches }
+
+  // Only update if matchMedia disagrees with UA (e.g. desktop browser resized narrow)
+  if (mq.matches !== uaIsMobile) {
+    apply()
+  }
+
   if ('addEventListener' in mq) mq.addEventListener('change', apply)
   else (mq as any).addListener(apply)
 
   onBeforeUnmount(() => {
+    if (!mq) return
     if ('removeEventListener' in mq) mq.removeEventListener('change', apply)
     else (mq as any).removeListener(apply)
   })
-}
+})
 </script>
 
 <style scoped>
 /* --- BANNER STYLES --- */
 .shipping-advisory {
-  background-color: #f8f9fa; /* Light Gray (Neutral) */
-  color: #333333;            /* Dark Gray Text */
+  background-color: #f8f9fa;
+  color: #333333;
   border-bottom: 1px solid #e9ecef;
   font-size: 16px;
   line-height: 1.4;
@@ -109,7 +116,7 @@ if (process.client) {
 .advisory-content {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start; /* Aligns top in case text wraps */
+  align-items: flex-start;
   padding: 10px 0;
   max-width: 1200px;
   margin: 0 auto;
@@ -117,10 +124,9 @@ if (process.client) {
 
 .advisory-text {
   margin: 0;
-  padding-right: 15px; /* Space for the button */
+  padding-right: 15px;
 }
 
-/* Close Button Styling */
 .close-btn {
   background: none;
   border: none;
@@ -134,10 +140,8 @@ if (process.client) {
   color: #333;
 }
 
-/* Mobile Specific Tweaks */
 .mobile-advisory {
-  /* This ensures it sits correctly if the header above it is sticky */
-  position: relative; 
+  position: relative;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 

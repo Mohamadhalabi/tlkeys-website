@@ -5,7 +5,7 @@
     :style="{ top: 'var(--main-nav-h, 56px)' }"
   >
     <div class="container mx-auto px-3">
-      <ul class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 md:gap-x-6 py-2">
+      <ul class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 md:gap-x-6 py-2 d-none">
         <li v-for="item in items" :key="item.key">
           <NuxtLinkLocale
             :to="item.to"

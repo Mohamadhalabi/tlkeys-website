@@ -292,15 +292,15 @@
           </div>
         </div>
       </Transition>
-
     </div>
   </nav>
+  <SecondaryStickyBar />
 </template>
 
 <script setup>
 import { onMounted, onBeforeUnmount, ref, computed } from 'vue'
 import { useLocalePath } from '#imports' // ✅ locale-aware navigation
-
+import SecondaryStickyBar from '~/components/header/SecondaryStickyBar.vue'
 const { public: { API_BASE_URL } } = useRuntimeConfig()
 const { t } = useI18n()
 const router = useRouter()
