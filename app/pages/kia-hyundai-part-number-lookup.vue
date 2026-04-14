@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useNuxtApp, useRuntimeConfig, useHead, useSeoMeta, useRoute } from '#imports'
-import ProductGrid from '~/components/products/ProductGrid.vue' // Adjust path if needed
+import ProductGrid from '~/components/products/ProductGrid.vue'
 
 const { t, locale } = useI18n()
 const { isAuthenticated, user } = useAuth() 
@@ -18,7 +18,35 @@ const errorMsg = ref<string | null>(null)
 const copied = ref(false)
 
 const isVinValid = computed(() => searchInput.value.trim().length === 17)
-const hasNoTokens = computed(() => isAuthenticated.value && (user.value?.tokens || 0) <= 0)
+
+// Subscription Computeds
+const hasActiveSub = computed(() => {
+  if (!user.value?.vin_sub_ends_at) return false
+  return new Date(user.value.vin_sub_ends_at) > new Date()
+})
+
+const subDaysLeft = computed(() => {
+  if (!hasActiveSub.value) return 0
+  const end = new Date(user.value.vin_sub_ends_at).getTime()
+  const now = new Date().getTime()
+  return Math.max(0, Math.ceil((end - now) / (1000 * 60 * 60 * 24)))
+})
+
+const subLookupsLeft = computed(() => {
+  if (!hasActiveSub.value) return 0
+  const lastLookupStr = user.value.vin_last_lookup_date
+  const todayStr = new Date().toISOString().split('T')[0]
+  const todayCount = (lastLookupStr === todayStr) ? (user.value.vin_lookups_today || 0) : 0
+  return Math.max(0, 5 - todayCount)
+})
+
+const hasNoTokens = computed(() => {
+  if (!isAuthenticated.value) return true
+  // FIX: Use available_tokens instead of tokens
+  const hasStandardTokens = (user.value?.available_tokens || 0) > 0
+  const hasSubLookups = hasActiveSub.value && subLookupsLeft.value > 0
+  return !hasStandardTokens && !hasSubLookups
+})
 
 const handleInput = (e: Event) => {
   const target = e.target as HTMLInputElement
@@ -45,8 +73,16 @@ const handleSearch = async () => {
 
     if (fetchedPartNumber) {
       partNumber.value = fetchedPartNumber
-      if (user.value && user.value.tokens > 0) {
-        user.value.tokens -= 1 // Deduct locally for instant UI update
+      
+      // Update local state directly based on response to keep UI in sync
+      if (user.value) {
+        if (res.sub_active) {
+            // If sub quota was used, update the daily count
+            user.value.vin_lookups_today = 5 - (res.sub_lookups_left ?? 0)
+            user.value.vin_last_lookup_date = new Date().toISOString().split('T')[0]
+        }
+        // FIX: Sync available_tokens
+        user.value.available_tokens = res.tokens_remaining ?? user.value.available_tokens
       }
     } else {
       errorMsg.value = t('vin_lookup.error_not_found')
@@ -54,8 +90,7 @@ const handleSearch = async () => {
   } catch (err: any) {
     const status = err?.status || err?.statusCode || err?.response?.status;
     if (status === 402 || status === 403) {
-      if (user.value) user.value.tokens = 0; 
-      errorMsg.value = null; 
+      errorMsg.value = err?.data?.message || err?.message || 'Insufficient limit.'; 
     } else {
       errorMsg.value = err?.data?.message || err?.message || t('vin_lookup.error_general')
     }
@@ -69,9 +104,7 @@ const copyResult = async () => {
   try {
     await navigator.clipboard.writeText(partNumber.value)
     copied.value = true
-    setTimeout(() => {
-      copied.value = false
-    }, 2000)
+    setTimeout(() => { copied.value = false }, 2000)
   } catch (err) {
     console.error('Failed to copy text: ', err)
   }
@@ -128,7 +161,7 @@ async function fetchTokens() {
         page: 1,
         rows: 1,
         per_row: 12,
-        category_id: 6686, // Make sure this matches your Token Category ID
+        category_id: 6686,
         only_featured: 0, 
         currency: 'USD',
       }
@@ -252,13 +285,25 @@ useHead({
             {{ t('vin_lookup.subtitle') }}
           </p>
           
-          <div v-if="isAuthenticated" 
-               class="inline-flex items-center justify-center mt-6 px-5 py-2 rounded-full border shadow-sm"
-               :class="hasNoTokens ? 'bg-red-50 border-red-100 text-red-600' : 'bg-green-50 border-green-100 text-green-700'">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <span class="font-bold text-sm sm:text-base">{{ t('vin_lookup.available_tokens') }}: {{ user?.tokens || 0 }}</span>
+          <div v-if="isAuthenticated" class="flex flex-col sm:flex-row items-center justify-center gap-3 mt-6">
+            <div v-if="hasActiveSub" 
+                 class="inline-flex items-center px-5 py-2 rounded-full border shadow-sm"
+                 :class="subLookupsLeft > 0 ? 'bg-indigo-50 border-indigo-100 text-indigo-700' : 'bg-orange-50 border-orange-100 text-orange-700'">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+              <span class="font-bold text-sm sm:text-base">
+               {{ subLookupsLeft }}/5 Today • ({{ subDaysLeft }}d left)
+              </span>
+            </div>
+
+            <div class="inline-flex items-center px-5 py-2 rounded-full border shadow-sm"
+                 :class="(user?.available_tokens ?? 0) > 0 ? 'bg-green-50 border-green-100 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span class="font-bold text-sm sm:text-base">Tokens: {{ user?.available_tokens || 0 }}</span>
+            </div>
           </div>
         </div>
 
@@ -314,38 +359,7 @@ useHead({
             </template>
           </div>
 
-          <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 sm:p-7 mt-5 text-left">
-            <h3 class="flex items-center gap-2 text-orange-800 font-bold text-base sm:text-lg mb-4">
-              <svg class="w-5 h-5 shrink-0 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-              </svg>
-              {{ t('vin_lookup.warning_title') }}
-            </h3>
-            <ul class="space-y-3 text-sm">
-              <li class="flex items-start gap-2 text-orange-700">
-                <svg class="w-4 h-4 mt-0.5 shrink-0 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                </svg>
-                {{ t('vin_lookup.warning_1') }}
-              </li>
-              <li class="flex items-start gap-2 text-orange-800 font-semibold">
-                <svg class="w-4 h-4 mt-0.5 shrink-0 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                </svg>
-                {{ t('vin_lookup.warning_2') }}
-              </li>
-              <li class="flex items-start gap-2 text-red-700 font-semibold">
-                <svg class="w-4 h-4 mt-0.5 shrink-0 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                </svg>
-                {{ t('vin_lookup.warning_3') }}
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <transition name="fade">
+                  <transition name="fade">
           <div v-if="partNumber || errorMsg" class="max-w-xl mx-auto mt-8 sm:mt-10">
             
             <div v-if="partNumber" class="relative bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/50 rounded-2xl p-6 sm:p-8 text-center shadow-md overflow-hidden">
@@ -388,6 +402,38 @@ useHead({
             
           </div>
         </transition>
+
+
+          <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 sm:p-7 mt-5 text-left">
+            <h3 class="flex items-center gap-2 text-orange-800 font-bold text-base sm:text-lg mb-4">
+              <svg class="w-5 h-5 shrink-0 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              </svg>
+              {{ t('vin_lookup.warning_title') }}
+            </h3>
+            <ul class="space-y-3 text-sm">
+              <li class="flex items-start gap-2 text-orange-700">
+                <svg class="w-4 h-4 mt-0.5 shrink-0 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                {{ t('vin_lookup.warning_1') }}
+              </li>
+              <li class="flex items-start gap-2 text-orange-800 font-semibold">
+                <svg class="w-4 h-4 mt-0.5 shrink-0 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                {{ t('vin_lookup.warning_2') }}
+              </li>
+              <li class="flex items-start gap-2 text-red-700 font-semibold">
+                <svg class="w-4 h-4 mt-0.5 shrink-0 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                {{ t('vin_lookup.warning_3') }}
+              </li>
+            </ul>
+          </div>
+        </div>
 
       </div>
     </div>
