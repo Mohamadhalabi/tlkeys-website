@@ -189,9 +189,18 @@ useHead(() => ({
 
 <template>
   <main
-    class="min-h-screen bg-black flex items-start justify-center"
+    class="relative min-h-screen bg-black flex items-start justify-center"
     :dir="(locale === 'ar' || locale?.value === 'ar') ? 'rtl' : 'ltr'"
   >
+    <button 
+      v-if="isLoggedIn" 
+      type="button" 
+      class="logout-button absolute top-4 right-4 sm:top-6 sm:right-6 !h-[42px] !text-sm" 
+      @click="logout"
+    >
+      Logout
+    </button>
+
     <div class="w-full max-w-[760px] px-4 m-auto">
       <h2 class="text-white text-center font-semibold tracking-wide text-[22px] mt-16 mb-6">
         {{ $t('vin_to_pin.title') }}
@@ -287,10 +296,6 @@ useHead(() => ({
               class="copy-button"
             >
               {{ $t('vin_to_pin.copy_button') }}
-            </button>
-
-            <button type="button" class="logout-button" @click="logout">
-              Logout
             </button>
           </div>
         </form>
