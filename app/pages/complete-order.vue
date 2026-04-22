@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, useNuxtApp, useHead, useI18n, useRuntimeConfig } from '#imports'
-import { useAlertStore } from '~/stores/alert' // Assuming you have this store, remove if not
+import { useAlertStore } from '~/stores/alert'
 
 type Money = { value?: string | number|null; currency?: string|null; code?: string|null; exchange_rate?: number|null } | number | string | null
 type Address = { country?: string|null; city?: string|null; address?: string|null; postal_code?: string|null; phone?: string|null } | null
@@ -18,7 +18,7 @@ type OrderPayload = {
   tracking_no?: string|null
   created_at?: string
   address?: Address
-  note?: string // Added note to types
+  note?: string
 } | null
 
 const route = useRoute()
@@ -29,13 +29,16 @@ const runtimeConfig = useRuntimeConfig()
 const alerts = useAlertStore()
 
 // --- Config ---
-// Replace with your actual Wallet
 const USDT_WALLET_ADDRESS = 'TMUnF98HTXiW3uQz4VbktLJuEaHcYS47zb' 
 const WHATSAPP_NUMBER = String((runtimeConfig as any)?.public?.whatsappNumber || '905376266092')
 
 // --- State ---
 const activePaymentTab = ref<'bank' | 'crypto'>('bank')
 const copied = ref(false)
+
+// Modal & Rating State
+const showReviewModal = ref(false)
+const hoveredStar = ref(0) // Tracks which star the user is hovering over
 
 const orderId = computed(() => String(route.query.orderId || '').trim() || null)
 const explicitSuccess = computed(() => {
@@ -78,24 +81,20 @@ const isSuccess = computed(() => {
   return !!order.value && !isFailed.value
 })
 
-// Check if we should show transfer instructions (if method is transfer/wire/manual and not paid)
 const showPaymentInstructions = computed(() => {
   if (!order.value || isPaid.value || isFailed.value) return false
   const pm = (order.value.payment_method || '').toLowerCase()
-  // Adjust these keywords based on what your backend actually returns
   return pm.includes('transfer') || pm.includes('wire') || pm.includes('manual') || pm.includes('bank')
 })
 
 const whatsappLink = computed(() => {
   const oid = order.value?.order_id || ''
   let msg = ''
-  
   if (activePaymentTab.value === 'crypto') {
     msg = t('whatsapp.payWithUSDT', { id: oid }) || `Hello, regarding Order #${oid}. I want to pay with USDT. Please confirm.`
   } else {
     msg = t('whatsapp.paymentProof', { id: oid }) || `Hello, I placed Order #${oid}. Here is the proof of payment.`
   }
-  
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
 })
 
@@ -113,10 +112,16 @@ async function fetchOrder() {
     const payload = res?.data ?? res ?? {}
     order.value = payload?.order ?? payload
     
-    // Auto-select Crypto tab if note contains hint (optional enhancement)
     if (order.value?.note?.toLowerCase().includes('usdt') || order.value?.note?.toLowerCase().includes('crypto')) {
       activePaymentTab.value = 'crypto'
     }
+
+    if (isSuccess.value) {
+      setTimeout(() => {
+        showReviewModal.value = true
+      }, 1500)
+    }
+
   } catch (e: any) {
     error.value = e?.message || (t('errors.loadOrderFailed') || 'Failed to load order')
   } finally {
@@ -135,12 +140,14 @@ function copyText(text: string) {
   })
 }
 
-function goHome() {
-  router.push('/')
+// Redirects to Google when a star is clicked
+function handleStarClick(star: number) {
+  showReviewModal.value = false
+  window.open('https://g.page/r/CfkHNOyn0dXBEAE/review', '_blank')
 }
-function goOrders() {
-  router.push('/account?tab=orders')
-}
+
+function goHome() { router.push('/') }
+function goOrders() { router.push('/account?tab=orders') }
 
 useHead({
   title: computed(() => orderId.value ? `${t('pages.order')} ${orderId.value} — ${t('pages.complete')}` : t('pages.completeOrder')),
@@ -152,6 +159,56 @@ onMounted(fetchOrder)
 
 <template>
   <main class="container mx-auto px-3 md:px-4 lg:px-6 py-8">
+    
+    <transition name="fade">
+      <div v-if="showReviewModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-[400px] w-full p-8 text-center relative">
+          <button @click="showReviewModal = false" class="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          
+          <div class="flex justify-center mb-4 mt-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" class="w-12 h-12">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+            </svg>
+          </div>
+          
+          <h3 class="text-xl font-bold text-gray-900 mb-2">How did we do?</h3>
+          <p class="text-[14px] text-gray-500 mb-6 leading-relaxed">
+            Please rate your experience with us! It helps us improve and serve you better.
+          </p>
+
+          <div class="flex justify-center gap-2 mb-6" @mouseleave="hoveredStar = 0">
+            <button 
+              v-for="star in 5" 
+              :key="star"
+              @mouseenter="hoveredStar = star"
+              @click="handleStarClick(star)"
+              class="transition-transform hover:scale-110 focus:outline-none"
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                viewBox="0 0 24 24" 
+                class="w-12 h-12 transition-colors duration-200"
+                :fill="star <= hoveredStar ? '#FBBC05' : '#E5E7EB'"
+              >
+                <path d="M12 .587l3.668 7.568 8.332 1.151-6.064 5.828 1.48 8.279-7.416-3.967-7.417 3.967 1.481-8.279-6.064-5.828 8.332-1.151z"/>
+              </svg>
+            </button>
+          </div>
+          
+          <button @click="showReviewModal = false" class="text-sm font-medium text-gray-400 hover:text-gray-700 py-2">
+            No thanks, maybe later
+          </button>
+        </div>
+      </div>
+    </transition>
+
     <nav class="text-sm mb-6">
       <ol class="flex gap-2 text-gray-500">
         <li><NuxtLink to="/">{{ $t('shop.home') }}</NuxtLink></li>
@@ -185,7 +242,6 @@ onMounted(fetchOrder)
 
     <div v-else class="grid grid-cols-1 lg:grid-cols-12 gap-6">
       <section class="lg:col-span-8 space-y-6">
-        
         <div
           class="rounded-2xl border p-5 shadow-sm"
           :class="isFailed ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'"
@@ -320,44 +376,46 @@ onMounted(fetchOrder)
       </section>
 
       <aside class="lg:col-span-4">
-        <div class="rounded-2xl border bg-white p-5 shadow-sm lg:sticky lg:top-6">
-          <h3 class="text-lg font-semibold">{{ $t('checkout.whatsNext') || 'What’s next?' }}</h3>
-          <ul class="mt-3 text-sm text-gray-700 space-y-2">
-            <li v-if="isFailed" class="flex gap-2">
-              <span class="text-rose-600 font-medium">•</span>
-              {{ $t('checkout.tryAnotherMethod') || 'Try another payment method from your Orders page.' }}
-            </li>
-            <li v-else class="flex gap-2">
-              <span class="text-emerald-600 font-medium">•</span>
-              {{ $t('checkout.notifyEmail') || 'We’ll notify you by email when your order status changes.' }}
-            </li>
-            <li class="flex gap-2">
-              <span class="text-gray-500 font-medium">•</span>
-              {{ $t('checkout.keepOrderId') || 'Keep your order ID' }} <span class="font-mono">{{ order?.order_id || '—' }}</span> {{ $t('checkout.forReference') || 'for reference.' }}
-            </li>
-          </ul>
+        <div class="space-y-6 lg:sticky lg:top-6">
+          <div class="rounded-2xl border bg-white p-5 shadow-sm">
+            <h3 class="text-lg font-semibold">{{ $t('checkout.whatsNext') || 'What’s next?' }}</h3>
+            <ul class="mt-3 text-sm text-gray-700 space-y-2">
+              <li v-if="isFailed" class="flex gap-2">
+                <span class="text-rose-600 font-medium">•</span>
+                {{ $t('checkout.tryAnotherMethod') || 'Try another payment method from your Orders page.' }}
+              </li>
+              <li v-else class="flex gap-2">
+                <span class="text-emerald-600 font-medium">•</span>
+                {{ $t('checkout.notifyEmail') || 'We’ll notify you by email when your order status changes.' }}
+              </li>
+              <li class="flex gap-2">
+                <span class="text-gray-500 font-medium">•</span>
+                {{ $t('checkout.keepOrderId') || 'Keep your order ID' }} <span class="font-mono">{{ order?.order_id || '—' }}</span> {{ $t('checkout.forReference') || 'for reference.' }}
+              </li>
+            </ul>
 
-          <div class="mt-5 flex flex-col gap-2">
-            <button class="w-full rounded-xl bg-emerald-600 text-white px-4 py-2.5 font-medium hover:bg-emerald-700" @click="goOrders">
-              {{ $t('dashboard.viewOrders') || 'View my orders' }}
-            </button>
-            <button class="w-full rounded-xl border px-4 py-2.5 font-medium hover:bg-gray-50" @click="goHome">
-              {{ $t('common.continueShopping') || 'Continue shopping' }}
-            </button>
-          </div>
+            <div class="mt-5 flex flex-col gap-2">
+              <button class="w-full rounded-xl bg-emerald-600 text-white px-4 py-2.5 font-medium hover:bg-emerald-700" @click="goOrders">
+                {{ $t('dashboard.viewOrders') || 'View my orders' }}
+              </button>
+              <button class="w-full rounded-xl border px-4 py-2.5 font-medium hover:bg-gray-50" @click="goHome">
+                {{ $t('common.continueShopping') || 'Continue shopping' }}
+              </button>
+            </div>
 
-          <div class="mt-6 rounded-xl bg-gray-50 p-3 text-xs text-gray-600">
-            <div class="flex justify-between">
-              <span>{{ $t('labels.paymentMethod') || 'Payment method' }}</span>
-              <span class="font-medium">{{ up(order?.payment_method) }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span>{{ $t('labels.paymentStatus') || 'Payment status' }}</span>
-              <span class="font-medium">{{ up(order?.payment_status) }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span>{{ $t('labels.tracking') || 'Tracking' }}</span>
-              <span class="font-medium">{{ order?.tracking_no ? order.tracking_no : '—' }}</span>
+            <div class="mt-6 rounded-xl bg-gray-50 p-3 text-xs text-gray-600">
+              <div class="flex justify-between">
+                <span>{{ $t('labels.paymentMethod') || 'Payment method' }}</span>
+                <span class="font-medium">{{ up(order?.payment_method) }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>{{ $t('labels.paymentStatus') || 'Payment status' }}</span>
+                <span class="font-medium">{{ up(order?.payment_status) }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>{{ $t('labels.tracking') || 'Tracking' }}</span>
+                <span class="font-medium">{{ order?.tracking_no ? order.tracking_no : '—' }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -367,5 +425,12 @@ onMounted(fetchOrder)
 </template>
 
 <style scoped>
-/* Tailwind handles styling */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 </style>

@@ -242,7 +242,9 @@
   },
   "dashboard": {
     "cart": "Cart",
-    "checkout": "Checkout"
+    "checkout": "Checkout",
+    "orderDetails": "Order  details",
+    "viewOrders": "View Orders"
   },
   "about": {
     "seoTitle": "About Us | Techno Lock Keys Trading",
