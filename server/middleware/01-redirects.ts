@@ -1,13 +1,15 @@
-import { defineEventHandler, sendRedirect, getQuery } from 'h3'
-import { withoutTrailingSlash, withLeadingSlash } from 'ufo'
-
 /* --- helpers --- */
 const LOCALES = ['en', 'tr', 'ar', 'es', 'fr', 'de'] // adjust to your locales
 
+// Native JS path normalizer (bypasses ufo requirement)
 function normPath(p?: string) {
-    const clean = (p || '/').split('?')[0]
-    return withoutTrailingSlash(withLeadingSlash(decodeURIComponent(clean).toLowerCase()))
+    let clean = (p || '/').split('?')[0];
+    clean = decodeURIComponent(clean).toLowerCase();
+    if (!clean.startsWith('/')) clean = '/' + clean;
+    if (clean.length > 1 && clean.endsWith('/')) clean = clean.slice(0, -1);
+    return clean;
 }
+
 function splitLocale(pathname: string) {
     const seg = pathname.split('/')
     const maybe = seg[1]
@@ -150,10 +152,12 @@ const PATH_REDIRECTS: { from: string; to: string }[] = [
 ]
 
 /* query-based legacy /download-files.php?device=... */
-function queryRedirect(event: any): string | null {
-    const q = getQuery(event)
-    const dev = (q.device as string | undefined)?.toLowerCase()
-    const path = normPath(event.path)
+function queryRedirect(event: any, path: string): string | null {
+    // Native JS extraction prevents the h3 'Invalid URL' crash
+    const fullPath = event.path || '/';
+    const searchParams = new URLSearchParams(fullPath.split('?')[1] || '');
+    const dev = searchParams.get('device')?.toLowerCase();
+
     if (path === '/download-files.php' && dev) {
         const map: Record<string, string> = {
             'ad100pro': '/downloads/AD-Loader-AD100-Advanced-Diagnostics-Download-and-Installation',
@@ -201,13 +205,14 @@ function queryRedirect(event: any): string | null {
 
 /* middleware */
 export default defineEventHandler((event) => {
+    // SWR Crash Protection
+    if (event.node.res.headersSent) return;
+
     const { locale, path } = splitLocale(normPath(event.path))
 
-    const qDest = queryRedirect(event)
+    const qDest = queryRedirect(event, path)
     if (qDest) return sendRedirect(event, locale + qDest, 301)
 
     const match = PATH_REDIRECTS.find(r => normPath(r.from) === path)
     if (match) return sendRedirect(event, locale + match.to, 301)
-
-    // else let routing continue (your 404→410 plugin may kick in later)
 })

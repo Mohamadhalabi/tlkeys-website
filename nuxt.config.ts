@@ -156,6 +156,7 @@ export default defineNuxtConfig({
 
   nitro: {
     compressPublicAssets: true,
+    minify: true, // Optimizes and tree-shakes server-side code
   },
 
   // --- EXPERIMENTAL SETTINGS ---
@@ -168,16 +169,6 @@ export default defineNuxtConfig({
   },
 
   vite: {
-    optimizeDeps: { include: ['swiper'] },
-    build: {
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (id.includes('node_modules')) return 'vendor';
-          }
-        }
-      }
-    },
     plugins: [
       ...(process.env.ANALYZE === 'true' ? [visualizer({ open: true, filename: 'stats.html' })] : [])
     ],

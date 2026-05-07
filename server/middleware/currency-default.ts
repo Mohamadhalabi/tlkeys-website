@@ -1,5 +1,8 @@
 // server/middleware/currency-default.ts
 export default defineEventHandler((event) => {
+  // SWR Crash Protection
+  if (event.node.res.headersSent) return;
+
   const existing = getCookie(event, 'currency')
   if (!existing) {
     // pick your true default (USD?)

@@ -148,10 +148,11 @@ const selectedAddressId = ref<number | null>(null)
 const selectedAddress = computed<Address | null>(() => addresses.value.find(a => a.id === selectedAddressId.value) || null)
 
 const selectedShipping = ref<ShippingKey | null>(null)
-const paymentMethod = ref<'card'|'paypal'|'transfer' | null>(null)
+const paymentMethod = ref<'card'|'paypal'|'transfer'|'network_ae' | null>(null)
 const acceptTerms = ref(false)
 
-const surchargePct = computed(() => (paymentMethod.value === 'card' || paymentMethod.value === 'paypal') ? 3 : 0)
+const surchargePct = computed(() => (paymentMethod.value === 'card' || paymentMethod.value === 'paypal' || paymentMethod.value === 'network_ae') ? 3 : 0)
+
 const totalWithSurcharge = computed(() => {
   const base = quote.value?.summary?.total ?? 0
   return +(base * (1 + (surchargePct.value / 100))).toFixed(2)
@@ -565,12 +566,11 @@ async function createOrder() {
   if (creatingOrder.value) return
   creatingOrder.value = true
 
-  const paymentMap: Record<'card'|'paypal'|'transfer', string> = {
+const paymentMap: Record<'card'|'paypal'|'transfer'|'network_ae', string> = {
     card: 'ccavenue',
     paypal: 'paypal',
-    // We send transfer_online for both Bank and Crypto
-    // You can append transferType to the note if you need backend distinction without changing API
-    transfer: 'transfer_online' 
+    transfer: 'transfer_online',
+    network_ae: 'network_ae'
   }
 
   // Append Crypto note to order note if Crypto is selected
@@ -601,11 +601,18 @@ async function createOrder() {
     const payload = res?.data || res
     const order   = payload?.order
     const paypalUrl = (payload?.paypal_url || '').trim()
+    const networkUrl = (payload?.networkae_url || '').trim()
 
     if (paymentMethod.value === 'paypal' && paypalUrl) {
       window.location.href = paypalUrl
       return
     }
+
+    if (paymentMethod.value === 'network_ae' && networkUrl) {
+      window.location.href = networkUrl
+      return
+    }
+
     if (paymentMethod.value === 'card' && order?.order_id) {
       const baseTotal = Number(order?.total?.value ?? order?.total ?? 0)
       const amount = (Math.round((baseTotal * 1.03 + Number.EPSILON) * 100) / 100).toFixed(2)
@@ -1033,31 +1040,46 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
             {{ $t('checkout.paymentMethod') }}
           </h3>
 
-          <div class="grid sm:grid-cols-3 gap-3">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <!-- Card -->
             <label class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
                    :class="paymentMethod === 'card' ? 'ring-2 ring-emerald-500 border-emerald-500' : 'border-gray-200'">
               <input class="sr-only" type="radio" value="card" v-model="paymentMethod" :disabled="isCheckoutBlocked" />
               <div class="flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6a2 2 0 012-2h14a2 2 0 012 2v2H3V6z"/><path d="M3 10h18v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8zm2 5h6v2H5v-2z"/></svg>
-                <span class="font-medium">{{ $t('checkout.payCard') }}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6a2 2 0 012-2h14a2 2 0 012 2v2H3V6z"/><path d="M3 10h18v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8zm2 5h6v2H5v-2z"/></svg>
+                <span class="font-medium truncate">{{ $t('checkout.payCard') }}</span>
               </div>
             </label>
 
+            <!-- PayPal -->
             <label class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
                    :class="paymentMethod === 'paypal' ? 'ring-2 ring-emerald-500 border-emerald-500' : 'border-gray-200'">
               <input class="sr-only" type="radio" value="paypal" v-model="paymentMethod" :disabled="isCheckoutBlocked" />
               <div class="flex items-center justify-center gap-2">
-                <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-600 text-white text-xs font-bold">P</span>
-                <span class="font-medium">PayPal</span>
+                <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-600 text-white text-xs font-bold shrink-0">P</span>
+                <span class="font-medium truncate">PayPal</span>
               </div>
             </label>
 
+            <!-- Apple / Google Pay -->
+            <label class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
+                  :class="paymentMethod === 'network_ae' ? 'ring-2 ring-emerald-500 border-emerald-500' : 'border-gray-200'">
+              <input class="sr-only" type="radio" value="network_ae" v-model="paymentMethod" :disabled="isCheckoutBlocked" />
+              <div class="flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>
+                </svg>
+                <span class="font-medium truncate" style="font-size: 0.85rem;">Card / Apple / Google Pay</span>
+              </div>
+            </label>
+
+            <!-- Bank / Crypto Transfer -->
             <label class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
                    :class="paymentMethod === 'transfer' ? 'ring-2 ring-emerald-500 border-emerald-500' : 'border-gray-200'">
               <input class="sr-only" type="radio" value="transfer" v-model="paymentMethod" :disabled="isCheckoutBlocked" />
               <div class="flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 6v2H3V9l9-6z"/><path d="M4 13h16v6H4v-6z"/></svg>
-                <span class="font-medium">{{ $t('checkout.transfer') || 'Transfer' }}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 6v2H3V9l9-6z"/><path d="M4 13h16v6H4v-6z"/></svg>
+                <span class="font-medium truncate">{{ $t('checkout.transfer') || 'Transfer' }}</span>
               </div>
             </label>
           </div>
