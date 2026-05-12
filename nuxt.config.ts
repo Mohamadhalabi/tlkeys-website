@@ -157,11 +157,14 @@ export default defineNuxtConfig({
   nitro: {
     compressPublicAssets: true,
     minify: true,
-    // ✅ Trust the forwarded host from Apache proxy
-    routeRules: {},
-    forward: {
-      host: true,
-    },
+    hooks: {
+      'request': (event) => {
+        // Force Nitro to always see the real production host
+        event.node.req.headers['x-forwarded-host'] = 'www.tlkeys.com'
+        event.node.req.headers['x-forwarded-proto'] = 'https'
+        event.node.req.headers['host'] = 'www.tlkeys.com'
+      }
+    }
   },
 
   // --- EXPERIMENTAL SETTINGS ---
