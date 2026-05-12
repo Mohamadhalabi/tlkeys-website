@@ -1,7 +1,7 @@
 <template>
   <template v-if="!isMobile">
     
-    <div v-if="!isAdvisoryClosed" class="shipping-advisory desktop-advisory">
+    <!-- <div v-if="!isAdvisoryClosed" class="shipping-advisory desktop-advisory">
       <div class="container-fluid">
         <div class="advisory-content">
           <p class="advisory-text">
@@ -13,7 +13,7 @@
           </button>
         </div>
       </div>
-    </div>
+    </div> -->
 
     <header>
       <HeaderTopBar />
@@ -25,7 +25,7 @@
   <template v-else>
     <HeaderMiddleMobile />
 
-    <div v-if="!isAdvisoryClosed" class="shipping-advisory mobile-advisory">
+    <!-- <div v-if="!isAdvisoryClosed" class="shipping-advisory mobile-advisory">
       <div class="container-fluid">
         <div class="advisory-content">
           <p class="advisory-text">
@@ -37,7 +37,7 @@
           </button>
         </div>
       </div>
-    </div>
+    </div> -->
 
     <MobileBottomAppModal />
   </template>
