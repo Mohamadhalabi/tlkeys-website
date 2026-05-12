@@ -106,10 +106,10 @@ export default defineNuxtConfig({
     '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
 
     // Sitemap caching
-    '/api/sitemap-routes': { cache: { maxAge: 86400 } },
-    '/sitemap.xml': { cache: { maxAge: 86400 } },
-    '/*-sitemap.xml': { cache: { maxAge: 86400 } },
-    '/sitemap_*.xml': { cache: { maxAge: 86400 } }
+    // '/api/sitemap-routes': { cache: { maxAge: 86400 } },
+    // '/sitemap.xml': { cache: { maxAge: 86400 } },
+    // '/*-sitemap.xml': { cache: { maxAge: 86400 } },
+    // '/sitemap_*.xml': { cache: { maxAge: 86400 } }
   },
 
   runtimeConfig: {
