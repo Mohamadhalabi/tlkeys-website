@@ -157,6 +157,11 @@ export default defineNuxtConfig({
   nitro: {
     compressPublicAssets: true,
     minify: true,
+    // ✅ Trust the forwarded host from Apache proxy
+    routeRules: {},
+    forward: {
+      host: true,
+    },
   },
 
   // --- EXPERIMENTAL SETTINGS ---
