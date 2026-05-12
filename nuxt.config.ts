@@ -63,7 +63,13 @@ export default defineNuxtConfig({
   sitemap: {
     debug: false,
     autoI18n: true,
-    // cacheMaxAgeSeconds: 86400,
+    autoLastmod: true,
+    // ✅ FIX: Explicitly set siteUrl so production sitemap uses the real domain
+    // instead of falling back to 127.0.0.1:4000
+    siteUrl,
+    // ✅ FIX: Use canonical URLs in the sitemap index
+    xslUrl: false,
+    strictNuxtContentPaths: false,
     sitemaps: {
       en: { sources: ['/api/sitemap-routes?lang=en'] },
       ar: { sources: ['/api/sitemap-routes?lang=ar'] },
@@ -92,7 +98,7 @@ export default defineNuxtConfig({
     // Cache the English products route
     '/products/**': { swr: 3600 },
 
-    // Cache the localized products routes (matching your i18n locales)
+    // Cache the localized products routes
     '/ar/products/**': { swr: 3600 },
     '/es/products/**': { swr: 3600 },
     '/fr/products/**': { swr: 3600 },
@@ -104,12 +110,6 @@ export default defineNuxtConfig({
 
     // Static assets
     '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
-
-    // Sitemap caching
-    // '/api/sitemap-routes': { cache: { maxAge: 86400 } },
-    // '/sitemap.xml': { cache: { maxAge: 86400 } },
-    // '/*-sitemap.xml': { cache: { maxAge: 86400 } },
-    // '/sitemap_*.xml': { cache: { maxAge: 86400 } }
   },
 
   runtimeConfig: {
@@ -156,7 +156,7 @@ export default defineNuxtConfig({
 
   nitro: {
     compressPublicAssets: true,
-    minify: true, // Optimizes and tree-shakes server-side code
+    minify: true,
   },
 
   // --- EXPERIMENTAL SETTINGS ---
