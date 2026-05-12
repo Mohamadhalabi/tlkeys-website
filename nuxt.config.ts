@@ -35,6 +35,10 @@ export default defineNuxtConfig({
   pages: true,
   middleware: ['shop-redirect'],
 
+  site: {
+    url: 'https://www.tlkeys.com'
+  },
+
   modules: [
     '@nuxtjs/tailwindcss',
     ['@nuxtjs/i18n', i18nOptions],
@@ -64,10 +68,6 @@ export default defineNuxtConfig({
     debug: false,
     autoI18n: true,
     autoLastmod: true,
-    // ✅ FIX: Explicitly set siteUrl so production sitemap uses the real domain
-    // instead of falling back to 127.0.0.1:4000
-    siteUrl,
-    // ✅ FIX: Use canonical URLs in the sitemap index
     xslUrl: false,
     strictNuxtContentPaths: false,
     sitemaps: {
@@ -157,14 +157,6 @@ export default defineNuxtConfig({
   nitro: {
     compressPublicAssets: true,
     minify: true,
-    hooks: {
-      'request': (event) => {
-        // Force Nitro to always see the real production host
-        event.node.req.headers['x-forwarded-host'] = 'www.tlkeys.com'
-        event.node.req.headers['x-forwarded-proto'] = 'https'
-        event.node.req.headers['host'] = 'www.tlkeys.com'
-      }
-    }
   },
 
   // --- EXPERIMENTAL SETTINGS ---
