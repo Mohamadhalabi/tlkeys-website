@@ -63,7 +63,7 @@ export default defineNuxtConfig({
   sitemap: {
     debug: false,
     autoI18n: true,
-    cacheMaxAgeSeconds: 86400,
+    // cacheMaxAgeSeconds: 86400,
     sitemaps: {
       en: { sources: ['/api/sitemap-routes?lang=en'] },
       ar: { sources: ['/api/sitemap-routes?lang=ar'] },
