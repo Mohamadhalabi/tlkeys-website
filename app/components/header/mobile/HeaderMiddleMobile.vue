@@ -524,7 +524,7 @@ const onCurrencyChange = () => {
   setCurrency(selectedCurrency.value)
   // refresh data and hard reload to ensure prices everywhere adapt
   refreshNuxtData()
-  if (process.client) window.location.reload()
+  // if (process.client) window.location.reload()
 }
 onMounted(() => { selectedCurrency.value = currency.value })
 
