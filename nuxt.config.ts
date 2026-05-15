@@ -95,21 +95,38 @@ export default defineNuxtConfig({
 
   // --- MERGED AND FIXED ROUTE RULES ---
   routeRules: {
-    // Cache the English products route
-    '/products/**': { swr: 3600 },
-
-    // Cache the localized products routes
-    '/ar/products/**': { swr: 3600 },
-    '/es/products/**': { swr: 3600 },
-    '/fr/products/**': { swr: 3600 },
-    '/ru/products/**': { swr: 3600 },
-    '/de/products/**': { swr: 3600 },
-    '/tr/products/**': { swr: 3600 },
-    '/pt/products/**': { swr: 3600 },
-    '/it/products/**': { swr: 3600 },
-
-    // Static assets
-    '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    // Use CDN caching via headers instead of SWR
+    // This avoids the cookie/header conflict entirely
+    '/products/**': {
+      headers: { 'cache-control': 's-maxage=3600, stale-while-revalidate=86400' }
+    },
+    '/ar/products/**': {
+      headers: { 'cache-control': 's-maxage=3600, stale-while-revalidate=86400' }
+    },
+    '/es/products/**': {
+      headers: { 'cache-control': 's-maxage=3600, stale-while-revalidate=86400' }
+    },
+    '/fr/products/**': {
+      headers: { 'cache-control': 's-maxage=3600, stale-while-revalidate=86400' }
+    },
+    '/ru/products/**': {
+      headers: { 'cache-control': 's-maxage=3600, stale-while-revalidate=86400' }
+    },
+    '/de/products/**': {
+      headers: { 'cache-control': 's-maxage=3600, stale-while-revalidate=86400' }
+    },
+    '/tr/products/**': {
+      headers: { 'cache-control': 's-maxage=3600, stale-while-revalidate=86400' }
+    },
+    '/pt/products/**': {
+      headers: { 'cache-control': 's-maxage=3600, stale-while-revalidate=86400' }
+    },
+    '/it/products/**': {
+      headers: { 'cache-control': 's-maxage=3600, stale-while-revalidate=86400' }
+    },
+    '/_nuxt/**': {
+      headers: { 'cache-control': 'public, max-age=31536000, immutable' }
+    },
   },
 
   runtimeConfig: {
@@ -157,6 +174,17 @@ export default defineNuxtConfig({
   nitro: {
     compressPublicAssets: true,
     minify: true,
+    routeRules: {
+      '/products/**': { cache: false },
+      '/ar/products/**': { cache: false },
+      '/es/products/**': { cache: false },
+      '/fr/products/**': { cache: false },
+      '/ru/products/**': { cache: false },
+      '/de/products/**': { cache: false },
+      '/tr/products/**': { cache: false },
+      '/pt/products/**': { cache: false },
+      '/it/products/**': { cache: false },
+    }
   },
 
   // --- EXPERIMENTAL SETTINGS ---
@@ -164,7 +192,7 @@ export default defineNuxtConfig({
     payloadExtraction: false,
     emitRouteChunkError: 'automatic',
     viewTransition: true,
-    renderJsonPayloads: true,
+    renderJsonPayloads: false,  // ← fix for the Pinia hasOwnProperty crash
     navigationRepaint: false,
   },
 
