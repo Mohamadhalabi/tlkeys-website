@@ -5,15 +5,15 @@ const siteUrl = (process.env.SITE_URL || 'https://www.tlkeys.com').replace(/\/+$
 
 const i18nOptions = {
   locales: [
-    { code: 'en', iso: 'en', dir: 'ltr', file: 'en.json', name: 'English' },
-    { code: 'ar', iso: 'ar', dir: 'rtl', file: 'ar.json', name: 'العربية' },
-    { code: 'es', iso: 'es', dir: 'ltr', file: 'es.json', name: 'Español' },
-    { code: 'fr', iso: 'fr', dir: 'ltr', file: 'fr.json', name: 'Français' },
-    { code: 'ru', iso: 'ru', dir: 'ltr', file: 'ru.json', name: 'Русский' },
-    { code: 'de', iso: 'de', dir: 'ltr', file: 'de.json', name: 'Deutsch' },
-    { code: 'tr', iso: 'tr', dir: 'ltr', file: 'tr.json', name: 'Turkish' },
-    { code: 'pt', iso: 'pt', dir: 'ltr', file: 'pt.json', name: 'Portuguese' },
-    { code: 'it', iso: 'it', dir: 'ltr', file: 'it.json', name: 'Italian' }
+    { code: 'en', iso: 'en', dir: 'ltr', file: 'en.ts', name: 'English' },
+    { code: 'ar', iso: 'ar', dir: 'rtl', file: 'ar.ts', name: 'العربية' },
+    { code: 'es', iso: 'es', dir: 'ltr', file: 'es.ts', name: 'Español' },
+    { code: 'fr', iso: 'fr', dir: 'ltr', file: 'fr.ts', name: 'Français' },
+    { code: 'ru', iso: 'ru', dir: 'ltr', file: 'ru.ts', name: 'Русский' },
+    { code: 'de', iso: 'de', dir: 'ltr', file: 'de.ts', name: 'Deutsch' },
+    { code: 'tr', iso: 'tr', dir: 'ltr', file: 'tr.ts', name: 'Turkish' },
+    { code: 'pt', iso: 'pt', dir: 'ltr', file: 'pt.ts', name: 'Portuguese' },
+    { code: 'it', iso: 'it', dir: 'ltr', file: 'it.ts', name: 'Italian' }
   ],
   defaultLocale: 'en',
   strategy: 'prefix_except_default',
@@ -21,8 +21,8 @@ const i18nOptions = {
   baseUrl: siteUrl,
   seo: true,
   lazy: true,
-  langDir: 'locales',
-  vueI18n: 'i18n.config.ts'
+  langDir: '../i18n/locales', // <-- THIS IS THE CRUCIAL PATH FIX
+  vueI18n: 'i18n.config.ts' // Note: Make sure this file is also in the root, or update its path too
 }
 
 export default defineNuxtConfig({

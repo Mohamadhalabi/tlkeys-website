@@ -36,10 +36,7 @@ async function fetchOrders() {
     const page = route.query.page || 1;
     // We request 15 per page as seen in your network logs
     const res: any = await $customApi(`/account/orders?page=${page}&per_page=15`);
-    
-    // DEBUG: This will show you the structure in the browser console
-    console.log("Orders API Raw Response:", res);
-
+  
     // Some wrappers return the object directly, others wrap in .data
     // We check for the 'meta' key to find where the real response is
     const root = res?.meta ? res : (res?.data?.meta ? res.data : res);

@@ -1,4 +1,4 @@
-{
+export default {
   "site": {
     "name": "Techno Lock Keys Trading"
   },

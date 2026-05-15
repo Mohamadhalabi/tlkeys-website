@@ -22,7 +22,6 @@ const hasNoTokens = computed(() => {
 
 // Updated checkout handler to accept price and token amount
 const handlePaypalCheckout = async (price: number, tokens: number) => {
-  console.log(`Redirecting to PayPal for $${price}.00 to buy ${tokens} token(s)...`)
   // Build your PayPal redirect/modal logic here
 }
 

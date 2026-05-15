@@ -3,8 +3,6 @@
 import { setHeader, setResponseStatus } from 'h3'
 
 const route = useRoute()
-console.log('Catch-all route triggered for path:', route.path); // Debug log
-
 // Only for server requests (SSR)
 if (process.server) {
   // Skip 410 for /shop, /shop/, and /shop/*
