@@ -310,8 +310,8 @@ async function onAdd() {
         <NuxtImg
           :key="currentImage"
           :src="currentImage"
-          :alt="product.name"
-          :width="600" 
+          :alt="cleanTitle"
+          :width="600"
           :quality="90"
           loading="lazy"
           class="h-full w-full object-contain transition-transform duration-500 will-change-transform group-hover:scale-105"
@@ -357,14 +357,14 @@ async function onAdd() {
         {{ product.sku }}
       </div>
       
-      <div v-if="product.part_number" class="w-max inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5">
-        <MpnImage :mpn="product.part_number" />
-      </div>
+    <div v-if="product.part_number" class="w-max inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5">
+      <MpnImage :mpn="product.part_number" :height="11" />
+    </div>
     </div>
       <NuxtLinkLocale
         :to="linkTo"
         class="mb-3 block text-sm font-bold leading-snug text-gray-800 transition-colors hover:text-red-600 min-h-[2.5rem]"
-        :title="product.name"
+        :title="cleanTitle"
       >
         {{ cleanTitle }}
       </NuxtLinkLocale>

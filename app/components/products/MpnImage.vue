@@ -1,51 +1,78 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 
 const props = defineProps({
-  mpn: {
-    type: String,
-    required: true
-  }
+  mpn: { type: String, required: true },
+  height: { type: Number, default: 12 },   // tweak to match SKU text
+  color:  { type: String, default: '#1d4ed8' },
 })
 
-// State for the copy tooltip
+const dataUrl = ref('')
+const imgH = ref(0)
 const copied = ref(false)
 
-// Function to copy text silently
-const copyToClipboard = async () => {
+function render() {
+  if (typeof document === 'undefined') return
+  const text = (props.mpn || '').trim()
+  if (!text) { dataUrl.value = ''; return }
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 3)
+  const fontSize = props.height
+  const font = `600 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
+
+  const measure = document.createElement('canvas').getContext('2d')
+  measure.font = font
+  const padX = 1
+  const cssW = Math.ceil(measure.measureText(text).width) + padX * 2
+  const cssH = Math.ceil(fontSize * 1.25)
+
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.ceil(cssW * dpr)
+  canvas.height = Math.ceil(cssH * dpr)
+  const ctx = canvas.getContext('2d')
+  ctx.scale(dpr, dpr)
+  ctx.font = font
+  ctx.fillStyle = props.color
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, padX, cssH / 2)
+
+  dataUrl.value = canvas.toDataURL('image/png')
+  imgH.value = cssH
+}
+
+async function copyToClipboard() {
   try {
     await navigator.clipboard.writeText(props.mpn)
     copied.value = true
-    
-    // Reset tooltip after 2 seconds
-    setTimeout(() => {
-      copied.value = false
-    }, 2000)
+    setTimeout(() => { copied.value = false }, 2000)
   } catch (err) {
     console.error('Failed to copy MPN', err)
   }
 }
 
-// Generate the invisible text image
-const mpnDataUri = computed(() => {
-  const estimatedWidth = Math.max(30, props.mpn.length * 8 + 4)
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${estimatedWidth}" height="16">
-                 <text x="0" y="12" fill="#1d4ed8" font-family="system-ui, -apple-system, sans-serif" font-size="12px" font-weight="600">${props.mpn}</text>
-               </svg>`
-  const encodedSvg = encodeURIComponent(svg)
-  return `data:image/svg+xml;charset=utf-8,${encodedSvg}`
-})
+onMounted(render)
+watch(() => [props.mpn, props.height, props.color], render)
 </script>
 
 <template>
-  <div 
+  <div
+    data-nosnippet
     class="relative inline-flex items-center justify-center cursor-pointer group"
     @click.prevent="copyToClipboard"
+    title="Click to copy part number"
   >
-    <img :src="mpnDataUri" alt="" class="block h-[16px] w-auto transition-opacity group-hover:opacity-80" />
-    
-    <span 
-      v-if="copied" 
+    <img
+      v-if="dataUrl"
+      :src="dataUrl"
+      :style="{ height: imgH + 'px', width: 'auto' }"
+      alt="part number"
+      decoding="async"
+      class="block select-none transition-opacity group-hover:opacity-80"
+      draggable="false"
+    />
+
+    <span
+      v-if="copied"
       class="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded shadow-md whitespace-nowrap z-50 pointer-events-none"
     >
       Copied!
