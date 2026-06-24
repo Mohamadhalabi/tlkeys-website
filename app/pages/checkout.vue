@@ -92,7 +92,7 @@ const runtimeConfig = useRuntimeConfig()
 const alerts = useAlertStore()
 const loadingIndicator = useLoadingIndicator()
 
-const WHATSAPP_NUMBER = String((runtimeConfig as any)?.public?.whatsappNumber || '905376266092')
+const WHATSAPP_NUMBER = String((runtimeConfig as any)?.public?.whatsappNumber || '971502519501')
 const whatsappLink = computed(() => {
   const msg = t('common.whatsappPrefill') || 'Hello, I need help completing my order.'
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`

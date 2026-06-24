@@ -30,7 +30,7 @@ const alerts = useAlertStore()
 
 // --- Config ---
 const USDT_WALLET_ADDRESS = 'TMUnF98HTXiW3uQz4VbktLJuEaHcYS47zb' 
-const WHATSAPP_NUMBER = String((runtimeConfig as any)?.public?.whatsappNumber || '905376266092')
+const WHATSAPP_NUMBER = String((runtimeConfig as any)?.public?.whatsappNumber || '971502519501')
 
 // --- State ---
 const activePaymentTab = ref<'bank' | 'crypto'>('bank')
