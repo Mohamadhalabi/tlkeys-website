@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useNuxtApp, useRuntimeConfig, useHead, useSeoMeta, useRoute } from '#imports'
 import ProductGrid from '~/components/products/ProductGrid.vue'
 
@@ -10,17 +10,62 @@ const route = useRoute()
 const { public: { API_BASE_URL } } = useRuntimeConfig()
 const { $customApi } = useNuxtApp() as any
 
+/* ── WhatsApp support ── */
+const WHATSAPP_NUMBER = '905376266092'
+const whatsappLink =
+  `https://wa.me/${WHATSAPP_NUMBER}?text=` +
+  encodeURIComponent('Hello, I need help with the Toyota passcode calculation.')
+
 /* ── Form ── */
 const form = ref({ vin: '', data1: '', data2: '', data3: '' })
 const loading        = ref(false)
 const passcodeResult = ref<string | null>(null)
 const errorMsg       = ref<string | null>(null)
 const attemptInfo    = ref<{
-  attemptNumber: number
   isPaidAttempt: boolean
-  attemptsUntilCharge: number
 } | null>(null)
 const copied         = ref(false)
+
+/* ── Countdown while calculating (backend API timeout is 120s) ── */
+const countdown = ref(0)
+let countdownInterval: ReturnType<typeof setInterval> | null = null
+
+const formattedCountdown = computed(() => {
+  const s = Math.max(0, countdown.value)
+  return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`
+})
+
+const startCountdown = () => {
+  stopCountdown()
+  countdown.value = 120
+  countdownInterval = setInterval(() => {
+    if (countdown.value > 0) countdown.value--
+  }, 1000)
+}
+
+const stopCountdown = () => {
+  if (countdownInterval) {
+    clearInterval(countdownInterval)
+    countdownInterval = null
+  }
+}
+
+/* Warn before leaving/refreshing while a calculation is running */
+const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
+  if (loading.value) {
+    e.preventDefault()
+    e.returnValue = ''
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('beforeunload', beforeUnloadHandler)
+})
+
+onBeforeUnmount(() => {
+  stopCountdown()
+  window.removeEventListener('beforeunload', beforeUnloadHandler)
+})
 
 const isFormValid = computed(() =>
   form.value.vin.trim().length === 17 &&
@@ -42,12 +87,13 @@ const formatInput = (key: keyof typeof form.value, e: Event) => {
 
 const handleCalculate = async () => {
   if (!isFormValid.value || !isAuthenticated.value) return
-  
+
   errorMsg.value = null
   passcodeResult.value = null
   attemptInfo.value = null
   loading.value = true
-  
+  startCountdown()
+
   try {
     const res = await $customApi(`${API_BASE_URL}/toyota-passcode`, {
       method: 'POST',
@@ -58,17 +104,15 @@ const handleCalculate = async () => {
     if (res?.status === 'success' && res?.passcode) {
       passcodeResult.value = res.passcode
       attemptInfo.value = {
-        attemptNumber: res.attempt_number || 0,
-        isPaidAttempt: res.is_paid_attempt === true,
-        attemptsUntilCharge: res.attempts_until_next_charge || 0
+        isPaidAttempt: res.is_paid_attempt === true
       }
-      
-      // Update user's token count ONLY if tokens were actually deducted
+
+      // Update user's token count from the server's authoritative value
       if (user.value && res?.tokens_remaining !== undefined) {
         user.value.toyota_tokens = res.tokens_remaining
       }
-      
-      console.log('✅ Success:', { 
+
+      console.log('✅ Success:', {
         passcode: res.passcode,
         tokensRemaining: res.tokens_remaining,
         attemptInfo: attemptInfo.value
@@ -81,7 +125,7 @@ const handleCalculate = async () => {
   } catch (err: any) {
     const status = err?.status || err?.statusCode || err?.response?.status
     console.error('Error Status:', status, 'Error:', err)
-    
+
     if (status === 402 || status === 403) {
       errorMsg.value = err?.data?.message || err?.message || t('toyota_passcode.no_tokens_msg')
       // Ensure token count is 0 on 402 response
@@ -91,6 +135,7 @@ const handleCalculate = async () => {
     }
   } finally {
     loading.value = false
+    stopCountdown()
   }
 }
 
@@ -341,6 +386,28 @@ useHead({
             </template>
           </div>
 
+          <!-- Calculating: countdown timer + do-not-leave warning -->
+          <transition name="fade">
+            <div v-if="loading"
+                 class="max-w-xl mx-auto mt-6 bg-amber-50 border border-amber-200 rounded-2xl p-5 sm:p-6 text-center">
+              <div class="flex items-center justify-center gap-3 mb-3">
+                <svg class="h-6 w-6 animate-spin text-amber-600" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                </svg>
+                <span class="text-3xl font-black text-amber-700 tabular-nums">
+                  {{ countdown > 0 ? formattedCountdown : 'Almost done…' }}
+                </span>
+              </div>
+              <p class="text-sm font-bold text-amber-800">
+                ⚠️ Please do not leave or refresh this page
+              </p>
+              <p class="text-xs text-amber-700 mt-1">
+                Your passcode will be displayed here within 2 minutes.
+              </p>
+            </div>
+          </transition>
+
           <transition name="fade">
             <div v-if="passcodeResult || errorMsg" class="max-w-xl mx-auto mt-8 sm:mt-10">
 
@@ -353,7 +420,7 @@ useHead({
                 <div class="text-xs sm:text-sm text-gray-500 uppercase font-bold tracking-wider mb-1">
                   {{ t('toyota_passcode.passcode_label') }}
                 </div>
-                
+
                 <div class="flex items-center justify-center gap-4 my-2">
                   <div class="text-3xl sm:text-5xl font-black text-gray-900 tracking-tight">
                     {{ passcodeResult }}
@@ -377,7 +444,7 @@ useHead({
                   <p class="text-sm text-blue-800 font-medium">
                     {{ t('toyota_passcode.result_note') }}
                   </p>
-                  
+
                   <!-- Paid / Free indicator -->
                   <div v-if="attemptInfo" class="bg-blue-100/50 rounded-lg p-3 mt-3">
                     <p class="text-xs font-semibold" :class="attemptInfo.isPaidAttempt ? 'text-orange-600' : 'text-green-600'">
@@ -406,6 +473,24 @@ useHead({
 
             </div>
           </transition>
+
+          <!-- WhatsApp help -->
+          <div class="max-w-xl mx-auto mt-6 text-center">
+            <p class="text-sm text-gray-600 mb-3">
+              If you find any problem doing the calculation, please contact us:
+            </p>
+            <a
+              :href="whatsappLink"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold text-white bg-[#25D366] hover:bg-[#20bd5a] transition-all shadow-lg hover:-translate-y-0.5"
+            >
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.149-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+              </svg>
+              Contact us on WhatsApp
+            </a>
+          </div>
 
           <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 sm:p-7 mt-5 text-left">
             <h3 class="flex items-center gap-2 text-orange-800 font-bold text-base sm:text-lg mb-4">
