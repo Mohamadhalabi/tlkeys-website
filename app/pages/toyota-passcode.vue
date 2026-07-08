@@ -59,7 +59,7 @@ const handleCalculate = async () => {
       passcodeResult.value = res.passcode
       attemptInfo.value = {
         attemptNumber: res.attempt_number || 0,
-        isPaidAttempt: res.is_paid_attempt || false,
+        isPaidAttempt: res.is_paid_attempt === true,
         attemptsUntilCharge: res.attempts_until_next_charge || 0
       }
       
@@ -378,18 +378,15 @@ useHead({
                     {{ t('toyota_passcode.result_note') }}
                   </p>
                   
-                  <!-- Attempt Info Display -->
-                <div v-if="attemptInfo" class="bg-blue-100/50 rounded-lg p-3 mt-3 space-y-1">
-                  <p class="text-xs text-blue-700 font-semibold">
-                    ✓ Attempt #{{ attemptInfo.attemptNumber }}     <!-- always #0 now -->
-                    <span v-if="attemptInfo.isPaidAttempt">(PAID)</span>  <!-- this still works -->
-                    <span v-else>(FREE)</span>
-                  </p>
-                  <p class="text-xs text-blue-600">
-                    Free attempts until next charge: {{ attemptInfo.attemptsUntilCharge }}  <!-- always 0 -->
-                  </p>
-                </div>
-                  
+                  <!-- Paid / Free indicator -->
+                  <div v-if="attemptInfo" class="bg-blue-100/50 rounded-lg p-3 mt-3">
+                    <p class="text-xs font-semibold" :class="attemptInfo.isPaidAttempt ? 'text-orange-600' : 'text-green-600'">
+                      {{ attemptInfo.isPaidAttempt
+                          ? '1 token used for this calculation'
+                          : 'Free — same VIN and data as a previous calculation' }}
+                    </p>
+                  </div>
+
                   <p class="text-xs text-blue-600 font-bold uppercase tracking-wider">
                     Tokens: {{ user?.toyota_tokens || 0 }}
                   </p>
