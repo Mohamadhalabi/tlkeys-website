@@ -15,7 +15,11 @@ const form = ref({ vin: '', data1: '', data2: '', data3: '' })
 const loading        = ref(false)
 const passcodeResult = ref<string | null>(null)
 const errorMsg       = ref<string | null>(null)
-const attemptsLeft   = ref<number | null>(null)
+const attemptInfo    = ref<{
+  attemptNumber: number
+  isPaidAttempt: boolean
+  attemptsUntilCharge: number
+} | null>(null)
 const copied         = ref(false)
 
 const isFormValid = computed(() =>
@@ -38,29 +42,50 @@ const formatInput = (key: keyof typeof form.value, e: Event) => {
 
 const handleCalculate = async () => {
   if (!isFormValid.value || !isAuthenticated.value) return
+  
   errorMsg.value = null
   passcodeResult.value = null
-  attemptsLeft.value = null
+  attemptInfo.value = null
   loading.value = true
+  
   try {
     const res = await $customApi(`${API_BASE_URL}/toyota-passcode`, {
       method: 'POST',
       body: form.value
     })
-    const fetched = res?.passcode || res?.data?.passcode
-    if (fetched) {
-      passcodeResult.value = fetched
-      attemptsLeft.value   = res?.attempts_left ?? res?.data?.attempts_left ?? 0
-      if (user.value && res?.tokens_remaining !== undefined)
+
+    // Handle success response
+    if (res?.status === 'success' && res?.passcode) {
+      passcodeResult.value = res.passcode
+      attemptInfo.value = {
+        attemptNumber: res.attempt_number || 0,
+        isPaidAttempt: res.is_paid_attempt || false,
+        attemptsUntilCharge: res.attempts_until_next_charge || 0
+      }
+      
+      // Update user's token count ONLY if tokens were actually deducted
+      if (user.value && res?.tokens_remaining !== undefined) {
         user.value.toyota_tokens = res.tokens_remaining
+      }
+      
+      console.log('✅ Success:', { 
+        passcode: res.passcode,
+        tokensRemaining: res.tokens_remaining,
+        attemptInfo: attemptInfo.value
+      })
     } else {
-      errorMsg.value = t('toyota_passcode.error_general')
+      // API returned error or no passcode
+      errorMsg.value = res?.message || t('toyota_passcode.error_general')
+      console.error('❌ API Error:', res)
     }
   } catch (err: any) {
     const status = err?.status || err?.statusCode || err?.response?.status
+    console.error('Error Status:', status, 'Error:', err)
+    
     if (status === 402 || status === 403) {
-      if (user.value) user.value.toyota_tokens = 0
       errorMsg.value = err?.data?.message || err?.message || t('toyota_passcode.no_tokens_msg')
+      // Ensure token count is 0 on 402 response
+      if (user.value) user.value.toyota_tokens = 0
     } else {
       errorMsg.value = err?.data?.message || err?.message || t('toyota_passcode.error_general')
     }
@@ -352,11 +377,21 @@ useHead({
                   <p class="text-sm text-blue-800 font-medium">
                     {{ t('toyota_passcode.result_note') }}
                   </p>
-                  <p class="text-xs text-blue-600 font-bold uppercase tracking-wider">
-                    {{ t('toyota_passcode.attempts_remaining') }}: {{ attemptsLeft }}
+                  
+                  <!-- Attempt Info Display -->
+                <div v-if="attemptInfo" class="bg-blue-100/50 rounded-lg p-3 mt-3 space-y-1">
+                  <p class="text-xs text-blue-700 font-semibold">
+                    ✓ Attempt #{{ attemptInfo.attemptNumber }}     <!-- always #0 now -->
+                    <span v-if="attemptInfo.isPaidAttempt">(PAID)</span>  <!-- this still works -->
+                    <span v-else>(FREE)</span>
                   </p>
-                  <p v-if="attemptsLeft === 0" class="text-xs text-orange-600 font-semibold">
-                    {{ t('toyota_passcode.next_calc_costs_token') }}
+                  <p class="text-xs text-blue-600">
+                    Free attempts until next charge: {{ attemptInfo.attemptsUntilCharge }}  <!-- always 0 -->
+                  </p>
+                </div>
+                  
+                  <p class="text-xs text-blue-600 font-bold uppercase tracking-wider">
+                    Tokens: {{ user?.toyota_tokens || 0 }}
                   </p>
                 </div>
               </div>
