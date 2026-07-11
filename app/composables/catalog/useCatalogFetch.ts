@@ -133,10 +133,10 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
 
     // build params
     const baseParams: any = {
-      brands: state.sel.brands,
-      categories: state.sel.categories,
-      manufacturers: state.sel.manufacturers,
-      models: state.sel.models,
+      brands: state.sel.brands.join(','),
+      categories: state.sel.categories.join(','),
+      manufacturers: state.sel.manufacturers.join(','),
+      models: state.sel.models.join(','),
       // only send attributes if non-empty
       ...(hasKeys(state.sel.attributes) ? { attributes: stableStringify(state.sel.attributes) } : {}),
       search: state.sel.q,
