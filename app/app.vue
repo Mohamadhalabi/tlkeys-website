@@ -9,7 +9,7 @@ const route = useRoute()
 
 // Update these numbers manually every few weeks/months
 const googleRating = ref(4.5)
-const googleReviewCount = ref(99)
+const googleReviewCount = ref(100)
 
 const { refreshRates } = useCurrency()
 if (process.client) {
@@ -46,7 +46,7 @@ useHead(() => {
         href="https://g.page/r/CfkHNOyn0dXBEAE/review" 
         target="_blank"
         class="fixed z-40 flex items-center bg-white shadow-[0_4px_14px_rgba(0,0,0,0.15)] border border-gray-100 transition-all duration-200 hover:scale-105 hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)]
-               top-[180px] right-0 rounded-l-full pl-2.5 pr-1.5 py-1.5 gap-1
+               top-[350px] right-0 rounded-l-full pl-2.5 pr-1.5 py-1.5 gap-1
                sm:top-auto sm:bottom-36 sm:right-6 sm:rounded-full sm:px-3 sm:py-2.5"
         title="See our reviews on Google"
       >

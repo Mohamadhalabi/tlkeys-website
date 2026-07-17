@@ -104,7 +104,10 @@
                     <!-- image -->
                     <NuxtImg v-if="p.image" :src="p.image" width="80" height="80" class="rounded border object-cover shrink-0" />
                     <div class="min-w-0 flex-1">
-                      <div class="text-md font-medium line-clamp-4" v-html="highlight(p.title)"></div>
+                      <div class="text-md font-medium line-clamp-4">
+                        <span v-html="highlight(p.title)"></span>
+                        <span class="ml-1 text-md text-green-700" v-html="highlight(p.short_description)"></span>
+                      </div>
                       <div class="text-sm font-bold text-green-700 line-clamp-1" v-if="p.sku" v-html="highlight('SKU: ' + p.sku)"></div>
                     </div>
                     <!-- price block -->
@@ -587,6 +590,13 @@ const activeId = computed(() => active.value >= 0 ? `sug-${active.value}` : unde
 
 function onFocus(){ if (term.value.trim().length >= 3) open.value = true }
 
+/* WhatsApp link builder */
+const WHATSAPP_NUMBER = '971504429045'
+function waLink(p: any) {
+  const msg = t('search.askAboutProduct', { title: p?.title || '' }) as string
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
+}
+
 /* helpers */
 const isString = (v: unknown): v is string => typeof v === 'string' && v.trim() !== ''
 const nameFromJson = (n: any): string => {
@@ -598,6 +608,8 @@ const nameFromJson = (n: any): string => {
   if (typeof n === 'object') return (n.en ?? Object.values(n)[0] ?? '') as string
   return String(n)
 }
+const stripHtml = (s: string) =>
+  String(s || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c] as string))
 const buildRegex = (q: string) => {
   const words = q.trim().split(/\s+/).filter(Boolean)
@@ -654,6 +666,7 @@ async function fetchSuggest() {
     const mapped = (dataArr || []).map((p: any) => ({
       ...p,
       title: nameFromJson(p?.title),
+      short_description: stripHtml(nameFromJson(p?.short_description)),
       image: isString(p?.image) ? p.image : null
     }))
     suggestions.value = mapped

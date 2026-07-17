@@ -22,7 +22,9 @@ const loading        = ref(false)
 const passcodeResult = ref<string | null>(null)
 const errorMsg       = ref<string | null>(null)
 const attemptInfo    = ref<{
+  attemptNumber: number
   isPaidAttempt: boolean
+  attemptsUntilCharge: number
 } | null>(null)
 const copied         = ref(false)
 
@@ -87,7 +89,6 @@ const formatInput = (key: keyof typeof form.value, e: Event) => {
 
 const handleCalculate = async () => {
   if (!isFormValid.value || !isAuthenticated.value) return
-
   errorMsg.value = null
   passcodeResult.value = null
   attemptInfo.value = null
@@ -104,7 +105,9 @@ const handleCalculate = async () => {
     if (res?.status === 'success' && res?.passcode) {
       passcodeResult.value = res.passcode
       attemptInfo.value = {
-        isPaidAttempt: res.is_paid_attempt === true
+        attemptNumber: res.attempt_number || 0,
+        isPaidAttempt: res.is_paid_attempt === true,
+        attemptsUntilCharge: res.attempts_until_next_charge || 0
       }
 
       // Update user's token count from the server's authoritative value
@@ -444,13 +447,23 @@ useHead({
                   <p class="text-sm text-blue-800 font-medium">
                     {{ t('toyota_passcode.result_note') }}
                   </p>
-
                   <!-- Paid / Free indicator -->
                   <div v-if="attemptInfo" class="bg-blue-100/50 rounded-lg p-3 mt-3">
                     <p class="text-xs font-semibold" :class="attemptInfo.isPaidAttempt ? 'text-orange-600' : 'text-green-600'">
                       {{ attemptInfo.isPaidAttempt
                           ? '1 token used for this calculation'
                           : 'Free — same VIN and data as a previous calculation' }}
+                    </p>
+                  </div>
+                  <!-- Attempt Info Display -->
+                  <div v-if="attemptInfo" class="bg-blue-100/50 rounded-lg p-3 mt-3 space-y-1">
+                    <p class="text-xs text-blue-700 font-semibold">
+                      ✓ Attempt #{{ attemptInfo.attemptNumber }}
+                      <span v-if="attemptInfo.isPaidAttempt" class="ml-2 text-orange-600">(PAID)</span>
+                      <span v-else class="ml-2 text-green-600">(FREE)</span>
+                    </p>
+                    <p class="text-xs text-blue-600">
+                      Free attempts until next charge: {{ attemptInfo.attemptsUntilCharge }}
                     </p>
                   </div>
 

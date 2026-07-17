@@ -69,7 +69,12 @@
                     />
 
                     <div class="min-w-0 flex-1">
-                      <div class="text-md font-medium line-clamp-4" v-html="highlight(p.title)"></div>
+                    <div class="text-md font-medium line-clamp-4">
+                      <div class="text-md font-medium line-clamp-4">
+                        <span v-html="highlight(p.title)"></span>
+                        <span class="ml-1 text-md text-green-700" v-html="highlight(p.short_description)"></span>
+                      </div>
+                    </div>
                       <div
                         class="text-sm font-bold text-green-700 line-clamp-1"
                         v-if="p.sku"
@@ -80,7 +85,7 @@
                     <!-- ✅ Price: if display_euro_price == 1 use euro_price and EUR symbol -->
                     <div v-if="!p.hide_price" class="text-right whitespace-nowrap">
                       <div class="text-base font-semibold text-red-700">
-                        {{ displayPriceText(p) }}
+                        {{ displayPriceText(p) }} 
                       </div>
                       <div
                         v-if="!isEuroOverride(p) && oldFor(p) !== null"
@@ -321,10 +326,13 @@ async function fetchSuggest() {
   try {
     const res: any = await $customApi('/search/suggest', { params: { search: q, limit: 5 } })
     const { dataArr, metaObj } = unpack(res)
+    const stripHtml = (s: string) =>
+      String(s || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
 
     const mapped = (dataArr || []).map((p: any) => ({
       ...p,
       title: nameFromJson(p?.title),
+      short_description: stripHtml(nameFromJson(p?.short_description)),
       image: isString(p?.image) ? p.image : null
     }))
     suggestions.value = mapped
@@ -349,7 +357,6 @@ function move(delta:number){
   const n = suggestions.value.length
   active.value = ((active.value + delta + n) % n)
 }
-function pick(p:any){ open.value = false; router.push(p.href || `/products/${p.slug || p.id}`) }
 function goToShop(){
   const q = term.value.trim(); if (!q) return
   open.value = false
