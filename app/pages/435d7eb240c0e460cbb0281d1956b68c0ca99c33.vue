@@ -158,7 +158,7 @@ async function handleSubmit() {
         tokensLeft.value = data?.requests_left_month ?? tokensLeft.value
       }
 
-      if (data?.available_in_db && usernameCookie.value === '4immo8110') greenTextState.value = true
+      if (data?.available_in_db && usernameCookie.value === '4immo81100') greenTextState.value = true
     }
   } catch (e: any) {
     if (e?.data?.errors?.vin?.[0]) errorMessage.value = e.data.errors.vin[0]
