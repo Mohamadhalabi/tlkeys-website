@@ -186,7 +186,7 @@ async function handleSubmit() {
         <!-- Limits -->
         <div v-if="requestsLeft !== null || subscriptionEnds !== null" class="text-sm text-neutral-300 space-y-1">
           <div v-if="requestsLeft !== null">
-            <strong class="text-white">Queries left today:</strong> {{ requestsLeft }} / 5
+            <strong class="text-white">Queries left today:</strong> {{ requestsLeft }}
           </div>
           <div v-if="subscriptionEnds">
             <strong class="text-white">Subscription ends:</strong> {{ subscriptionEnds }}
