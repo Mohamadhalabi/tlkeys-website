@@ -138,7 +138,7 @@ const selectedCurrency = ref<CurrencyCode>(currency.value)
 const onCurrencyChange = () => {
   setCurrency(selectedCurrency.value)
   refreshNuxtData()
-  // window.location.reload()
+  window.location.reload()
 }
 
 const openLang = ref(false)
