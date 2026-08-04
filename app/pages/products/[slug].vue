@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick, markRaw } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, markRaw, unref } from 'vue'
 import { useI18n, useHead, useRoute, useRuntimeConfig, useNuxtApp, createError, navigateTo, useAsyncData, useLocalePath } from '#imports'
 import { computeUnitPrice } from '~/utils/pricing'
 
 /* composables */
 import { useCurrency } from '~/composables/useCurrency'
+import { useFxRate } from '~/composables/useFxRate'
 import { useCart } from '~/composables/useCart'
 import { useWishlist } from '~/composables/useWishlist'
 import { useAlertStore } from '~/stores/alert'
@@ -114,6 +115,10 @@ const absUrl = computed(() => baseSiteUrl.value + route.path)
 const { $customApi } = useNuxtApp()
 
 const { currency, formatMoney } = useCurrency()
+/* fxRate = USD -> selected currency. euroRate = USD -> EUR. Loaded once by the
+   fx-rates plugin, so this is synchronous and SSR-safe. */
+const { fxRate, euroRate, currencyCode } = useFxRate()
+
 const cart = useCart()
 const wishlist = useWishlist()
 const alerts = useAlertStore()
@@ -418,43 +423,60 @@ watch([() => product.value, () => minQty.value], ([p, min]) => {
   }
 }, { immediate: true })
 
-/* live price */
+/* ---------------- PRICING ---------------- */
+/* Everything handed to computeUnitPrice carries fx_rate, so fixed discounts get
+   converted from USD into whatever currency the prices arrived in. */
+const productForPricing = computed<any>(() => {
+  if (!product.value) return null
+  return { ...(product.value as any), fx_rate: fxRate.value }
+})
+
+const useEuro = computed(() => !!product.value?.display_euro_price && toNum(product.value?.euro_price) != null)
+
+/* Currency actually being shown. euro_price forces EUR regardless of switcher. */
+const displayCurrency = computed(() => (useEuro.value ? 'EUR' : (currencyCode.value || 'USD')))
+
 const rawFallback = computed(() => {
   const p = product.value as any
   return p ? (toNum(p.sale_price) ?? toNum(p.price) ?? toNum(p.regular_price) ?? 0) : 0
 })
+
+/* Manual discount application, for the two paths computeUnitPrice can't cover:
+   the euro_price field, and the fallback when the helper returns 0. */
+function applyDiscountManually(price: number, rate: number) {
+  const p = product.value
+  if (!p) return price
+  const dtype = p.discount_type
+  const dval  = toNum(p.discount_value)
+  const active = !!p.discount_active && (dtype === 'fixed' || dtype === 'percent') && (dval ?? 0) > 0
+  if (!active) return price
+  if (dtype === 'percent') return Math.max(0, price * (1 - (dval as number) / 100))
+  return Math.max(0, price - (dval as number) * rate) // fixed: convert USD -> display
+}
+
 const unitPrice = computed(() => {
   if (!product.value) return 0
+
+  /* euro_price is a hand-entered EUR figure; discount_value is still USD. */
   if (useEuro.value) {
-    const base = toNum(product.value!.euro_price) ?? 0
-    const dtype = product.value!.discount_type
-    const dval  = toNum(product.value!.discount_value)
-    const hasActive = !!product.value!.discount_active && (dtype === 'fixed' || dtype === 'percent') && (dval ?? 0) > 0
-    if (!hasActive) return base
-    if (dtype === 'fixed') return Math.max(0, base - (dval as number))
-    if (dtype === 'percent') return Math.max(0, base * (1 - (dval as number) / 100))
-    return base
+    const base = toNum(product.value.euro_price) ?? 0
+    return applyDiscountManually(base, euroRate.value)
   }
-  const base = computeUnitPrice(product.value as any, qty.value).unit
-  let unit = base > 0 ? base : (rawFallback.value || 0)
-  const noPromo = unitWithoutDiscount.value
-  const dtype = product.value.discount_type
-  const dval  = toNum(product.value.discount_value)
-  const hasActive = !!product.value.discount_active && (dtype === 'fixed' || dtype === 'percent') && (dval ?? 0) > 0
-  const helperMissedIt = unit >= noPromo - 1e-9
-  if (hasActive && helperMissedIt) {
-    if (dtype === 'fixed')   unit = Math.max(0, unit - (dval as number))
-    if (dtype === 'percent') unit = Math.max(0, unit * (1 - (dval as number) / 100))
-  }
-  return unit
+
+  const base = computeUnitPrice(productForPricing.value, qty.value).unit
+  if (base > 0) return base
+
+  /* Helper returned nothing usable — discount by hand off the raw fallback. */
+  return applyDiscountManually(rawFallback.value || 0, fxRate.value)
 })
 
 const unitWithoutDiscount = computed(() => {
   if (!product.value) return 0
-  if (useEuro.value) return 0 
+  if (useEuro.value) return toNum(product.value.euro_price) ?? 0
   const forcedBase = (typeof product.value.regular_price === 'number' && product.value.regular_price > 0) ? product.value.regular_price : Number(product.value.price || 0)
   const p: any = {
     ...(product.value as any),
+    fx_rate: fxRate.value,
     discount_type: null, discount_value: null, sale_price: null, price: forcedBase,
     table_price: Array.isArray(product.value.table_price) ? product.value.table_price.map(r => ({ ...r, sale_price: null })) : null,
   }
@@ -463,22 +485,9 @@ const unitWithoutDiscount = computed(() => {
 
 const displayPrice = computed(() => {
   if (!product.value) return { current: 0, old: null as number | null }
-  if (useEuro.value) {
-    const base = toNum(product.value!.euro_price) ?? 0
-    const dtype = product.value!.discount_type
-    const dval  = toNum(product.value!.discount_value)
-    const hasActive = !!product.value!.discount_active && (dtype === 'fixed' || dtype === 'percent') && (dval ?? 0) > 0
-    let current = base
-    let old: number | null = null
-    if (hasActive && base > 0) {
-      if (dtype === 'fixed') current = Math.max(0, base - (dval as number))
-      else if (dtype === 'percent') current = Math.max(0, base * (1 - (dval as number) / 100))
-      old = base
-    }
-    return { current, old }
-  }
   const current = unitPrice.value
-  const old = current < unitWithoutDiscount.value ? unitWithoutDiscount.value : null
+  const noPromo = unitWithoutDiscount.value
+  const old = current < noPromo - 1e-9 ? noPromo : null
   return { current, old }
 })
 
@@ -495,10 +504,9 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 const adding = ref(false)
 const wishing = ref(false)
 const inWish = computed(() => product.value ? wishlist.isInWishlist(String(product.value.id)) : false)
-const useEuro = computed(() => !!product.value?.display_euro_price && toNum(product.value?.euro_price) != null)
 
 const formatDisplayMoney = (amount: number | null | undefined) =>
-  new Intl.NumberFormat(undefined, { style: 'currency', currency: useEuro.value ? 'EUR' : (currency.value || 'USD') }).format(Number(amount || 0))
+  new Intl.NumberFormat(undefined, { style: 'currency', currency: displayCurrency.value }).format(Number(amount || 0))
 
 async function onAddToCart() {
   if (!product.value) return
@@ -536,6 +544,7 @@ async function onAddToCart() {
       display_euro_price: p.display_euro_price,
       discount_type: p.discount_type ?? null,
       discount_value: toNum(p.discount_value),
+      fx_rate: fxRate.value,          // so the cart can redo the math correctly
       priceSnapshot: unit,
       stock: typeof p.quantity === 'number' ? p.quantity : null,
       serial_number: requiresSerial.value ? [serial.value.trim()] : null,
@@ -552,8 +561,10 @@ async function onToggleWishlist() {
   try {
     wishing.value = true
     const p = product.value
-    const { unit } = computeUnitPrice(p as any, Math.max(1, Number(qty.value || 1)))
-    const snapshotPrice = unit > 0 ? unit : (toNum(p.sale_price) ?? toNum(p.price) ?? toNum(p.regular_price) ?? 0)
+    // Reuse the corrected unit price so the snapshot matches what's on screen.
+    const snapshotPrice = unitPrice.value > 0
+      ? unitPrice.value
+      : (toNum(p.sale_price) ?? toNum(p.price) ?? toNum(p.regular_price) ?? 0)
     await wishlist.toggle(p.id, {
       title: p.title,
       image: p.image || p.images?.[0]?.src,
@@ -565,6 +576,7 @@ async function onToggleWishlist() {
       table_price:   Array.isArray(p.table_price) ? (p.table_price as any) : null,
       discount_type: p.discount_type ?? null,
       discount_value: toNum(p.discount_value) ?? null,
+      fx_rate: fxRate.value,
     })
   } finally { wishing.value = false }
 }
@@ -629,7 +641,8 @@ useHead(() => {
     }
   }
 
-  const cur = currency.value || 'USD'
+  // Was hardcoded to the switcher currency while prices could be EUR — now matches.
+  const cur = displayCurrency.value
   const qtyNum = Number(p?.quantity ?? 0)
   const availability = qtyNum > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock'
   const regularPrice = Number(p?.regular_price || p?.price || 0)
@@ -691,7 +704,8 @@ useHead(() => {
       { name: 'robots', content: 'index,follow,max-image-preview:large' }
     ],
     link: [
-      { rel: 'canonical', href: canonicalAbsUrl },
+      // was: href: canonicalAbsUrl  (a ref -> renders as [object Object])
+      { rel: 'canonical', href: canonicalAbsUrl.value },
       ...(primary ? [{
           rel: 'preload',
           as: 'image',
@@ -816,6 +830,8 @@ watch(() => product.value?.id, () => {
             :sku="product.sku"
             :discount-ends-at="product.discount_active ? product.discount_end : null"
             :discount-amount="hasDiscountNow ? discountAmountNow : 0"
+            :discount-currency="displayCurrency"
+            :discount-label="hasDiscountNow ? formatDisplayMoney(discountAmountNow) : ''"
             :hero-canonical="primaryImageAbs"
           />
         </div>
@@ -1044,7 +1060,7 @@ watch(() => product.value?.id, () => {
                 <div v-if="hasTablePrice" class="lg:pl-6 lg:border-l border-gray-100">
                   <ProductPriceTable
                     :rows="product!.table_price!"
-                    :currency="currency.value"
+                    :currency="displayCurrency"
                     :compact="true"
                     :title="_t('product.quantityPricing','Quantity Pricing')"
                   />

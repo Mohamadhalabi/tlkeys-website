@@ -21,10 +21,10 @@ export const useCurrency = () => {
   // Shared state — initialized once, reused everywhere
   const rates = useState<Record<CurrencyCode, number>>('fx-rates', () => ({
     USD: 1,
-    EUR: 0.87,
-    GBP: 0.76,
+    EUR: 0.84,
+    GBP: 0.74,
     AED: 3.6725,
-    TRY: 45.00,
+    TRY: 47.50,
   }))
 
   // Shared in-flight promise — if two components call this simultaneously,

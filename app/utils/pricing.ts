@@ -14,6 +14,16 @@ export type ProductLike = {
   table_price?: PriceTableRow[] | null
   discount_type?: 'percent' | 'fixed' | null
   discount_value?: number | string | null
+  /**
+   * Multiplier from BASE currency (USD) to the currency the `price` fields are
+   * already expressed in. Defaults to 1 when omitted, so any existing caller
+   * that doesn't pass it behaves exactly as before.
+   *
+   * Why this exists: the API converts prices server-side but sends
+   * `discount_value` in USD. Subtracting 14 (USD) from 419.52 (AED) gave
+   * 405.52 instead of the correct 368.10.
+   */
+  fx_rate?: number | null
 }
 
 /**
@@ -30,8 +40,14 @@ export function computeUnitPrice(
   stackDiscountOnTiers = false // kept for API compatibility; with "discount overrides sale", stacking has no effect
 ): { unit: number; total: number; source: 'tier' | 'sale' | 'base' | 'base+discount' } {
   const q = Math.max(1, Number(qty || 1))
-  const { type: discType, value: discValue } = discountInfo(product)
-  const hasDiscount = !!discType && discValue > 0
+  const { type: discType, value: rawDiscValue } = discountInfo(product)
+  const hasDiscount = !!discType && rawDiscValue > 0
+
+  // ---- Currency normalisation ----
+  // A percent discount is a ratio and is currency-agnostic — never scale it.
+  // A fixed discount is an amount in USD and must be converted to match `base`.
+  const fx = fxRate(product)
+  const discValue = discType === 'fixed' ? rawDiscValue * fx : rawDiscValue
 
   // ---- Tier selection ----
   const tier = pickTier(product.table_price || [], q)
@@ -77,7 +93,22 @@ export function computeUnitPrice(
   return { unit, total: clampMoney(unit * q), source: num(product.sale_price) && num(product.sale_price)! > 0 ? 'sale' : 'base' }
 }
 
+/**
+ * The fixed-discount amount expressed in the product's display currency.
+ * Useful for "X OFF" badges so they stop showing the raw USD figure.
+ * Returns 0 for percent discounts and when no discount is active.
+ */
+export function fixedDiscountAmount(product: ProductLike): number {
+  const { type, value } = discountInfo(product)
+  if (type !== 'fixed' || value <= 0) return 0
+  return clampMoney(value * fxRate(product))
+}
+
 /* ---------------- helpers ---------------- */
+function fxRate(p: ProductLike): number {
+  const r = num(p.fx_rate)
+  return r !== null && r > 0 ? r : 1
+}
 function num(x: unknown): number | null {
   if (typeof x === 'number' && Number.isFinite(x)) return x
   if (typeof x === 'string') {
