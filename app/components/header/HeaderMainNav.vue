@@ -109,6 +109,17 @@
         >
           {{ $t('pinCodes') || 'Pin Codes' }}
         </NuxtLinkLocale>
+
+
+        <NuxtLinkLocale
+          to="/pincode-account"
+          class="px-4 py-3 hover:bg-gray-800 flex items-center gap-2"
+          :class="linkClass('/downloads')"
+          :aria-current="isActive('/downloads') ? 'page' : undefined"
+        >
+          Pin Code Account
+        </NuxtLinkLocale>
+
       </div>
 
       <!-- Cars dropdown -->

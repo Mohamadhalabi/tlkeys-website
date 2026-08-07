@@ -18,7 +18,8 @@
 
     <div class="container mx-auto max-w-7xl px-4 mt-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <section class="lg:col-span-4">
+        <!-- OFFLINE — second on mobile, first from lg up -->
+        <section class="order-2 lg:order-1 lg:col-span-5 xl:col-span-4">
           <h3 class="text-center text-xl md:text-2xl font-extrabold tracking-tight text-gray-900">
             {{ t('pincode.pincodeoffline') }}
           </h3>
@@ -46,7 +47,7 @@
                 <p class="mt-1 text-center text-sm font-semibold text-gray-900">
                   {{ brand?.short_title }}
                 </p>
-                
+
                 <b v-if="Number(brand?.price?.value) > 0" class="mt-auto text-center block text-base text-orange-700">
                   {{ brand?.price?.value }} {{ brand?.price?.currency }}
                 </b>
@@ -55,32 +56,46 @@
           </div>
         </section>
 
-        <section class="lg:col-span-8">
+        <!-- ONLINE — first on mobile, second from lg up -->
+        <section class="order-1 lg:order-2 lg:col-span-7 xl:col-span-8">
           <h3 class="text-center text-xl md:text-2xl font-extrabold tracking-tight text-gray-900">
             {{ t('pincode.pincodeonline') }}
           </h3>
 
-          <div class="mt-4 rounded-xl overflow-hidden ring-1 ring-gray-200 bg-white">
-            <iframe
-              height="520"
-              width="100%"
-              src="https://vin.prokeytools.com/login"
-              class="block"
-              style="border: none;"
-              loading="lazy"
-              referrerpolicy="no-referrer-when-downgrade"
-              title="Pro Key Tools — VIN Login"
+          <div class="mt-4">
+            <PinCodeCalculator
+              ref="calc"
+              endpoint="/pin-code/calculate"
+              :price-pre="15"
+              :price-post="55"
+              @pay="onPay"
+              @success="onPinSuccess"
             />
           </div>
 
-          <h4 class="mt-4 text-center text-lg font-semibold text-gray-800">
-            {{ t('pincode.togetpincode') }}
-          </h4>
+          <!-- ▼▼ NEW: products grid for category_id = 6688 ▼▼ -->
+          <div ref="calcGridEl" class="mt-8">
+            <ProductGrid
+              :key="gridKeyCalc"
+              :title="t('labels.products')"
+              :products="calcItems"
+              :rows="rowsForCalcGrid"
+              :products-per-row="CALC_PRODUCTS_PER_ROW"
+              :show-rewards="true"
+              :show-add="true"
+              :show-qty="true"
+              container-class="max-w-screen-2xl"
+            />
+            <div v-if="loadingCalcItems" class="px-3 py-4 text-sm text-gray-500">
+              {{ t('common.loading') }}
+            </div>
+          </div>
+          <!-- ▲▲ END NEW ▲▲ -->
         </section>
       </div>
     </div>
 
-    <section ref="pinGridEl" class="container mx-auto max-w-7xl px-4 mt-10">
+    <!-- <section ref="pinGridEl" class="container mx-auto max-w-7xl px-4 mt-10">
       <ProductGrid
         :key="gridKey"
         :title="t('labels.products')"
@@ -93,7 +108,7 @@
         container-class="max-w-screen-2xl"
       />
       <div v-if="loadingItems" class="px-3 py-4 text-sm text-gray-500">{{ t('common.loading') }}</div>
-    </section>
+    </section> -->
   </main>
 </template>
 
@@ -101,6 +116,7 @@
 import { ref, computed, onMounted } from 'vue'
 import ProductGrid from '~/components/products/ProductGrid.vue'
 import { NuxtImg } from '#components'
+import PinCodeCalculator from '~/components/pincode/PincodeForm.vue'
 
 /* i18n / routing */
 const { t, locale } = useI18n()
@@ -128,6 +144,27 @@ const { data: offlineRes } = await useAsyncData(
   { server: true, default: () => ({ data: [] }), dedupe: 'defer' }
 )
 const offlinePinCode = computed<any[]>(() => offlineRes.value?.data?.data ?? offlineRes.value?.data ?? [])
+
+/* ---------------- PIN calculator wiring ---------------- */
+const calc = ref<any>(null)
+
+function onPay(order: any) {
+  // Fires the moment the user commits to paying — good spot for analytics.
+  console.log('[PIN CODE] checkout started', order)
+}
+
+function onPinSuccess(payload: any) {
+  // Refresh balance, push to order history, show a toast, etc.
+  console.log('[PIN CODE] result', payload)
+}
+
+/* After a PayPal / card redirect returns, run the calculation automatically. */
+onMounted(() => {
+  if (route.query.paid === '1' && route.query.vin) {
+    calc.value?.setVin(String(route.query.vin))
+    calc.value?.calculate()
+  }
+})
 
 /* ---------------- helpers (same style as your home page) ---------------- */
 function unwrapApi(res: any) {
@@ -186,6 +223,42 @@ function useLazySection(cb: () => void) {
   return { el }
 }
 
+/* Shared fetcher so both grids use the exact same pipeline */
+async function fetchByCategory(opts: {
+  categoryId: number
+  page?: number
+  rows?: number
+  perRow?: number
+  target: { list: any; meta: any; page: any; last: any; loading: any }
+  label?: string
+}) {
+  const { categoryId, page = 1, rows = 1, perRow = 12, target, label = 'PRODUCTS' } = opts
+  try {
+    target.loading.value = true
+    const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
+      method: 'GET',
+      params: {
+        page,
+        rows,
+        per_row: perRow,
+        category_id: categoryId,
+        only_featured: 0,   // include all items in this category
+        currency: 'USD',
+      }
+    })
+    const { items: list, meta } = unwrapApi(res)
+    target.list.value    = list.map(mapApiProduct)
+    target.meta.value    = meta
+    target.page.value    = Number(meta?.current_page || page || 1)
+    target.last.value    = lastFromMeta(meta)
+  } catch (err) {
+    console.error(`[${label}] fetch error:`, err)
+    target.list.value = []
+  } finally {
+    target.loading.value = false
+  }
+}
+
 /* ---------------- PIN CODE (ONLINE) by category_id = 4 ---------------- */
 const items           = ref<any[]>([])
 const itemsMeta       = ref<any | null>(null)
@@ -198,34 +271,48 @@ const rowsForGrid = 1
 const gridKey = 'grid-pincode'
 
 async function fetchPinCode(page = 1, rows = rowsForGrid, perRow = PRODUCTS_PER_ROW) {
-  try {
-    loadingItems.value = true
-    const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
-      method: 'GET',
-      params: {
-        page,
-        rows,
-        per_row: perRow,
-        category_id: 4,     // 👈 PIN CODE category
-        only_featured: 0,   // include all items in this category
-        currency: 'USD',
-      }
-    })
-    const { items: list, meta } = unwrapApi(res)
-    items.value        = list.map(mapApiProduct)
-    itemsMeta.value    = meta
-    itemsPage.value    = Number(meta?.current_page || page || 1)
-    itemsLastRef.value = lastFromMeta(meta)
-  } catch (err) {
-    console.error('[PINCODE] fetch error:', err)
-    items.value = []
-  } finally {
-    loadingItems.value = false
-  }
+  await fetchByCategory({
+    categoryId: 4,
+    page, rows, perRow,
+    label: 'PINCODE',
+    target: { list: items, meta: itemsMeta, page: itemsPage, last: itemsLastRef, loading: loadingItems },
+  })
 }
 
 /* Lazy-load the grid when it comes into view */
 const { el: pinGridEl } = useLazySection(() => fetchPinCode(1, rowsForGrid, PRODUCTS_PER_ROW))
+
+/* ---------------- NEW: grid under the calculator, category_id = 6688 ---------------- */
+const calcItems        = ref<any[]>([])
+const calcItemsMeta    = ref<any | null>(null)
+const calcItemsPage    = ref(1)
+const calcItemsLastRef = ref(1)
+const loadingCalcItems = ref(false)
+
+/* This column is narrower (lg:col-span-7), so keep the row tighter than the full-width grid. */
+const CALC_CATEGORY_ID = 6688
+const CALC_PRODUCTS_PER_ROW = 4
+const rowsForCalcGrid = 2
+const gridKeyCalc = 'grid-pincode-6688'
+
+async function fetchCalcCategory(page = 1, rows = rowsForCalcGrid, perRow = CALC_PRODUCTS_PER_ROW) {
+  await fetchByCategory({
+    categoryId: CALC_CATEGORY_ID,
+    page, rows, perRow,
+    label: 'PINCODE-6688',
+    target: {
+      list: calcItems,
+      meta: calcItemsMeta,
+      page: calcItemsPage,
+      last: calcItemsLastRef,
+      loading: loadingCalcItems,
+    },
+  })
+}
+
+const { el: calcGridEl } = useLazySection(() =>
+  fetchCalcCategory(1, rowsForCalcGrid, CALC_PRODUCTS_PER_ROW)
+)
 
 /* ---------------- SEO ---------------- */
 const siteName = 'Techno Lock Keys'
@@ -308,7 +395,10 @@ useHead({
 })
 
 /* Optional: expose for quick debugging */
-if (process.client) (window as any).__pin = { itemsMeta, itemsPage, itemsLastRef }
+if (process.client) {
+  (window as any).__pin = { itemsMeta, itemsPage, itemsLastRef }
+  ;(window as any).__pin6688 = { calcItemsMeta, calcItemsPage, calcItemsLastRef }
+}
 </script>
 
 <style scoped>

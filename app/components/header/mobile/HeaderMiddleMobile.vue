@@ -232,7 +232,29 @@
             </li>
           </ul>
         </nav>
-        <hr />
+
+        <!-- ✅ Secondary bar items (parity with SecondaryStickyBar) -->
+        <div class="border-t border-b bg-gray-50/60">
+          <ul class="divide-y divide-gray-200">
+            <li v-for="item in secondaryItems" :key="item.key">
+              <NuxtLinkLocale
+                :to="item.to"
+                :aria-current="isSecondaryActive(item) ? 'page' : undefined"
+                class="flex items-start gap-3 px-4 py-3 pr-6 text-sm font-semibold leading-snug transition-colors hover:bg-gray-100"
+                :class="secondaryClass(item)"
+                @click="close"
+              >
+                <SubnavIcon
+                  :name="item.key"
+                  class="w-[18px] h-[18px] shrink-0 mt-0.5"
+                  :class="{ 'animate-pulse': item.key === 'hot-deals' }"
+                  aria-hidden="true"
+                />
+                <span class="min-w-0 break-words">{{ item.label }}</span>
+              </NuxtLinkLocale>
+            </li>
+          </ul>
+        </div>
 
         <!-- ACCORDION -->
         <div class="divide-y">
@@ -369,7 +391,7 @@
                       v-for="item in filteredSoftwares"
                       :key="'soft-'+item.slug"
                       class="group flex flex-col items-center gap-2 rounded-lg border border-gray-200 p-3 hover:bg-gray-50"
-                      @click="goToBrand(item.slug)"
+                      @click="goToBrand(item.slug, 'software')"
                     >
                       <NuxtImg :src="item.image" :alt="item.name" class="h-16 w-16 object-contain" />
                       <span class="text-xs text-gray-800 line-clamp-1">{{ item.name }}</span>
@@ -383,7 +405,7 @@
                       v-for="item in filteredTokens"
                       :key="'tok-'+item.slug"
                       class="group flex flex-col items-center gap-2 rounded-lg border border-gray-200 p-3 hover:bg-gray-50"
-                      @click="goToBrand(item.slug)"
+                      @click="goToBrand(item.slug, 'token')"
                     >
                       <NuxtImg :src="item.image" :alt="item.name" class="h-16 w-16 object-contain" />
                       <span class="text-xs text-gray-800 line-clamp-1">{{ item.name }}</span>
@@ -416,25 +438,20 @@
                 </NuxtLinkLocale>
               </li>
 
+              <!-- Pin Code Account (parity with desktop main nav) -->
               <li>
                 <NuxtLinkLocale
-                  to="/kia-hyundai-part-number-lookup"
+                  to="/pincode-account"
                   class="block px-3 py-3 hover:bg-gray-50"
                   @click="close"
                 >
-                  {{ $t('vin_lookup.title') || 'Kia / Hyundai Part Number Lookup' }}
+                  Pin Code Account
                 </NuxtLinkLocale>
               </li>
 
-              <li>
-                <NuxtLinkLocale
-                  to="/toyota-passcode"
-                  class="block px-3 py-3 hover:bg-gray-50"
-                  @click="close"
-                >
-                  {{ $t('toyota_passcode.title') || 'Toyota Passcode Online Calculator' }}
-                </NuxtLinkLocale>
-              </li>
+              <!-- NOTE: /kia-hyundai-part-number-lookup and /toyota-passcode
+                   now live in the secondary-bar section above, so they are
+                   no longer duplicated here. -->
             </ul>
           </div>
           
@@ -452,10 +469,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick, h, defineComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSwitchLocalePath } from '#i18n'
 import { useRouter, useRoute, useNuxtApp, useRuntimeConfig } from '#app'
+import { useLocalePath } from '#imports' // ✅ locale-aware navigation (parity with desktop nav)
 import {
   UserPlusIcon,
   ShoppingCartIcon,
@@ -482,6 +500,7 @@ const { t, locale } = useI18n()
 const switchLocalePath = useSwitchLocalePath()
 const router = useRouter()
 const route  = useRoute()
+const localePath = useLocalePath() // ✅
 const { $customApi } = useNuxtApp()
 const { public: { API_BASE_URL } } = useRuntimeConfig()
 
@@ -491,6 +510,55 @@ const cart = useCart()
 /* Drawer */
 const drawerOpen = ref(false)
 function close(){ drawerOpen.value = false }
+
+/* ---------- Secondary bar items (mirrors SecondaryStickyBar.vue) ---------- */
+const secondaryItems = computed(() => ([
+  { key: 'hot-deals',       label: t('subnav.hotdeals',       'Hot Deals'),                        to: '/shop?lowest-price-guaranteed' },
+  { key: 'offers',          label: t('subnav.offers',         'Offers'),                           to: '/shop?offers' },
+  { key: 'promotion',       label: t('subnav.promotion',      'Promotion'),                        to: '/shop?promotion' },
+  { key: 'free-shipping',   label: t('subnav.freeShipping',   'Free Shipping'),                    to: '/shop?free-shipping' },
+  { key: 'bundled',         label: t('subnav.bundles',        'Bundles'),                          to: '/shop?bundled' },
+  { key: 'new-arrival',     label: t('subnav.newArrival',     'New Arrival'),                      to: '/shop?new-arrival=&sort=newest&per_page=25' },
+  { key: 'part-number',     label: t('vin_lookup.title',      'Kia / Hyundai Part Number Lookup'), to: '/kia-hyundai-part-number-lookup' },
+  { key: 'toyota-passcode', label: t('subnav.toyotaPasscode', 'Toyota Passcode'),                  to: '/toyota-passcode' },
+]))
+
+const isSecondaryActive = (item: any) => {
+  if (item.to.includes('/shop?')) {
+    return route.path === localePath('/shop') && (item.key in route.query)
+  }
+  return route.path === localePath(item.to.split('?')[0])
+}
+
+const secondaryClass = (item: any) => {
+  const activeItem = isSecondaryActive(item)
+  if (item.key === 'hot-deals') return activeItem ? 'text-rose-700 bg-rose-50' : 'text-rose-600'
+  if (item.key === 'new-arrival') return activeItem ? 'text-orange-800 bg-orange-50' : 'text-orange-700'
+  return activeItem ? 'text-orange-700 bg-orange-50' : 'text-gray-700'
+}
+
+/* ---------- Inline SVG icons for the secondary items ---------- */
+const SubnavIcon = defineComponent({
+  name: 'SubnavIcon',
+  props: { name: { type: String, required: true } },
+  setup(props, { attrs }) {
+    const common = { fill: 'none', viewBox: '0 0 24 24', 'stroke-width': 1.7, stroke: 'currentColor' }
+
+    return () => {
+      switch (props.name) {
+        case 'hot-deals': return h('svg', { ...common, ...attrs }, [ h('path', { d: 'M12 2c0 0-3 2.5-3 6 0 2.5 2 4.5 4 4.5 1 0 1.5-.5 1.5-1 0 2.5-2.5 4-4.5 4-3 0-5.5-2.5-5.5-5.5 0-.5.05-1 .15-1.5-1.3.8-2.15 2.3-2.15 4 0 3.5 3 6.5 6.5 6.5s6.5-3 6.5-6.5c0-4-3.5-7-3.5-10.5z' }) ])
+        case 'offers': return h('svg', { ...common, ...attrs }, [ h('circle', { cx: 12, cy: 12, r: 9 }), h('path', { d: 'M8.5 15.5l7-7' }), h('circle', { cx: 9, cy: 9, r: 1.25, fill: 'currentColor', stroke: 'none' }), h('circle', { cx: 15, cy: 15, r: 1.25, fill: 'currentColor', stroke: 'none' }) ])
+        case 'promotion': return h('svg', { ...common, ...attrs }, [ h('rect', { x: 3, y: 8.5, width: 18, height: 11, rx: 2 }), h('path', { d: 'M12 8.5v11M3 12.5h18' }), h('path', { d: 'M7.5 6c0-1.38 1.12-2.5 2.5-2.5S12 6 12 6s-2.5 0-4.5 0z' }), h('path', { d: 'M16.5 6c0-1.38-1.12-2.5-2.5-2.5S12 6 12 6s2.5 0 4.5 0z' }) ])
+        case 'free-shipping': return h('svg', { ...common, ...attrs }, [ h('path', { d: 'M2 13V6a2 2 0 0 1 2-2h9v9' }), h('path', { d: 'M13 9h5l3 4v4h-3' }), h('circle', { cx: 7, cy: 17, r: 2 }), h('circle', { cx: 17, cy: 17, r: 2 }), h('path', { d: 'M9 17h6' }) ])
+        case 'bundled': return h('svg', { ...common, ...attrs }, [ h('rect', { x: 3, y: 12, width: 8, height: 8, rx: 1.5 }), h('rect', { x: 13, y: 12, width: 8, height: 8, rx: 1.5 }), h('rect', { x: 8, y: 4, width: 8, height: 8, rx: 1.5 }), h('path', { d: 'M11 16h-4M21 16h-4M16 8h-4' }) ])
+        case 'new-arrival': return h('svg', { ...common, ...attrs }, [ h('path', { d: 'M12 3l1.6 3.6L17 8.2l-3.4 1.6L12 13l-1.6-3.2L7 8.2l3.4-1.6L12 3z' }), h('path', { d: 'M18.5 14l.9 2 .9 2-2-.9-2-.9 2-.9 2-.9z' }), h('path', { d: 'M5.5 10l.8 1.6L8 13l-1.7.8L5.5 16 4.7 13.8 3 13l1.7-.8L5.5 10z' }) ])
+        case 'part-number': return h('svg', { ...common, ...attrs }, [ h('path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' }), h('polyline', { points: '14 2 14 8 20 8' }), h('circle', { cx: 11, cy: 13, r: 2 }), h('path', { d: 'm14.5 16.5-2-2' }) ])
+        case 'toyota-passcode': return h('svg', { ...common, ...attrs }, [ h('path', { d: 'M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z' }), h('circle', { cx: '16.5', cy: '7.5', r: '.5', fill: 'currentColor' }) ])
+        default: return h('svg', { ...common, ...attrs })
+      }
+    }
+  }
+})
 
 /* Header height measurement (no shy) */
 const hdrRef = ref<HTMLElement|null>(null)
@@ -784,8 +852,34 @@ async function fetchDevicesMachines(){ loadingDevices.value = true; errorDevices
 async function fetchAccessoriesTools(){ loadingAccessories.value = true; errorAccessories.value=''; try{ const res = await $customApi(`${API_BASE_URL}/get_accessories_and_tools`, { method:'GET' }); accessoriesTools.value = extractAccessoriesTools(res) }catch(err:any){ errorAccessories.value = err?.data?.message || err?.message || (t('error') as string) }finally{ loadingAccessories.value=false } }
 async function fetchSoftwareTokens(){ loadingSoftTok.value = true; errorSoftTok.value=''; try{ const res = await $customApi(`${API_BASE_URL}/get_softwares_and_tokens`, { method:'GET' }); const {softwares:s,tokens:tks}=extractSoftwareTokens(res); softwares.value=s; tokens.value=tks }catch(err:any){ errorSoftTok.value = err?.data?.message || err?.message || (t('error') as string) }finally{ loadingSoftTok.value=false } }
 
-/* navigation + close */
-function goToBrand(slug:string){ drawerOpen.value = false; router.push({ path: `/${slug}` }) }
+/* navigation + close — mirrors the desktop main-nav implementation */
+function goToBrand(slug: string, category?: string) {
+  drawerOpen.value = false
+  if (!slug) return
+
+  // 1. Split the incoming slug into the path and the query string
+  const [pathPart, queryPart] = slug.split('?')
+
+  // 2. Ensure path starts with /
+  const rawPath = pathPart.startsWith('/') ? pathPart : `/${pathPart}`
+
+  // 3. Parse the query string into an object using URLSearchParams
+  //    (handles complex params like attributes={"status-10":...} correctly)
+  const queryObj: Record<string, string> = queryPart
+    ? Object.fromEntries(new URLSearchParams(queryPart))
+    : {}
+
+  // 4. If a separate category argument was passed, merge it in
+  if (category) {
+    queryObj.categories = category
+  }
+
+  // 5. Navigate — localePath for the path, query object passed separately
+  router.push({
+    path: localePath(rawPath),
+    query: queryObj
+  })
+}
 
 /* click-outside to close drawer popover if needed (optional) */
 watch(() => route.fullPath, () => { drawerOpen.value = false })
