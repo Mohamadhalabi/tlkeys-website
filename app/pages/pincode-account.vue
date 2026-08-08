@@ -181,16 +181,27 @@ const canonical = `${baseUrl}/pincode-account`
 const ogImage   = 'https://www.tlkeys.com/images/og-image.jpg'
 const logoUrl   = 'https://www.tlkeys.com/images/logo/techno-lock-desktop-logo.webp'
 
+const metaTitle = 'Kia & Hyundai PIN Code Online — Instant VIN to PIN | Techno Lock Keys'
+const metaDescription = 'Get Kia and Hyundai PIN codes online from your VIN in seconds. Covers models before 2017 and 2017 onwards. Buy tokens, run the calculation and receive the PIN code by email instantly.'
+
 useSeoMeta({
-  title: t('pincode.accountSeoTitle'),
-  description: t('pincode.accountSeoDescription'),
+  title: metaTitle,
+  description: metaDescription,
+
   ogType: 'website',
   ogSiteName: siteName,
-  ogTitle: t('pincode.accountOgTitle'),
-  ogDescription: t('pincode.accountOgDescription'),
+  ogTitle: metaTitle,
+  ogDescription: metaDescription,
   ogUrl: canonical,
   ogImage,
-  twitterCard: 'summary_large_image'
+  ogImageAlt: metaTitle,
+
+  twitterCard: 'summary_large_image',
+  twitterTitle: metaTitle,
+  twitterDescription: metaDescription,
+  twitterImage: ogImage,
+
+  robots: 'index, follow, max-image-preview:large',
 })
 
 const sameAs = [
@@ -204,8 +215,9 @@ const orgJsonLd = {
   '@type': 'Organization',
   name: siteName,
   url: `${baseUrl}/`,
+  logo: logoUrl,
   image: logoUrl,
-  description: t('pincode.accountOgDescription'),
+  description: metaDescription,
   sameAs,
   address: {
     '@type': 'PostalAddress',
@@ -216,7 +228,7 @@ const orgJsonLd = {
   telephone: '+971504429045',
   openingHoursSpecification: [{
     '@type': 'OpeningHoursSpecification',
-    dayOfWeek: ['Monday','Tuesday','Wednesday','Thursday','Saturday','Sunday'],
+    dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Saturday', 'Sunday'],
     opens: '08:00',
     closes: '18:00'
   }],
@@ -227,11 +239,73 @@ const orgJsonLd = {
 const webPageJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'CollectionPage',
-  name: t('pincode.accountOgTitle'),
+  name: metaTitle,
   url: canonical,
-  description: t('pincode.accountSeoDescription'),
+  description: metaDescription,
   inLanguage: locale.value,
   isPartOf: { '@type': 'WebSite', name: siteName, url: baseUrl }
+}
+
+const serviceJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Service',
+  name: 'Kia & Hyundai PIN Code Online',
+  serviceType: 'VIN to PIN code lookup',
+  description: metaDescription,
+  url: canonical,
+  provider: { '@type': 'Organization', name: siteName, url: `${baseUrl}/` },
+  areaServed: 'Worldwide',
+  brand: [
+    { '@type': 'Brand', name: 'Kia' },
+    { '@type': 'Brand', name: 'Hyundai' }
+  ],
+  offers: {
+    '@type': 'AggregateOffer',
+    priceCurrency: 'USD',
+    lowPrice: '15',
+    highPrice: '55',
+    availability: 'https://schema.org/InStock',
+    url: canonical
+  }
+}
+
+const faqJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'How do I get a Kia or Hyundai PIN code online?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Buy a token for the model year you need, enter the 17-character VIN in the calculator and submit it. The PIN code is shown on screen and sent to your email.'
+      }
+    },
+    {
+      '@type': 'Question',
+      name: 'Which model years are supported?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Both Kia and Hyundai vehicles built before 2017 and from 2017 onwards are supported. The model year is read automatically from character 10 of the VIN.'
+      }
+    },
+    {
+      '@type': 'Question',
+      name: 'How long does it take to receive the PIN code?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'The lookup runs instantly. The PIN code and key code appear within seconds and arrive by email at the same time.'
+      }
+    },
+    {
+      '@type': 'Question',
+      name: 'What happens if no PIN code is found for my VIN?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Your token is refunded automatically and you can contact our team on WhatsApp with the VIN so we can look it up for you.'
+      }
+    }
+  ]
 }
 
 const breadcrumbJsonLd = {
@@ -251,6 +325,8 @@ useHead({
   script: [
     { key: 'org-ldjson', type: 'application/ld+json', innerHTML: JSON.stringify(orgJsonLd) },
     { key: 'webpage-ldjson', type: 'application/ld+json', innerHTML: JSON.stringify(webPageJsonLd) },
+    { key: 'service-ldjson', type: 'application/ld+json', innerHTML: JSON.stringify(serviceJsonLd) },
+    { key: 'faq-ldjson', type: 'application/ld+json', innerHTML: JSON.stringify(faqJsonLd) },
     { key: 'breadcrumb-ldjson', type: 'application/ld+json', innerHTML: JSON.stringify(breadcrumbJsonLd) }
   ]
 })

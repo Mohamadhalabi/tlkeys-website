@@ -62,7 +62,7 @@ const items = computed(() => ([
   { key: 'bundled',         label: t('subnav.bundles',       'Bundles'),                          to: '/shop?bundled' },
   { key: 'new-arrival',     label: t('subnav.newArrival',    'New Arrival'),                      to: '/shop?new-arrival=&sort=newest&per_page=25' },
   { key: 'part-number',     label: t('vin_lookup.title',    'Kia / Hyundai Part Number Lookup'), to: '/kia-hyundai-part-number-lookup' },
-  { key: 'toyota-passcode', label: t('subnav.toyotaPasscode','Toyota Passcode'),                  to: '/toyota-passcode' },
+  { key: 'pincode-account', label: t('subnav.pincodeAccount', 'Pincode Account'),                  to: '/pincode-account' },
 ]))
 
 /* ----------------- Improved Active State Logic ----------------------- */
@@ -100,7 +100,7 @@ const Icon = defineComponent({
         case 'bundled': return h('svg', { ...common, ...attrs }, [ h('rect', { x: 3, y: 12, width: 8, height: 8, rx: 1.5 }), h('rect', { x: 13, y: 12, width: 8, height: 8, rx: 1.5 }), h('rect', { x: 8, y: 4, width: 8, height: 8, rx: 1.5 }), h('path', { d: 'M11 16h-4M21 16h-4M16 8h-4' }) ])
         case 'new-arrival': return h('svg', { ...common, ...attrs }, [ h('path', { d: 'M12 3l1.6 3.6L17 8.2l-3.4 1.6L12 13l-1.6-3.2L7 8.2l3.4-1.6L12 3z' }), h('path', { d: 'M18.5 14l.9 2 .9 2-2-.9-2-.9 2-.9 2-.9z' }), h('path', { d: 'M5.5 10l.8 1.6L8 13l-1.7.8L5.5 16 4.7 13.8 3 13l1.7-.8L5.5 10z' }) ])
         case 'part-number': return h('svg', { ...common, ...attrs }, [ h('path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' }), h('polyline', { points: '14 2 14 8 20 8' }), h('circle', { cx: 11, cy: 13, r: 2 }), h('path', { d: 'm14.5 16.5-2-2' }) ])
-        case 'toyota-passcode': return h('svg', { ...common, ...attrs }, [ h('path', { d: 'M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z' }), h('circle', { cx: '16.5', cy: '7.5', r: '.5', fill: 'currentColor' }) ])
+        case 'pincode-account': return h('svg', { ...common, ...attrs }, [ h('path', { d: 'M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z' }), h('circle', { cx: '16.5', cy: '7.5', r: '.5', fill: 'currentColor' }) ])
         default: return h('svg', { ...common, ...attrs })
       }
     }

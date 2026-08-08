@@ -11,7 +11,6 @@
           </p>
         </div>
 
-        <!-- Token balances -->
         <div v-if="authenticated && balancesLoaded" class="flex gap-2">
           <div
             v-for="b in balanceChips"
@@ -31,7 +30,6 @@
     </header>
 
     <form class="px-6 py-6 sm:px-8 sm:py-8" novalidate @submit.prevent="submit">
-      <!-- ── VIN ───────────────────────────────────────────── -->
       <div>
         <label for="pin-vin" class="block text-sm font-semibold uppercase tracking-wide text-gray-700">
           {{ tt('pincode.vin', 'VIN') }}
@@ -70,38 +68,6 @@
         </div>
       </div>
 
-      <!-- ── Model year ────────────────────────────────────── -->
-      <!-- <div class="mt-8 max-w-md">
-        <label for="pin-era" class="block text-sm font-semibold uppercase tracking-wide text-gray-700">
-          {{ tt('pincode.modelYear', 'Model year') }}
-        </label>
-        <select
-          id="pin-era"
-          v-model="era"
-          class="mt-2 w-full rounded-xl border-2 bg-white px-4 py-4 text-base sm:text-lg font-medium text-gray-900 transition focus:outline-none focus:ring-4"
-          :class="mismatch
-            ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20'
-            : 'border-gray-200 focus:border-orange-600 focus:ring-orange-500/20'"
-          @change="eraTouched = true"
-        >
-          <option value="" disabled>{{ tt('pincode.selectYear', 'Select model year') }}</option>
-          <option value="pre2017">{{ tt('pincode.pre2017', 'Before 2017') }}</option>
-          <option value="post2017">{{ tt('pincode.post2017', '2017 and newer') }}</option>
-        </select>
-
-        <p v-if="mismatch" class="mt-2 text-sm font-medium text-red-600">
-          {{ tt('pincode.eraMismatch', 'This VIN is a') }} <b>{{ detected?.year }}</b>
-          {{ tt('pincode.eraMismatch2', 'vehicle, which does not match your selection.') }}
-          <button type="button" class="font-semibold underline underline-offset-2" @click="useDetected">
-            {{ tt('pincode.useDetected', 'Use the detected year') }}
-          </button>
-        </p>
-        <p v-else-if="era && autoFilled" class="mt-2 text-sm text-gray-500">
-          {{ tt('pincode.autoFilled', 'Filled in from the VIN. Change it if the vehicle differs.') }}
-        </p>
-      </div> -->
-
-      <!-- ── No tokens / not signed in ─────────────────────── -->
       <div v-if="era && mode === 'empty'" class="mt-6 max-w-md rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-4">
         <p class="text-sm text-gray-700">
           {{ tt('pincode.noTokens', 'You have no tokens for this model year.') }}
@@ -115,9 +81,9 @@
         </NuxtLinkLocale>
       </div>
 
-      <div v-else-if="era && mode === 'login'" class="mt-6 max-w-md rounded-xl border-2 border-gray-200 px-4 py-4">
+      <div v-else-if="mode === 'login'" class="mt-6 max-w-md rounded-xl border-2 border-gray-200 px-4 py-4">
         <p class="text-sm text-gray-700">
-          {{ tt('pincode.signInFirst', 'Sign in to see your tokens and run a calculation.') }}
+          {{ tt('pincode.signInFirst', 'Log in to access the calculator.') }}
         </p>
         <NuxtLinkLocale
           :to="localePath('/login')"
@@ -127,7 +93,6 @@
         </NuxtLinkLocale>
       </div>
 
-      <!-- ── Action ────────────────────────────────────────── -->
       <div class="mt-8 flex flex-wrap items-center gap-4">
         <button
           type="submit"
@@ -142,7 +107,7 @@
         </button>
 
         <button
-          v-if="result || errorMessage"
+          v-if="result || errorMessage || notFound"
           type="button"
           class="text-sm font-medium text-gray-500 underline-offset-2 hover:text-gray-900 hover:underline"
           @click="reset"
@@ -154,31 +119,31 @@
       </div>
     </form>
 
-    <!-- ── Not found → contact us ──────────────────────────── -->
+    <!-- Lookup failed → contact us on WhatsApp -->
     <div v-if="notFound" class="mx-6 mb-6 sm:mx-8 rounded-xl border-2 border-amber-200 bg-amber-50 px-5 py-5" role="alert">
       <p class="text-base font-semibold text-amber-900">
-        {{ tt('pincode.notFoundTitle', 'PIN code not found for this VIN') }}
+        {{ tt('pincode.notFoundTitle', 'We could not get this PIN code automatically') }}
       </p>
       <p class="mt-1 text-sm text-amber-800">
-        {{ tt('pincode.notFoundBody', 'Your token was not used. Send us the VIN and our team will look into it for you.') }}
+        {{ tt('pincode.notFoundBody', 'Please contact us and we will provide you this code on WhatsApp. Your token was not used.') }}
       </p>
 
       <p class="mt-3 font-mono text-sm tracking-wider text-amber-900">{{ lastVin }}</p>
 
-      <a
-        :href="whatsappLink"
+      
+       <a :href="whatsappLink"
         target="_blank"
         rel="noopener noreferrer"
         class="mt-4 inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-500/30"
       >
         <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor" aria-hidden="true">
-          <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.22 8.22 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.24-8.23 2.2 0 4.27.86 5.83 2.41a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.23 8.23Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.24-.64.8-.78.97-.15.16-.29.18-.53.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.24-.02-.38.1-.5.11-.11.25-.29.37-.43.12-.15.16-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43h-.47c-.16 0-.43.06-.65.31-.22.24-.85.83-.85 2.03s.87 2.35.99 2.51c.12.16 1.71 2.61 4.14 3.66.58.25 1.03.4 1.38.51.58.19 1.11.16 1.53.1.47-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.11-.22-.17-.47-.29Z"/>
+          <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.22 8.22 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.24-8.23 2.2 0 4.27.86 5.83 2.41a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.23 8.23Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.24-.64.8-.78.97-.15.16-.29.18-.53.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.24-.02-.38.1-.5.11-.11.25-.29.37-.43.12-.15.16-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43h-.47c-.16 0-.43.06-.65.31-.22.24-.85.83-.85 2.03s.87 2.35.99 2.51c.12.16 1.71 2.61 4.14 3.66.58.25 1.03.4 1.38.51.58.19 1.11.16 1.53.1.47-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.11-.22-.17-.47-.29Z" />
         </svg>
         {{ tt('pincode.contactWhatsapp', 'Contact us on WhatsApp') }}
       </a>
     </div>
 
-    <!-- ── Other errors ────────────────────────────────────── -->
+    <!-- Auth / token / validation errors -->
     <div v-else-if="errorMessage" class="mx-6 mb-6 sm:mx-8 rounded-xl border border-red-200 bg-red-50 px-5 py-4" role="alert">
       <p class="text-sm font-medium text-red-800">{{ errorMessage }}</p>
       <NuxtLinkLocale
@@ -190,7 +155,7 @@
       </NuxtLinkLocale>
     </div>
 
-    <!-- ── Result ──────────────────────────────────────────── -->
+    <!-- Result -->
     <div v-if="result" class="border-t border-gray-200 bg-gray-50 px-6 py-6 sm:px-8" aria-live="polite">
       <div class="flex flex-wrap items-start justify-between gap-4">
         <dl class="grid gap-3 text-sm">
@@ -198,7 +163,7 @@
             <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">
               {{ tt('pincode.vin', 'VIN') }}
             </dt>
-            <dd class="mt-1 font-mono text-base tracking-wider text-gray-900 break-all">
+            <dd class="mt-1 font-mono text-xl font-bold tracking-[0.2em] text-gray-900 break-all">
               {{ result.vin }}
             </dd>
           </div>
@@ -216,7 +181,7 @@
             <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">
               {{ tt('pincode.yourPin', 'PIN code') }}
             </dt>
-            <dd class="mt-1 font-mono text-3xl font-bold tracking-[0.25em] text-gray-900">
+            <dd class="mt-1 font-mono text-xl font-bold tracking-[0.2em] text-gray-900">
               {{ result.pin }}
             </dd>
           </div>
@@ -230,6 +195,20 @@
           {{ copied ? tt('pincode.copied', 'Copied') : tt('pincode.copyAll', 'Copy all') }}
         </button>
       </div>
+
+      <p v-if="result.emailed" class="mt-5 flex items-center gap-2 text-sm text-green-700">
+        <svg viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 shrink-0" aria-hidden="true">
+          <path d="M2.94 6.34 10 10.75l7.06-4.41A2 2 0 0 0 15.2 5H4.8a2 2 0 0 0-1.86 1.34Z" />
+          <path d="M18 8.12l-7.47 4.67a1 1 0 0 1-1.06 0L2 8.12V13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8.12Z" />
+        </svg>
+        <span>
+          {{ tt('pincode.emailSent', 'A copy has been sent to') }}
+          <b class="font-semibold">{{ result.email }}</b>
+        </span>
+      </p>
+      <p v-else class="mt-5 text-sm text-gray-500">
+        {{ tt('pincode.emailFailed', 'We could not email this result. Please copy it before leaving the page.') }}
+      </p>
     </div>
   </section>
 </template>
@@ -237,20 +216,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 
-/**
- * Kia / Hyundai PIN calculator, token-gated.
- *
- * VIN → model year (from VIN char 10) → spend one token of that type.
- * When no PIN comes back the token is refunded server-side and the customer
- * is offered a WhatsApp link with the VIN pre-filled.
- */
-
 const props = withDefaults(defineProps<{
   balancesEndpoint?: string
   calculateEndpoint?: string
-  /** Where to send a user who has no tokens. Leave empty to hide the link. */
   buyUrl?: string
-  /** WhatsApp number in international format, digits only. */
   whatsappPhone?: string
 }>(), {
   balancesEndpoint: '/pin-code/balances',
@@ -278,15 +247,20 @@ function tt(key: string, fallback: string) {
 const vin = ref('')
 const era = ref<'' | 'pre2017' | 'post2017'>('')
 const vinTouched = ref(false)
-const eraTouched = ref(false)
-const autoFilled = ref(false)
 const loading = ref(false)
 const copied = ref(false)
 const errorMessage = ref('')
 const needsLogin = ref(false)
 const notFound = ref(false)
 const lastVin = ref('')
-const result = ref<{ vin: string; pin: string; keyCode: string } | null>(null)
+
+const result = ref<{
+  vin: string
+  pin: string
+  keyCode: string
+  emailed: boolean
+  email: string
+} | null>(null)
 
 const authenticated = ref(false)
 const balancesLoaded = ref(false)
@@ -323,20 +297,10 @@ const vinError = computed(() => {
 const vinValid = computed(() => !vinError.value)
 const showVinError = computed(() => vinTouched.value && !vinValid.value)
 
+// The year picker is gone — the era always follows the VIN.
 watch(detected, (d) => {
-  if (!d || eraTouched.value) return
-  era.value = d.era
-  autoFilled.value = true
+  era.value = d ? d.era : ''
 })
-
-const mismatch = computed(() =>
-  Boolean(detected.value && era.value && era.value !== detected.value.era))
-
-function useDetected() {
-  if (!detected.value) return
-  era.value = detected.value.era
-  autoFilled.value = true
-}
 
 /* ─────────── token type / balance ─────────── */
 const tokenType = computed(() =>
@@ -360,7 +324,7 @@ const balanceChips = computed(() => [
 
 /* ─────────── WhatsApp fallback ─────────── */
 const whatsappLink = computed(() => {
-  const message = `${tt('pincode.waMessage', 'Hello, I could not get a PIN code for this VIN')}: ${lastVin.value}`
+  const message = `${tt('pincode.waMessage', 'Hello, I could not get a PIN code & Keycode for this VIN')}: ${lastVin.value}`
   return `https://api.whatsapp.com/send?phone=${props.whatsappPhone}&text=${encodeURIComponent(message)}`
 })
 
@@ -386,14 +350,11 @@ const canSubmit = computed(() =>
   !loading.value
   && vinValid.value
   && !!era.value
-  && !mismatch.value
   && mode.value === 'calculate')
 
 const blockedReason = computed(() => {
   if (loading.value || canSubmit.value) return ''
   if (!vinValid.value) return tt('pincode.needVin', 'Enter a valid 17-character VIN to continue.')
-  if (mismatch.value) return tt('pincode.needMatch', 'Fix the model year so it matches the VIN.')
-  if (!era.value) return tt('pincode.needYear', 'Select the model year.')
   if (mode.value === 'login') return tt('pincode.needLogin', 'Sign in to continue.')
   if (mode.value === 'empty') return tt('pincode.needTokens', 'You need a token for this model year.')
   return ''
@@ -417,7 +378,6 @@ function clearFeedback() {
 /* ─────────── submit ─────────── */
 async function submit() {
   vinTouched.value = true
-  eraTouched.value = true
   if (!canSubmit.value) return
   await calculate()
 }
@@ -451,6 +411,8 @@ async function calculate() {
       vin: String(body?.vin ?? vin.value),
       pin: String(pin),
       keyCode: body?.key_code && body.key_code !== 'xxx' ? String(body.key_code) : '',
+      emailed: Boolean(body?.emailed),
+      email: String(body?.email ?? ''),
     }
     emit('success', body)
   } catch (err: any) {
@@ -468,12 +430,8 @@ function handleError(err: any) {
 
   if (body?.balances) balances.value = { ...balances.value, ...body.balances }
 
-  // No PIN available for this VIN — offer the WhatsApp route instead of an error.
-  if (status === 404 || status === 502) {
-    notFound.value = true
-    return
-  }
-
+  // Auth, tokens and validation keep their own specific messages —
+  // telling these users to "contact us on WhatsApp" would be wrong.
   if (status === 401 || status === 403) {
     authenticated.value = false
     needsLogin.value = true
@@ -494,7 +452,10 @@ function handleError(err: any) {
     errorMessage.value = apiMessage || tt('pincode.errRate', 'Too many requests. Wait a moment.')
     return
   }
-  errorMessage.value = apiMessage || tt('pincode.errGeneric', 'Something went wrong. Try again in a moment.')
+
+  // Everything else is a lookup failure (404 / 500 / 502 / network drop):
+  // the token was refunded server-side, so offer the WhatsApp route.
+  notFound.value = true
   console.error('[PIN CODE] error:', err)
 }
 
@@ -521,8 +482,6 @@ function reset() {
   lastVin.value = ''
   needsLogin.value = false
   vinTouched.value = false
-  eraTouched.value = false
-  autoFilled.value = false
   clearFeedback()
 }
 

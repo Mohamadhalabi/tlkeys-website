@@ -112,12 +112,12 @@
 
 
         <NuxtLinkLocale
-          to="/pincode-account"
-          class="px-4 py-3 hover:bg-gray-800 flex items-center gap-2"
-          :class="linkClass('/downloads')"
-          :aria-current="isActive('/downloads') ? 'page' : undefined"
+          to="/toyota-passcode"
+          class="px-4 py-3 bg-orange-500 hover:bg-gray-800 flex items-center gap-2"
+          :class="linkClass('/toyota-passcode')"
+          :aria-current="isActive('/toyota-passcode') ? 'page' : undefined"
         >
-          Pin Code Account
+          Toyota Passcode
         </NuxtLinkLocale>
 
       </div>
