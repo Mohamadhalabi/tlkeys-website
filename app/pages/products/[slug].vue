@@ -125,7 +125,7 @@ const alerts = useAlertStore()
 const slug = computed(() => route.params.slug as string)
 
 /* WhatsApp helper */
-const WHATSAPP_NUMBER: string = (runtime.public.WHATSAPP_NUMBER as string) || '905531468475'
+const WHATSAPP_NUMBER: string = (runtime.public.WHATSAPP_NUMBER as string) || '971502519501'
 function waLinkForProduct(p?: Product | null) {
   const title = (p?.title || '').trim()
   const sku = (p?.sku || '').toString().trim()

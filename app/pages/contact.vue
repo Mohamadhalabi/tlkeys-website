@@ -383,7 +383,7 @@ const orgJsonLd = {
     {
       '@type': 'ContactPoint',
       contactType: 'customer service',
-      telephone: '+905531468475',
+      telephone: '+971502519501',
       areaServed: ['TR'],
       availableLanguage: ['tr', 'en']
     }

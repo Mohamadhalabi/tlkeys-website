@@ -29,6 +29,81 @@
       </div>
     </header>
 
+    <!-- ── How it works ──────────────────────────────────── -->
+    <div class="border-b border-gray-200 bg-gray-50 px-6 py-5 sm:px-8 sm:py-6">
+      <button
+        type="button"
+        class="flex w-full items-center justify-between gap-3 text-left"
+        :aria-expanded="instructionsOpen"
+        aria-controls="pin-instructions"
+        @click="instructionsOpen = !instructionsOpen"
+      >
+        <span class="text-sm font-semibold uppercase tracking-wide text-gray-700">
+          {{ tt('pincode.howItWorks', 'How it works') }}
+        </span>
+        <svg
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          class="h-5 w-5 shrink-0 text-gray-400 transition-transform"
+          :class="instructionsOpen ? 'rotate-180' : ''"
+          aria-hidden="true"
+        >
+          <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.17l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd" />
+        </svg>
+      </button>
+
+      <div v-show="instructionsOpen" id="pin-instructions" class="mt-4">
+        <ol class="grid gap-4 sm:grid-cols-3">
+          <li class="flex gap-3">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-700 text-sm font-bold text-white">1</span>
+            <div>
+              <p class="text-sm font-semibold text-gray-900">
+                {{ tt('pincode.step1Title', 'Buy a token') }}
+              </p>
+              <p class="mt-1 text-sm text-gray-600">
+                {{ tt('pincode.step1Body', 'Tokens come in two types: before 2017 and 2017 onwards. Your balance is shown at the top of this page.') }}
+              </p>
+            </div>
+          </li>
+
+          <li class="flex gap-3">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-700 text-sm font-bold text-white">2</span>
+            <div>
+              <p class="text-sm font-semibold text-gray-900">
+                {{ tt('pincode.step2Title', 'Enter the VIN') }}
+              </p>
+              <p class="mt-1 text-sm text-gray-600">
+                {{ tt('pincode.step2Body', 'Type all 17 characters exactly as printed on the vehicle. We read the model year from the VIN and pick the right token for you.') }}
+              </p>
+            </div>
+          </li>
+
+          <li class="flex gap-3">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-700 text-sm font-bold text-white">3</span>
+            <div>
+              <p class="text-sm font-semibold text-gray-900">
+                {{ tt('pincode.step3Title', 'Get the PIN code') }}
+              </p>
+              <p class="mt-1 text-sm text-gray-600">
+                {{ tt('pincode.step3Body', 'The PIN and key code appear within seconds and a copy is emailed to your account address.') }}
+              </p>
+            </div>
+          </li>
+        </ol>
+
+        <ul class="mt-5 space-y-2 border-t border-gray-200 pt-4 text-sm text-gray-600">
+          <li class="flex gap-2">
+            <span aria-hidden="true" class="text-gray-400">•</span>
+            <span>{{ tt('pincode.note1', 'One token is used per successful lookup. If no PIN is found, the token is returned to your balance automatically.') }}</span>
+          </li>
+          <li class="flex gap-2">
+            <span aria-hidden="true" class="text-gray-400">•</span>
+            <span>{{ tt('pincode.note3', 'Save or copy the result before leaving the page. You can always find it again in the email we send.') }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
     <form class="px-6 py-6 sm:px-8 sm:py-8" novalidate @submit.prevent="submit">
       <div>
         <label for="pin-vin" class="block text-sm font-semibold uppercase tracking-wide text-gray-700">
@@ -116,6 +191,10 @@
         </button>
 
         <p v-if="blockedReason" class="w-full text-sm text-gray-500">{{ blockedReason }}</p>
+
+        <p v-if="!result && !notFound && !errorMessage" class="w-full text-xs text-gray-400">
+          {{ tt('pincode.submitNote', 'One token is used per successful lookup. Nothing is charged if no PIN is found.') }}
+        </p>
       </div>
     </form>
 
@@ -221,11 +300,14 @@ const props = withDefaults(defineProps<{
   calculateEndpoint?: string
   buyUrl?: string
   whatsappPhone?: string
+  /** Show the "How it works" panel expanded on first load. */
+  instructionsExpanded?: boolean
 }>(), {
   balancesEndpoint: '/pin-code/balances',
   calculateEndpoint: '/pin-code/calculate',
   buyUrl: '',
-  whatsappPhone: '971504429045',
+  whatsappPhone: '971502519501',
+  instructionsExpanded: false,
 })
 
 const emit = defineEmits<{
@@ -253,6 +335,7 @@ const errorMessage = ref('')
 const needsLogin = ref(false)
 const notFound = ref(false)
 const lastVin = ref('')
+const instructionsOpen = ref(props.instructionsExpanded)
 
 const result = ref<{
   vin: string
@@ -388,6 +471,9 @@ async function calculate() {
   needsLogin.value = false
   copied.value = false
   lastVin.value = vin.value
+
+  // Collapse the guide once the customer is actually working.
+  instructionsOpen.value = false
 
   try {
     const res = await $customApi(`${API_BASE_URL}${props.calculateEndpoint}`, {
