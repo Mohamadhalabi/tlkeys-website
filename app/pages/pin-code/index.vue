@@ -73,7 +73,7 @@
             />
           </div>
 
-          <!-- ▼▼ NEW: products grid for category_id = 6688 ▼▼ -->
+          <!-- products grid for category_id = 6688 -->
           <div ref="calcGridEl" class="mt-8">
             <ProductGrid
               :key="gridKeyCalc"
@@ -90,7 +90,6 @@
               {{ t('common.loading') }}
             </div>
           </div>
-          <!-- ▲▲ END NEW ▲▲ -->
         </section>
       </div>
     </div>
@@ -149,12 +148,10 @@ const offlinePinCode = computed<any[]>(() => offlineRes.value?.data?.data ?? off
 const calc = ref<any>(null)
 
 function onPay(order: any) {
-  // Fires the moment the user commits to paying — good spot for analytics.
   console.log('[PIN CODE] checkout started', order)
 }
 
 function onPinSuccess(payload: any) {
-  // Refresh balance, push to order history, show a toast, etc.
   console.log('[PIN CODE] result', payload)
 }
 
@@ -166,7 +163,7 @@ onMounted(() => {
   }
 })
 
-/* ---------------- helpers (same style as your home page) ---------------- */
+/* ---------------- helpers ---------------- */
 function unwrapApi(res: any) {
   const body = (res && typeof res === 'object' && 'data' in res && !Array.isArray((res as any).data))
     ? (res as any).data
@@ -177,40 +174,93 @@ function unwrapApi(res: any) {
   const meta = (body && body.meta) ?? (res && (res as any).meta) ?? null
   return { items, meta }
 }
+
+/* Image can arrive as a plain string OR as { l: { url }, m: {...}, s: {...} } */
+function pickImage(img: any): string {
+  if (!img) return ''
+  if (typeof img === 'string') return img
+  return img?.l?.url ?? img?.m?.url ?? img?.s?.url ?? img?.url ?? ''
+}
+
+function pickGallery(p: any): string[] {
+  const raw = p?.gallery ?? p?.images ?? []
+  if (!Array.isArray(raw)) return []
+  return raw.map(pickImage).filter(Boolean)
+}
+
+/* Base price vs final price, under whatever key ProductResource uses. */
+function readPrices(p: any) {
+  const base  = p.regular_price ?? p.price ?? p.original_price ?? null
+  const final = p.sale_price ?? p.final_price ?? p.price_after_discount ?? p.discounted_price ?? null
+
+  return {
+    // BASE price — never the discounted value, or the card discounts it twice.
+    price: base,
+    regular_price: base,
+    sale_price: (final != null && Number(final) !== Number(base)) ? final : null,
+    table_price: Array.isArray(p?.table_price) ? p.table_price
+               : Array.isArray(p?.packages)    ? p.packages
+               : null,
+  }
+}
+
+/* Discount metadata, flat or nested. Note the API column is `end_date_discount`. */
+function readDiscount(p: any) {
+  const d = p?.discount ?? p?.active_discount ?? p?.promotion ?? null
+
+  const type  = p.discount_type  ?? d?.type  ?? d?.discount_type  ?? null
+  const value = p.discount_value ?? d?.value ?? d?.discount_value ?? d?.amount ?? null
+  const start = p.discount_start_date ?? p.start_date_discount ?? d?.start_date ?? d?.starts_at ?? null
+  const end   = p.discount_end_date   ?? p.end_date_discount   ?? d?.end_date   ?? d?.ends_at   ?? null
+
+  return {
+    discount_type: (type === 'percent' || type === 'fixed') ? type : null,
+    discount_value: value ?? null,
+    discount_start_date: start ?? null,
+    discount_end_date: end ?? null,
+  }
+}
+
 function mapApiProduct(p: any) {
-  const hasSale = p?.sale_price != null && p?.sale_price !== 0
-  const categoryName =
-    Array.isArray(p?.categories) && p.categories[0]?.name
-      ? String(p.categories[0].name)
-      : ''
-  const categorySlug =
-    Array.isArray(p?.categories) && p.categories[0]?.slug
-      ? String(p.categories[0].slug).toLowerCase()
-      : ''
+  const cat = Array.isArray(p?.categories) ? p.categories[0] : null
+
   return {
     id: p.id,
-    name: p.title ?? p.short_title ?? '',
-    image: p.image,
-    price: hasSale ? p.sale_price : p.price,
-    oldPrice: hasSale ? p.price : null,
+    name: p.title ?? p.short_title ?? p.name ?? '',
+
+    image: pickImage(p?.image),
+    gallery: pickGallery(p),
+
+    ...readPrices(p),
+    ...readDiscount(p),
+
+    display_euro_price: !!p.display_euro_price,
+    euro_price: p.euro_price ?? 0,
+
+    hide_price: !!p.hide_price,
+    requires_serial: !!p.requires_serial,
+    part_number: p.part_number ?? p.mpn ?? null,
+
     stock: Number.isFinite(Number(p?.quantity ?? p?.stock ?? p?.available_quantity))
       ? Number(p?.quantity ?? p?.stock ?? p?.available_quantity)
       : null,
     sku: p.sku ?? '',
-    category: categoryName,
-    categorySlug,
+    category: cat?.name ? String(cat.name) : '',
+    categorySlug: cat?.slug ? String(cat.slug).toLowerCase() : '',
     slug: p.slug,
     href: p.slug ? `/products/${p.slug}` : `/products/${p.id}`,
   }
 }
+
 function lastFromMeta(meta: any) {
   const lp = Number(meta?.last_page)
   if (Number.isFinite(lp) && lp > 1) return lp
   const total = Number(meta?.total || 0)
-  const size  = Math.max(1, Number(meta?.page_size || 1))
+  const size  = Math.max(1, Number(meta?.per_page || meta?.page_size || 1))
   const calc  = Math.ceil(total / size)
   return calc > 0 ? calc : 1
 }
+
 function useLazySection(cb: () => void) {
   const el = ref<HTMLElement | null>(null)
   onMounted(() => {
@@ -223,7 +273,7 @@ function useLazySection(cb: () => void) {
   return { el }
 }
 
-/* Shared fetcher so both grids use the exact same pipeline */
+/* Shared fetcher — now hitting the ProductResource-backed pin-code endpoint. */
 async function fetchByCategory(opts: {
   categoryId: number
   page?: number
@@ -235,18 +285,22 @@ async function fetchByCategory(opts: {
   const { categoryId, page = 1, rows = 1, perRow = 12, target, label = 'PRODUCTS' } = opts
   try {
     target.loading.value = true
-    const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
+    const res = await $customApi(`${API_BASE_URL}/pin-code/category-products`, {
       method: 'GET',
       params: {
-        page,
-        rows,
-        per_row: perRow,
         category_id: categoryId,
-        only_featured: 0,   // include all items in this category
-        currency: 'USD',
+        page,
+        per_page: rows * perRow,
       }
     })
     const { items: list, meta } = unwrapApi(res)
+
+    // TEMP DEBUG — confirm ProductResource is emitting the discount fields.
+    // Remove once verified.
+    if (process.client && list?.[0]) {
+      console.log(`[${label}] raw first item:`, list[0])
+    }
+
     target.list.value    = list.map(mapApiProduct)
     target.meta.value    = meta
     target.page.value    = Number(meta?.current_page || page || 1)
@@ -279,17 +333,15 @@ async function fetchPinCode(page = 1, rows = rowsForGrid, perRow = PRODUCTS_PER_
   })
 }
 
-/* Lazy-load the grid when it comes into view */
 const { el: pinGridEl } = useLazySection(() => fetchPinCode(1, rowsForGrid, PRODUCTS_PER_ROW))
 
-/* ---------------- NEW: grid under the calculator, category_id = 6688 ---------------- */
+/* ---------------- grid under the calculator, category_id = 6688 ---------------- */
 const calcItems        = ref<any[]>([])
 const calcItemsMeta    = ref<any | null>(null)
 const calcItemsPage    = ref(1)
 const calcItemsLastRef = ref(1)
 const loadingCalcItems = ref(false)
 
-/* This column is narrower (lg:col-span-7), so keep the row tighter than the full-width grid. */
 const CALC_CATEGORY_ID = 6688
 const CALC_PRODUCTS_PER_ROW = 4
 const rowsForCalcGrid = 2
