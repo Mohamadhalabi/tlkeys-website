@@ -142,6 +142,7 @@ export default defineNuxtConfig({
       SECRET_KEY: process.env.SECRET_KEY,
       API_KEY: process.env.API_KEY,
       API_BASE_URL: process.env.API_BASE_URL,
+      PAYPAL_CLIENT_ID: '',
       PUBLIC_PATH: process.env.PUBLIC_PATH,
       PUBLIC_PATH_WITHOUT_SLASH: process.env.PUBLIC_PATH_WITHOUT_SLASH,
       version: process.env.version,
