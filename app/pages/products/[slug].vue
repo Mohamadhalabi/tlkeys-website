@@ -94,6 +94,8 @@ type Product = {
   requires_serial?: boolean | null
   canonical_slug?: string | null
   related_versions?: MiniProduct[]
+  /* NEW: optional backend kill-switch for the Buy Now button */
+  disable_buy_now?: boolean | null
 }
 
 /* ---------------- Base setup ---------------- */
@@ -154,7 +156,8 @@ const primaryImageAbs = computed(() => {
   return abs(rawImgs[0] || p?.image || '')
 })
 
-const showBuyNow = computed(() => showAddToCartUI.value)
+/* NOTE: showBuyNow used to live here as an alias of showAddToCartUI.
+   It now has its own rules and is declared further down, after displayPrice. */
 const buying = ref(false)
 
 async function onBuyNow() {
@@ -224,6 +227,15 @@ const nameToPath = (s?: string | null) => {
   return `/${encodeURIComponent(cleaned)}`
 }
 
+/* Category name normalizer: lowercases, tightens "A / B" to "a/b" and
+   collapses repeated whitespace, so admin-side typos still match. */
+const normCat = (s: unknown) =>
+  String(s ?? '')
+    .toLowerCase()
+    .replace(/\s*\/\s*/g, '/')
+    .replace(/\s+/g, ' ')
+    .trim()
+
 const now = ref(Date.now())
 
 /* ---------------- SSR fetch & normalize ---------------- */
@@ -284,6 +296,9 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
         canonical_slug: data.canonical_slug ?? data.slug,
         hide_price: Number(data.hide_price ?? 0) === 1,
         requires_serial: Boolean(data.requires_serial ?? false),
+        /* NEW: per-product Buy Now kill-switch (add the column + include param
+           on the API side to use it; harmless while it stays undefined). */
+        disable_buy_now: Number(data.disable_buy_now ?? 0) === 1,
         regular_price: toNum(data.regular_price),
         sale_price: toNum(data.sale_price),
         images: gallery.length ? gallery : [{ src: '/images/placeholder.webp', alt: data.title || 'image' }],
@@ -350,7 +365,7 @@ const product = computed<Product | null>(() => ssr.value)
 const hidePrice = computed(() => Boolean(product.value?.hide_price))
 const isPinCodeOffline = computed(() =>
   (product.value?.categories || []).some(c =>
-    String(c?.name || (c as any)?.title || '').trim().toLowerCase() === 'pin code offline'
+    normCat(c?.name || (c as any)?.title) === 'pin code offline'
   )
 )
 const showPriceBlock   = computed(() => isPinCodeOffline.value || !hidePrice.value)
@@ -494,6 +509,47 @@ const displayPrice = computed(() => {
 const hasDiscountNow    = computed(() => !!displayPrice.value.old && displayPrice.value.old > displayPrice.value.current)
 const discountAmountNow = computed(() => hasDiscountNow.value ? (displayPrice.value.old! - displayPrice.value.current) : 0)
 const hasTablePrice     = computed(() => Array.isArray(product.value?.table_price) && product.value!.table_price!.length > 0)
+
+/* ---------------- BUY NOW VISIBILITY RULES ----------------
+   Add a rule by pushing to one of the two lists below, or by adding a line
+   to showBuyNow. Slugs are checked first because category names get renamed
+   and retranslated in the admin panel; names are the fallback. */
+const BUY_NOW_BLOCKED_SLUGS = [
+  'pin-code-offline',
+  'kia-hyundai-online-pin-code',
+  'toyota-passcode-rolling-code-online-calculator',
+  'kia-hyundai-part-number-lookup',
+]
+
+const BUY_NOW_BLOCKED_CATEGORIES = [
+  'pin code offline',
+  'kia / hyundai online pin code',
+  'toyota passcode (rolling code) online calculator',
+  'kia / hyundai part number lookup',
+].map(normCat)
+
+const inBuyNowBlockedCategory = computed(() =>
+  (product.value?.categories || []).some(c =>
+    BUY_NOW_BLOCKED_SLUGS.includes(String(c?.slug || '').toLowerCase())
+    || BUY_NOW_BLOCKED_CATEGORIES.includes(normCat(c?.name || (c as any)?.title))
+  )
+)
+
+const showBuyNow = computed(() => {
+  const p = product.value
+  if (!p) return false
+  if (!showAddToCartUI.value) return false          // hide_price / pin code offline
+  if (inBuyNowBlockedCategory.value) return false   // category rules above
+  if (p.disable_buy_now) return false               // per-product backend flag
+
+  /* --- Optional extra rules: uncomment to enable ---
+  if (displayPrice.value.current <= 0) return false                       // nothing to charge
+  if (typeof p.quantity === 'number' && p.quantity <= 0) return false     // out of stock
+  if (hasTablePrice.value) return false                                   // wholesale-only items
+  */
+
+  return true
+})
 
 /* countdown */
 let timer: any = null
