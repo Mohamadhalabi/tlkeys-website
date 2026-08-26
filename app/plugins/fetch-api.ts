@@ -54,14 +54,39 @@ export default defineNuxtPlugin(() => {
     )
   }
 
+  /**
+   * Whatever the caller passed as `headers`, as a plain object.
+   *
+   * ofetch normalises options.headers into a Headers INSTANCE before onRequest
+   * runs, and `{ ...new Headers({ a: 'b' }) }` is `{}` — a Headers object has no
+   * enumerable own properties. Spreading it therefore threw away every
+   * per-call custom header silently: the request went out with only the
+   * defaults added below, and the server answered 403 for a header it never
+   * received. Convert first, spread second.
+   *
+   * Also handles the array form ([['a','b']]) that ofetch accepts.
+   */
+  function toPlainHeaders(input: any): Record<string, string> {
+    if (!input) return {}
+    if (typeof Headers !== 'undefined' && input instanceof Headers) {
+      return Object.fromEntries(input.entries())
+    }
+    if (Array.isArray(input)) {
+      return Object.fromEntries(input as [string, string][])
+    }
+    return { ...(input as Record<string, string>) }
+  }
+
   function build(options: any) {
     const lang = pickLocale()
     const cur  = (currency.value || 'USD').toUpperCase()
 
+    const incoming = toPlainHeaders(options.headers)
+
     // headers (lower-case to be absolutely sure they override)
     const headers: Record<string, string> = {
       ...forwarded,
-      ...(options.headers as Record<string, string>),
+      ...incoming,
       accept: 'application/json',
       'accept-language': lang,
       'X-Currency': cur, // 👈 backend varies on this header

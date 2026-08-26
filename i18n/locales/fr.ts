@@ -845,6 +845,13 @@ export default {
     "warning_1": "Vous avez 3 tentatives gratuites par numéro VIN",
     "warning_2": "NE PAS appuyer sur 'Calculer' plusieurs fois ou rafraîchir la page après avoir appuyé sur 'Calculer' — cela consommera vos tentatives",
     "warning_3": "Après la 3ème tentative sur le même VIN, un nouveau jeton sera déduit de votre solde",
-    "warning_4": "Nous ne sommes pas responsables des jetons perdus en raison de calculs répétés ou de rafraîchissements de page"
+    "warning_4": "Nous ne sommes pas responsables des jetons perdus en raison de calculs répétés ou de rafraîchissements de page",
+    "onlineCalculators": "Calculateurs en ligne",
+    "calcToyota": "Passcode Toyota",
+    "calcToyotaBlurb": "Le passcode à partir du VIN, en quelques secondes.",
+    "calcKia": "Calculateur Kia / Hyundai",
+    "calcKiaBlurb": "Code PIN et code clé à partir du VIN.",
+    "calcMazda": "Calculateur Mazda Incode / Outcode",
+    "calcMazdaBlurb": "Codes antidémarrage envoyés par Mazda.",
   }
 }

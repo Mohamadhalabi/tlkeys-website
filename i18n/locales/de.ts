@@ -846,6 +846,13 @@ export default{
     "warning_1": "Sie haben 3 kostenlose Versuche pro Fahrgestellnummer (VIN)",
     "warning_2": "Drücken Sie NICHT mehrmals auf 'Berechnen' oder aktualisieren Sie die Seite nach dem Drücken von 'Berechnen' — dies verbraucht Ihre Versuche",
     "warning_3": "Nach dem 3. Versuch für dieselbe VIN wird ein neuer Token von Ihrem Guthaben abgezogen",
-    "warning_4": "Wir sind nicht verantwortlich für Tokens, die durch wiederholte Berechnungen oder Seitenaktualisierungen verloren gehen"
+    "warning_4": "Wir sind nicht verantwortlich für Tokens, die durch wiederholte Berechnungen oder Seitenaktualisierungen verloren gehen",
+    "onlineCalculators": "Online-Rechner",
+    "calcToyota": "Toyota Passcode",
+    "calcToyotaBlurb": "Passcode aus der FIN, in Sekunden.",
+    "calcKia": "Kia / Hyundai Online-Rechner",
+    "calcKiaBlurb": "PIN und Schlüsselcode aus der FIN.",
+    "calcMazda": "Mazda Incode / Outcode Rechner",
+    "calcMazdaBlurb": "Wegfahrsperren-Codes per E-Mail von Mazda.",
   }
 }

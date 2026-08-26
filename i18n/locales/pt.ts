@@ -872,6 +872,13 @@ export default {
     "warning_1": "Você tem 3 tentativas gratuitas por número VIN",
     "warning_2": "NÃO pressione 'Calcular' várias vezes ou atualize a página após pressionar 'Calcular' — isso consumirá suas tentativas",
     "warning_3": "Após a 3ª tentativa no mesmo VIN, um novo token será deduzido do seu saldo",
-    "warning_4": "Não nos responsabilizamos por tokens perdidos devido a cálculos repetidos ou atualizações de página"
+    "warning_4": "Não nos responsabilizamos por tokens perdidos devido a cálculos repetidos ou atualizações de página",
+    "onlineCalculators": "Calculadoras online",
+    "calcToyota": "Passcode Toyota",
+    "calcToyotaBlurb": "O passcode a partir do VIN, em segundos.",
+    "calcKia": "Calculadora Kia / Hyundai",
+    "calcKiaBlurb": "PIN e código da chave a partir do VIN.",
+    "calcMazda": "Calculadora Mazda Incode / Outcode",
+    "calcMazdaBlurb": "Códigos do imobilizador enviados pela Mazda.",
   }
 }

@@ -877,6 +877,13 @@ export default {
     "warning_1": "Her şasi numarası (VIN) için 3 ücretsiz deneme hakkınız vardır",
     "warning_2": "'Hesapla' butonuna birden fazla KESİNLİKLE basmayın veya bastıktan sonra sayfayı YENİLEMEYİN — aksi takdirde deneme haklarınız eksilecektir",
     "warning_3": "Aynı VIN üzerinde 3. denemeden sonra, bakiyenizden yeni bir jeton (token) düşülecektir",
-    "warning_4": "Tekrarlanan hesaplamalar veya sayfa yenilemeleri nedeniyle kaybedilen jetonlardan (token) sorumlu değiliz"
+    "warning_4": "Tekrarlanan hesaplamalar veya sayfa yenilemeleri nedeniyle kaybedilen jetonlardan (token) sorumlu değiliz",
+    "onlineCalculators": "Çevrimiçi Hesaplayıcılar",
+    "calcToyota": "Toyota Passcode",
+    "calcToyotaBlurb": "VIN'den saniyeler içinde passcode.",
+    "calcKia": "Kia / Hyundai Hesaplayıcı",
+    "calcKiaBlurb": "VIN'den PIN ve anahtar kodu.",
+    "calcMazda": "Mazda Incode / Outcode Hesaplayıcı",
+    "calcMazdaBlurb": "İmmobilizer kodları Mazda'dan e-posta ile gelir.",
   }
 }

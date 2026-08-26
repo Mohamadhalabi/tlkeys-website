@@ -110,15 +110,72 @@
           {{ $t('pinCodes') || 'Pin Codes' }}
         </NuxtLinkLocale>
 
+        <!-- ── Online calculators ──────────────────────────────
+             A short, fixed list, so it gets a narrow panel anchored to the
+             button rather than the full-width mega menu the data-driven
+             menus use. `relative` here is what the panel positions against. -->
+        <div class="relative">
+          <button
+            type="button"
+            class="px-4 py-3 hover:bg-gray-800 flex items-center gap-2"
+            :class="openCalculators || calculatorsActive
+              ? 'bg-orange-500 text-white hover:bg-orange-500 focus:bg-orange-500'
+              : 'bg-orange-500 text-white'"
+            @click="toggleCalculators"
+            :aria-expanded="openCalculators ? 'true' : 'false'"
+            aria-haspopup="true"
+          >
+            {{ tt('onlineCalculators', 'Online Calculators') }}
+            <svg class="w-4 h-4 transition-transform" :class="openCalculators ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
+            </svg>
+          </button>
 
-        <NuxtLinkLocale
-          to="/toyota-passcode"
-          class="px-4 py-3 bg-orange-500 hover:bg-gray-800 flex items-center gap-2"
-          :class="linkClass('/toyota-passcode')"
-          :aria-current="isActive('/toyota-passcode') ? 'page' : undefined"
-        >
-          Toyota Passcode
-        </NuxtLinkLocale>
+          <Transition name="fade-scale">
+            <!-- right-0 keeps the panel inside the viewport: this is the last
+                 item in the bar, so opening leftwards is the only option. -->
+            <div v-if="openCalculators" class="absolute right-0 mt-1 w-80 z-50">
+              <div class="bg-white text-gray-900 rounded-xl shadow-2xl ring-1 ring-black/10 overflow-hidden">
+                <NuxtLinkLocale
+                  v-for="item in calculators"
+                  :key="item.to"
+                  :to="item.to"
+                  class="flex items-start gap-3 px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+                  :class="isActive(item.to) ? 'bg-orange-50' : ''"
+                  :aria-current="isActive(item.to) ? 'page' : undefined"
+                  @click="closeAll"
+                >
+                  <!-- White tile so a dark logo and a light one both read.
+                       Two-brand entries get a wider tile so neither shrinks. -->
+                  <span
+                    class="mt-0.5 flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg bg-white p-1.5 ring-1 ring-gray-200"
+                    :class="item.logos && item.logos.length > 1 ? 'w-16' : 'w-9'"
+                  >
+                    <template v-if="item.logos && item.logos.length">
+                      <img
+                        v-for="src in item.logos"
+                        :key="src"
+                        :src="src"
+                        alt=""
+                        aria-hidden="true"
+                        class="h-full min-w-0 flex-1 object-contain"
+                        loading="lazy"
+                        @error="onLogoError"
+                      />
+                    </template>
+                    <svg v-else viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 text-orange-700">
+                      <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6Zm0 3.5A.5.5 0 016.5 5h7a.5.5 0 01.5.5v2a.5.5 0 01-.5.5h-7a.5.5 0 01-.5-.5v-2ZM7 11a1 1 0 11-2 0 1 1 0 012 0Zm3 0a1 1 0 11-2 0 1 1 0 012 0Zm4-1a1 1 0 100 2 1 1 0 000-2Zm-7 5a1 1 0 11-2 0 1 1 0 012 0Zm3 0a1 1 0 11-2 0 1 1 0 012 0Zm3 1a1 1 0 100-2 1 1 0 000 2Z" clip-rule="evenodd" />
+                    </svg>
+                  </span>
+                  <span>
+                    <span class="block text-sm font-semibold text-gray-900">{{ item.title }}</span>
+                    <span class="mt-0.5 block text-xs text-gray-500">{{ item.blurb }}</span>
+                  </span>
+                </NuxtLinkLocale>
+              </div>
+            </div>
+          </Transition>
+        </div>
 
       </div>
 
@@ -313,7 +370,14 @@ import { onMounted, onBeforeUnmount, ref, computed } from 'vue'
 import { useLocalePath } from '#imports' // ✅ locale-aware navigation
 import SecondaryStickyBar from '~/components/header/SecondaryStickyBar.vue'
 const { public: { API_BASE_URL } } = useRuntimeConfig()
-const { t } = useI18n()
+const { t, te } = useI18n()
+
+/* vue-i18n returns the KEY itself when a translation is missing, and a key is
+ * truthy — so `t('x') || 'fallback'` silently renders "x". This checks first. */
+function tt(key, fallback) {
+  return te(key) ? t(key) : fallback
+}
+
 const router = useRouter()
 const route = useRoute()
 const localePath = useLocalePath() // ✅
@@ -337,6 +401,49 @@ const openKeys = ref(false)
 const openDevices = ref(false)
 const openAccessories = ref(false)
 const openSoftTok = ref(false)
+const openCalculators = ref(false)
+
+/* ---------- online calculators ----------
+ * Static list. Unlike the other menus there is nothing to fetch, so this
+ * renders instantly and needs no loading or error state. Add a calculator by
+ * adding a line here — the panel and the active highlight follow.
+ *
+ * `logos` are paths under /public. Reuse the same brand artwork the Cars menu
+ * already serves rather than sourcing new files, and keep them SVG or a
+ * transparent PNG so they sit cleanly on the white tile. An entry with two
+ * logos (Kia / Hyundai) gets a wider tile automatically. Leave `logos` off
+ * entirely and the generic calculator icon is used instead.
+ */
+const calculators = computed(() => [
+  {
+    to: '/toyota-passcode',
+    title: tt('calcToyota', 'Toyota Passcode'),
+    blurb: tt('calcToyotaBlurb', 'Passcode from the VIN, in seconds.'),
+    logos: ['/brands/toyota.svg'],
+  },
+  {
+    to: '/pin-code',
+    title: tt('calcKia', 'Kia / Hyundai Online Calculator'),
+    blurb: tt('calcKiaBlurb', 'PIN and key code from the VIN.'),
+    logos: ['/brands/kia.svg', '/brands/hyundai.svg'],
+  },
+  {
+    to: '/mazda-incode',
+    title: tt('calcMazda', 'Mazda Incode / Outcode Calculator'),
+    blurb: tt('calcMazdaBlurb', 'Immobilizer codes emailed by Mazda.'),
+    logos: ['/brands/mazda.svg'],
+  },
+])
+
+/* A missing logo file would otherwise leave a broken-image glyph in the menu.
+ * Hiding the <img> lets the tile fall back to empty rather than looking broken. */
+function onLogoError(e) {
+  e.target.style.display = 'none'
+}
+
+/** Highlight the button whenever the visitor is on any calculator page. */
+const calculatorsActive = computed(() =>
+  calculators.value.some(c => isActive(c.to)))
 
 /* ---------- data ---------- */
 const cars = ref([])
@@ -450,6 +557,10 @@ async function toggleSoftTok() {
     await fetchSoftwareTokens()
   }
 }
+// Nothing to fetch here, so no async and no loading state.
+function toggleCalculators() {
+  const next = !openCalculators.value; closeAll(); openCalculators.value = next
+}
 function closeAll() {
   openCars.value = false
   openManufacturers.value = false
@@ -457,6 +568,7 @@ function closeAll() {
   openDevices.value = false
   openAccessories.value = false
   openSoftTok.value = false
+  openCalculators.value = false
 }
 
 /* ---------- fetchers ---------- */
@@ -474,7 +586,7 @@ async function fetchManufacturers() {
   loadingManufacturers.value = true; errorManufacturers.value = ''
   try {
     const { $customApi } = useNuxtApp()
-    const res = await $customApi(`${API_BASE_URL}/get_manufacturers_menu`, { method: 'GET' })
+    const res = await $customApi(`${API_BASE_URL}/  get_manufacturers_menu`, { method: 'GET' })
     manufacturers.value = Array.isArray(extractManufacturers(res)) ? extractManufacturers(res) : []
   } catch (err) {
     errorManufacturers.value = err?.data?.message || err?.message || t('error') || 'Error loading manufacturers.'

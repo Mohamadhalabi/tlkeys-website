@@ -897,6 +897,13 @@ export default {
     "warning_title": "Important — Read Before Searching",
     "warning_1": "Each successful lookup will consume 1 token from your account balance.",
     "warning_2": "Please double-check the VIN before searching. We cannot refund tokens for typos or incorrect VINs.",
-    "warning_3": "Do NOT double-click the search button or refresh the page while it is loading."
+    "warning_3": "Do NOT double-click the search button or refresh the page while it is loading.",
+    "onlineCalculators": 'Online Calculators',
+    "calcToyota": 'Toyota Passcode',
+    "calcToyotaBlurb": 'Passcode from the VIN, in seconds.',
+    "calcKia": 'Kia / Hyundai Online Calculator',
+    "calcKiaBlurb": 'PIN and key code from the VIN.',
+    "calcMazda": 'Mazda Incode / Outcode Calculator',
+    "calcMazdaBlurb": 'Immobilizer codes emailed by Mazda.',
   }
 }
