@@ -81,7 +81,7 @@ const faqs = computed(() => [
   },
   {
     q: tt('mazda.faq1Q', 'When do the codes arrive?'),
-    a: tt('mazda.faq1A', 'Within 15 minutes.'),
+    a: tt('mazda.faq1A', 'Usually within 15 minutes of the request being accepted. Check your spam folder if nothing has arrived after an hour.'),
   },
   {
     q: tt('mazda.faq2Q', 'What if Mazda rejects the request?'),

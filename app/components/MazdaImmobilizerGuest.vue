@@ -83,7 +83,7 @@
           </li>
           <li class="flex gap-2">
             <span aria-hidden="true" class="text-gray-400">•</span>
-            <span>{{ tt('mazda.note2', 'Codes are not shown on screen. Mazda emails them to the address you enter, usually within a few minutes.') }}</span>
+            <span>{{ tt('mazda.note2', 'Codes are not shown on screen. Mazda emails them to the address you enter, usually within 15 minutes.') }}</span>
           </li>
           <li class="flex gap-2">
             <span aria-hidden="true" class="text-gray-400">•</span>
@@ -276,6 +276,15 @@
               class="mt-2 w-full rounded-xl border-2 border-gray-200 px-4 py-3 font-mono text-base uppercase tracking-widest text-gray-900 transition placeholder:font-sans placeholder:tracking-normal placeholder:text-gray-300 focus:border-orange-600 focus:outline-none focus:ring-4 focus:ring-orange-500/20 disabled:bg-gray-50 disabled:text-gray-500"
               @input="upper('outCode2', $event)"
             >
+            <!-- The two outcodes are halves of one code, joined before they
+                 are sent. A 16-character half on its own is what the portal
+                 answers NOT_FOUND to, so it is worth saying out loud. -->
+            <p class="mt-2 text-sm text-gray-500">
+              {{ tt('mazda.outcode2Hint', 'If the outcode is printed in two parts, enter the second part here. Leave empty if there is only one.') }}
+              <span v-if="form.outCode" class="font-mono text-xs tabular-nums text-gray-400">
+                ({{ (form.outCode + form.outCode2).length }} {{ tt('mazda.charsTotal', 'characters total') }})
+              </span>
+            </p>
           </div>
 
           <div>
@@ -470,7 +479,7 @@
         {{ tt('mazda.submittedTitle', 'Sent to Mazda') }}
       </p>
       <p class="mt-1 text-sm text-gray-600">
-        {{ tt('mazda.submittedBody', 'Mazda emails the codes directly. They usually arrive within a few minutes — check spam if you do not see them.') }}
+        {{ tt('mazda.submittedBody', 'Mazda emails the codes directly. They usually arrive within 15 minutes — check spam if you do not see them.') }}
       </p>
 
       <div class="mt-5 flex flex-wrap items-start justify-between gap-4">
