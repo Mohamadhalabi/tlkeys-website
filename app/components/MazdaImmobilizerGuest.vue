@@ -479,7 +479,7 @@
         {{ tt('mazda.submittedTitle', 'Sent to Mazda') }}
       </p>
       <p class="mt-1 text-sm text-gray-600">
-        {{ tt('mazda.submittedBody', 'Mazda emails the codes directly. They usually arrive within 15 minutes — check spam if you do not see them.') }}
+        {{ tt('mazda.submittedBody', 'The codes are emailed to you, usually within 15 minutes — check spam if you do not see them.') }}
       </p>
 
       <div class="mt-5 flex flex-wrap items-start justify-between gap-4">
