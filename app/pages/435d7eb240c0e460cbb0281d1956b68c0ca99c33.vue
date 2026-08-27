@@ -21,44 +21,66 @@ type ApiResponse = {
   requests_left_month?: number
   has_token?: number
   available_in_db?: boolean
-}
-
-type UserCheckResponse = {
-  username?: string
-  has_token?: number
-  requests_this_month?: number
-  tokens_left?: number | null
-  error?: string
+  show_cached_indicator?: boolean
 }
 
 const vin = ref('')
 const usernameInput = ref('')
+const passwordInput = ref('')
 const keyCode = ref('')
 const pinCode = ref('')
 const showVinError = ref(false)
 const isLoading = ref(false)
 const errorMessage = ref<string | null>(null)
 
-// Session & Stats State
-const isLoggedIn = ref(false)
 const hasToken = ref(false)
 const requestsThisMonth = ref<number>(0)
 const tokensLeft = ref<number | null>(null)
 const greenTextState = ref(false)
+const showCachedIndicator = ref(false)
 
 const { $customApi } = useNuxtApp()
 const { public: { API_BASE_URL, API_KEY, SECRET_KEY } } = useRuntimeConfig()
 const { t, locale } = (useI18n?.() as any) || { t: (s: string) => s, locale: ref('en') }
 
 const currencyCookie = useCookie<string>('currency', { default: () => 'USD', sameSite: 'lax', path: '/' })
-// 604800 seconds = 1 week
-const usernameCookie = useCookie<string | null>('username', { default: () => null, maxAge: 604800, sameSite: 'lax', path: '/' })
+
+/**
+ * Short-lived token from /vin-to-pin/login. Separate cookie from the new
+ * page so the two lookups can be logged in independently.
+ */
+const tokenCookie = useCookie<string | null>('vp_token_vin', {
+  default: () => null,
+  maxAge: 12 * 3600,
+  sameSite: 'strict',
+  path: '/',
+})
+
+const isLoggedIn = computed(() => !!tokenCookie.value)
+const lang = () => String(locale?.value || 'en')
+
+function baseHeaders() {
+  return {
+    'Accept-Language': lang(),
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'currency': currencyCookie.value || 'USD',
+    'secret-key': SECRET_KEY,
+    'api-key': API_KEY,
+  }
+}
+
+/**
+ * A dedicated header, not Authorization: plugins/auth.client.ts already
+ * puts the site's own JWT there on every request, which would overwrite
+ * this one and cause an immediate 401.
+ */
+function authHeaders() {
+  return { ...baseHeaders(), 'X-VinPin-Token': tokenCookie.value || '' }
+}
 
 onMounted(() => {
-  if (usernameCookie.value) {
-    usernameInput.value = usernameCookie.value
-    verifyLogin()
-  }
+  if (tokenCookie.value) loadStats().catch(() => doLogout())
 })
 
 watch(vin, (v) => { if (v.length === 17) showVinError.value = false })
@@ -70,53 +92,71 @@ function formatVin() {
 const successState = computed(() => !!(keyCode.value && pinCode.value))
 const disabled = computed(() => isLoading.value || vin.value.length !== 17)
 
-async function verifyLogin() {
-  if (!usernameInput.value) return
+async function loadStats() {
+  const res: any = await $customApi(`${API_BASE_URL}/check-user`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: { api_type: 'old' },
+  })
+
+  const data = (res?.data && typeof res.data === 'object') ? res.data : res
+
+  hasToken.value = !!data.has_token
+  requestsThisMonth.value = data.requests_this_month || 0
+  tokensLeft.value = data.tokens_left ?? null
+
+  // Server-side flag, replacing the old hardcoded username comparison
+  // that put a customer's credential in the public JS bundle.
+  showCachedIndicator.value = !!data.show_cached_indicator
+}
+
+async function handleLogin() {
+  if (!usernameInput.value || !passwordInput.value) return
+
   isLoading.value = true
   errorMessage.value = null
 
   try {
-    const res: any = await $customApi(`${API_BASE_URL}/check-user`, {
+    const res: any = await $customApi(`${API_BASE_URL}/vin-to-pin/login`, {
       method: 'POST',
-      headers: {
-        'Accept-Language': String(locale?.value || 'en'),
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'currency': currencyCookie.value || 'USD',
-        'secret-key': SECRET_KEY,
-        'api-key': API_KEY,
-      },
-      body: { username: usernameInput.value, api_type: 'old' },
+      headers: baseHeaders(),
+      body: { username: usernameInput.value, password: passwordInput.value, scope: 'vin' },
     })
 
-    const data: UserCheckResponse = (res?.data && typeof res.data === 'object') ? res.data : res
+    const data = (res?.data && typeof res.data === 'object') ? res.data : res
 
-    if (data?.error) {
-      errorMessage.value = data.error
-      logout()
-    } else {
-      isLoggedIn.value = true
-      usernameCookie.value = usernameInput.value
-      hasToken.value = !!data.has_token
-      requestsThisMonth.value = data.requests_this_month || 0
-      tokensLeft.value = data.tokens_left ?? null
-    }
+    if (!data?.token) throw new Error(data?.error || 'Login failed')
+
+    tokenCookie.value = data.token
+    passwordInput.value = ''       // not kept in memory after use
+
+    await loadStats()
   } catch (e: any) {
-    errorMessage.value = e?.response?.data?.error || t('vin_to_pin.generic_error')
-    logout()
+    errorMessage.value = e?.data?.error || e?.response?.data?.error || e?.message || t('vin_to_pin.generic_error')
+    doLogout()
   } finally {
     isLoading.value = false
   }
 }
 
-function logout() {
-  usernameCookie.value = null
-  isLoggedIn.value = false
+function doLogout() {
+  if (tokenCookie.value) {
+    // Fire-and-forget: the cookie clears either way, so a failed network
+    // call cannot leave the user stuck logged in.
+    $customApi(`${API_BASE_URL}/vin-to-pin/logout`, {
+      method: 'POST',
+      headers: authHeaders(),
+    }).catch(() => {})
+  }
+
+  tokenCookie.value = null
   usernameInput.value = ''
+  passwordInput.value = ''
   vin.value = ''
   keyCode.value = ''
   pinCode.value = ''
   errorMessage.value = null
+  greenTextState.value = false
 }
 
 async function handleSubmit() {
@@ -129,18 +169,14 @@ async function handleSubmit() {
   greenTextState.value = false
 
   isLoading.value = true
+
   try {
     const res: any = await $customApi(`${API_BASE_URL}/vin-to-pin-old`, {
       method: 'POST',
-      headers: {
-        'Accept-Language': String(locale?.value || 'en'),
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'currency': currencyCookie.value || 'USD',
-        'secret-key': SECRET_KEY,
-        'api-key': API_KEY,
-      },
-      body: { username: usernameCookie.value, vin: vin.value },
+      headers: authHeaders(),
+      // No username in the body: the server reads it from the token, so
+      // one account cannot spend another's quota.
+      body: { vin: vin.value },
     })
 
     const data: ApiResponse = (res?.data && typeof res.data === 'object') ? res.data : res
@@ -152,21 +188,27 @@ async function handleSubmit() {
     } else {
       keyCode.value = data?.key_code || ''
       pinCode.value = data?.pin_code || ''
-      
+
       requestsThisMonth.value = data?.requests_this_month ?? requestsThisMonth.value
+
       if (data?.has_token) {
         tokensLeft.value = data?.requests_left_month ?? tokensLeft.value
       }
 
-      if (data?.available_in_db && usernameCookie.value === '4immo81100') greenTextState.value = true
+      if (data?.available_in_db && showCachedIndicator.value) greenTextState.value = true
     }
   } catch (e: any) {
-    if (e?.data?.errors?.vin?.[0]) errorMessage.value = e.data.errors.vin[0]
-    else if (e?.response?.data?.error) errorMessage.value = e.response.data.error
-    else errorMessage.value = t('vin_to_pin.generic_error')
-    
-    if (e?.response?.status === 400 && e?.response?.data?.error?.includes('username')) {
-       logout()
+    const status = e?.response?.status ?? e?.status ?? e?.statusCode
+
+    if (status === 401) {
+      errorMessage.value = 'Session expired. Please log in again.'
+      doLogout()
+    } else if (status === 429) {
+      errorMessage.value = 'Too many requests. Please wait a moment.'
+    } else if (e?.data?.errors?.vin?.[0]) {
+      errorMessage.value = e.data.errors.vin[0]
+    } else {
+      errorMessage.value = e?.data?.error || e?.response?.data?.error || t('vin_to_pin.generic_error')
     }
   } finally {
     isLoading.value = false
@@ -174,8 +216,7 @@ async function handleSubmit() {
 }
 
 function copyToClipboard() {
-  const text = `${vin.value}\n${keyCode.value}\n${pinCode.value}`
-  navigator.clipboard.writeText(text).catch(() => {})
+  navigator.clipboard.writeText(`${vin.value}\n${keyCode.value}\n${pinCode.value}`).catch(() => {})
 }
 
 useHead(() => ({
@@ -196,7 +237,7 @@ useHead(() => ({
       v-if="isLoggedIn" 
       type="button" 
       class="logout-button absolute top-4 right-4 sm:top-6 sm:right-6 !h-[42px] !text-sm" 
-      @click="logout"
+      @click="doLogout"
     >
       Logout
     </button>
@@ -214,20 +255,35 @@ useHead(() => ({
         {{ errorMessage }}
       </div>
 
-    <form v-if="!isLoggedIn" @submit.prevent="verifyLogin" class="flex flex-col items-center">
-      <div class="row-gap">
+      <transition name="fade">
+        <div v-if="isLoading" class="fixed inset-0 z-10 bg-black/55 flex items-center justify-center">
+          <div class="h-12 w-12 rounded-full border-4 border-white/25 border-t-white animate-spin"></div>
+        </div>
+      </transition>
+
+      <form v-if="!isLoggedIn" @submit.prevent="handleLogin" class="flex flex-col items-center">
         <input
           type="text"
           v-model="usernameInput"
           required
-          :placeholder="$t('vin_to_pin.username_placeholder') || 'Enter Username'"
+          autocomplete="username"
+          :placeholder="$t('vin_to_pin.username_placeholder') || 'Username'"
           class="pill-input username-width"
         />
-      </div>
-      <button type="submit" class="get-button" :disabled="isLoading">
-        <span>{{ isLoading ? 'Loading...' : 'LOGIN' }}</span>
-      </button>
-    </form>
+
+        <input
+          type="password"
+          v-model="passwordInput"
+          required
+          autocomplete="current-password"
+          placeholder="Password"
+          class="pill-input username-width"
+        />
+
+        <button type="submit" class="get-button" :disabled="isLoading">
+          <span>{{ isLoading ? 'Loading...' : 'LOGIN' }}</span>
+        </button>
+      </form>
 
       <div v-else>
         <div class="mx-auto mb-5 max-w-[680px] text-center text-zinc-400 text-md text-white font-medium">
