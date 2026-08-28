@@ -139,8 +139,6 @@ export default defineNuxtConfig({
       defaultOgImage: `${siteUrl}/images/og-image.jpg`,
       defaultDescription: 'Automotive locksmith tools, remotes, shells, and key programming devices.',
       gtmId: process.env.NUXT_PUBLIC_GTM_ID || 'GTM-PWSSMVC7',
-      SECRET_KEY: process.env.SECRET_KEY,
-      API_KEY: process.env.API_KEY,
       API_BASE_URL: process.env.API_BASE_URL,
       PAYPAL_CLIENT_ID: '',
       PAYPAL_MAZDA_CLIENT_ID: process.env.NUXT_PUBLIC_PAYPAL_MAZDA_CLIENT_ID,

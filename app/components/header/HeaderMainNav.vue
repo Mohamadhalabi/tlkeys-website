@@ -576,7 +576,7 @@ async function fetchCars() {
   loadingCars.value = true; errorCars.value = ''
   try {
     const { $customApi } = useNuxtApp()
-    const res = await $customApi(`${API_BASE_URL}/get_cars_menu`, { method: 'GET' })
+    const res = await $customApi(`/get_cars_menu`, { method: 'GET' })
     cars.value = Array.isArray(extractCars(res)) ? extractCars(res) : []
   } catch (err) {
     errorCars.value = err?.data?.message || err?.message || t('error') || 'Error loading cars.'
@@ -586,7 +586,7 @@ async function fetchManufacturers() {
   loadingManufacturers.value = true; errorManufacturers.value = ''
   try {
     const { $customApi } = useNuxtApp()
-    const res = await $customApi(`${API_BASE_URL}/  get_manufacturers_menu`, { method: 'GET' })
+    const res = await $customApi(`/  get_manufacturers_menu`, { method: 'GET' })
     manufacturers.value = Array.isArray(extractManufacturers(res)) ? extractManufacturers(res) : []
   } catch (err) {
     errorManufacturers.value = err?.data?.message || err?.message || t('error') || 'Error loading manufacturers.'
@@ -596,7 +596,7 @@ async function fetchKeysRemotes() {
   loadingKeys.value = true; errorKeys.value = ''
   try {
     const { $customApi } = useNuxtApp()
-    const res = await $customApi(`${API_BASE_URL}/get_keys_and_remotes_menu`, { method: 'GET' })
+    const res = await $customApi(`/get_keys_and_remotes_menu`, { method: 'GET' })
     keysRemotes.value = Array.isArray(extractKeysRemotes(res)) ? extractKeysRemotes(res) : []
   } catch (err) {
     errorKeys.value = err?.data?.message || err?.message || t('error') || 'Error loading keys & remotes.'
@@ -606,7 +606,7 @@ async function fetchDevicesMachines() {
   loadingDevices.value = true; errorDevices.value = ''
   try {
     const { $customApi } = useNuxtApp()
-    const res = await $customApi(`${API_BASE_URL}/get_devices_and_machines`, { method: 'GET' })
+    const res = await $customApi(`/get_devices_and_machines`, { method: 'GET' })
     devicesMachines.value = Array.isArray(extractDevicesMachines(res)) ? extractDevicesMachines(res) : []
   } catch (err) {
     errorDevices.value = err?.data?.message || err?.message || t('error') || 'Error loading devices & machines.'
@@ -616,7 +616,7 @@ async function fetchAccessoriesTools() {
   loadingAccessories.value = true; errorAccessories.value = ''
   try {
     const { $customApi } = useNuxtApp()
-    const res = await $customApi(`${API_BASE_URL}/get_accessories_and_tools`, { method: 'GET' })
+    const res = await $customApi(`/get_accessories_and_tools`, { method: 'GET' })
     accessoriesTools.value = Array.isArray(extractAccessoriesTools(res)) ? extractAccessoriesTools(res) : []
   } catch (err) {
     errorAccessories.value = err?.data?.message || err?.message || t('error') || 'Error loading accessories & tools.'
@@ -626,7 +626,7 @@ async function fetchSoftwareTokens() {
   loadingSoftTok.value = true; errorSoftTok.value = ''
   try {
     const { $customApi } = useNuxtApp()
-    const res = await $customApi(`${API_BASE_URL}/get_softwares_and_tokens`, { method: 'GET' })
+    const res = await $customApi(`/get_softwares_and_tokens`, { method: 'GET' })
     const { softwares: s, tokens: tk } = extractSoftwareTokens(res)
     softwares.value = s
     tokens.value = tk

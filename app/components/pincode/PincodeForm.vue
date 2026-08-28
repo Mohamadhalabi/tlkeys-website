@@ -414,7 +414,7 @@ const whatsappLink = computed(() => {
 /* ─────────── load balances ─────────── */
 async function loadBalances() {
   try {
-    const res = await $customApi(`${API_BASE_URL}${props.balancesEndpoint}`, { method: 'GET' })
+    const res = await $customApi(`${props.balancesEndpoint}`, { method: 'GET' })
     const body = res?.data ?? res
     if (body?.balances) balances.value = { ...balances.value, ...body.balances }
     authenticated.value = true
@@ -476,7 +476,7 @@ async function calculate() {
   instructionsOpen.value = false
 
   try {
-    const res = await $customApi(`${API_BASE_URL}${props.calculateEndpoint}`, {
+    const res = await $customApi(`${props.calculateEndpoint}`, {
       method: 'POST',
       body: { vin: vin.value },
     })

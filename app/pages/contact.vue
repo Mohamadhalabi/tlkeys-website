@@ -292,7 +292,7 @@ function resetForm() {
 async function sendMessage() {
   try {
     submitting.value = true
-    await $customApi(`${API_BASE_URL}/contact-us`, {
+    await $customApi(`/contact-us`, {
       method: 'POST',
       body: {
         name: (contactName.value || auth?.user?.name || '') ?? '',

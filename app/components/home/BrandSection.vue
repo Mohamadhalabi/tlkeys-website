@@ -115,7 +115,7 @@ function lastFromMeta(m: ApiMeta | null) {
 
 /* ---------- SSR Fetch Logic ---------- */
 const fetchApi = async (p = 1) => {
-  const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
+  const res = await $customApi(`/homepage-products/featured`, {
     method: 'GET',
     params: {
       page: p,

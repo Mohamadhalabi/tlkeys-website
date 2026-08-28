@@ -93,7 +93,7 @@ const successState = computed(() => !!(keyCode.value && pinCode.value))
 const disabled = computed(() => isLoading.value || vin.value.length !== 17)
 
 async function loadStats() {
-  const res: any = await $customApi(`${API_BASE_URL}/check-user`, {
+  const res: any = await $customApi(`/check-user`, {
     method: 'POST',
     headers: authHeaders(),
     body: { api_type: 'old' },
@@ -117,7 +117,7 @@ async function handleLogin() {
   errorMessage.value = null
 
   try {
-    const res: any = await $customApi(`${API_BASE_URL}/vin-to-pin/login`, {
+    const res: any = await $customApi(`/vin-to-pin/login`, {
       method: 'POST',
       headers: baseHeaders(),
       body: { username: usernameInput.value, password: passwordInput.value, scope: 'vin' },
@@ -143,7 +143,7 @@ function doLogout() {
   if (tokenCookie.value) {
     // Fire-and-forget: the cookie clears either way, so a failed network
     // call cannot leave the user stuck logged in.
-    $customApi(`${API_BASE_URL}/vin-to-pin/logout`, {
+    $customApi(`/vin-to-pin/logout`, {
       method: 'POST',
       headers: authHeaders(),
     }).catch(() => {})
@@ -171,7 +171,7 @@ async function handleSubmit() {
   isLoading.value = true
 
   try {
-    const res: any = await $customApi(`${API_BASE_URL}/vin-to-pin-old`, {
+    const res: any = await $customApi(`/vin-to-pin-old`, {
       method: 'POST',
       headers: authHeaders(),
       // No username in the body: the server reads it from the token, so

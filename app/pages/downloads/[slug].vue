@@ -28,7 +28,7 @@ const { public: { API_BASE_URL, SITE_NAME = 'Techno Lock Keys' } } = useRuntimeC
 const { data, pending, error, refresh } = await useAsyncData(
   () => `downloads:item:${slug.value}`,
   async () => {
-    const res = await $customApi(`${API_BASE_URL}/downloads/${slug.value}`, { method: 'GET' })
+    const res = await $customApi(`/downloads/${slug.value}`, { method: 'GET' })
     return res?.data?.data ?? res?.data ?? res
   },
   { watch: [slug] }

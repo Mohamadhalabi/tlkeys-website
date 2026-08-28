@@ -38,7 +38,7 @@ const handleSearch = async () => {
   loading.value = true
 
   try {
-    const res = await $customApi(`${API_BASE_URL}/vin-lookup`, {
+    const res = await $customApi(`/vin-lookup`, {
       method: 'POST',
       body: { vin: searchInput.value }
     })

@@ -130,7 +130,7 @@ const { $customApi } = useNuxtApp() as any
 const slugParam = (route.params.slug as string) || 'pin-code'
 const { data: slugData, error } = await useAsyncData(
   () => `slug:${slugParam}`,
-  async () => await $customApi(`${API_BASE_URL}/slug/${slugParam}`, { method: 'GET' }),
+  async () => await $customApi(`/slug/${slugParam}`, { method: 'GET' }),
   { server: true, default: () => null, dedupe: 'defer' }
 )
 if (error.value) throw createError({ statusCode: 404, statusMessage: 'Not Found' })
@@ -139,7 +139,7 @@ const resolved = computed<any>(() => slugData.value?.data ?? slugData.value ?? n
 /* ---------- OFFLINE pin-code list ---------- */
 const { data: offlineRes } = await useAsyncData(
   'offlinePinCode',
-  async () => await $customApi(`${API_BASE_URL}/pin-code/offline-pincode`, { method: 'GET' }),
+  async () => await $customApi(`/pin-code/offline-pincode`, { method: 'GET' }),
   { server: true, default: () => ({ data: [] }), dedupe: 'defer' }
 )
 const offlinePinCode = computed<any[]>(() => offlineRes.value?.data?.data ?? offlineRes.value?.data ?? [])
@@ -285,7 +285,7 @@ async function fetchByCategory(opts: {
   const { categoryId, page = 1, rows = 1, perRow = 12, target, label = 'PRODUCTS' } = opts
   try {
     target.loading.value = true
-    const res = await $customApi(`${API_BASE_URL}/pin-code/category-products`, {
+    const res = await $customApi(`/pin-code/category-products`, {
       method: 'GET',
       params: {
         category_id: categoryId,

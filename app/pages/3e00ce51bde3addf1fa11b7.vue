@@ -26,7 +26,7 @@ const errorMessage     = ref<string | null>(null)
 
 const { $customApi } = useNuxtApp()
 const {
-  public: { API_BASE_URL, API_KEY, SECRET_KEY },
+  public: { API_BASE_URL },
 } = useRuntimeConfig()
 
 const currencyCookie = useCookie<string>('currency', {
@@ -56,8 +56,6 @@ function baseHeaders() {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
     'currency': currencyCookie.value || 'USD',
-    'secret-key': SECRET_KEY,
-    'api-key': API_KEY,
   }
 }
 
@@ -87,7 +85,7 @@ async function handleLogin() {
   errorMessage.value = null
 
   try {
-    const res: any = await $customApi(`${API_BASE_URL}/vin-to-pin/login`, {
+    const res: any = await $customApi(`/vin-to-pin/login`, {
       method: 'POST',
       headers: baseHeaders(),
       body: {
@@ -116,7 +114,7 @@ function doLogout() {
   if (tokenCookie.value) {
     // Fire-and-forget: the cookie clears either way, so a failed network
     // call cannot leave the user stuck logged in.
-    $customApi(`${API_BASE_URL}/vin-to-pin/logout`, {
+    $customApi(`/vin-to-pin/logout`, {
       method: 'POST',
       headers: authHeaders(),
     }).catch(() => {})
@@ -147,7 +145,7 @@ async function handleSubmit() {
   subscriptionEnds.value = null
 
   try {
-    const res: any = await $customApi(`${API_BASE_URL}/vin-to-part-number`, {
+    const res: any = await $customApi(`/vin-to-part-number`, {
       method: 'POST',
       headers: authHeaders(),
       // No username in the body: the server reads it from the token, so

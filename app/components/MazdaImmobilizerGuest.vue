@@ -896,7 +896,7 @@ async function mountButtons() {
 
       // retry:0 matters here — the plugin retries once by default, and a
       // retried POST would open a second PayPal order for the same form.
-      const res: any = await $customApi(`${API_BASE_URL}${props.endpoint}/orders`, {
+      const res: any = await $customApi(`${props.endpoint}/orders`, {
         method: 'POST',
         body: payload(),
         retry: 0,
@@ -1054,7 +1054,7 @@ async function recoverOrder() {
   lastVin.value = saved.vin ?? ''
 
   try {
-    const res: any = await $customApi(`${API_BASE_URL}${props.endpoint}/orders/${saved.reference}`, {
+    const res: any = await $customApi(`${props.endpoint}/orders/${saved.reference}`, {
       headers: { 'X-Order-Token': saved.accessToken },
     })
 

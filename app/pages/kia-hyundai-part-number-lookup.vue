@@ -61,7 +61,7 @@ const handleSearch = async () => {
   loading.value = true
 
   try {
-    const res = await $customApi(`${API_BASE_URL}/vin-lookup`, {
+    const res = await $customApi(`/vin-lookup`, {
       method: 'POST',
       body: { vin: searchInput.value }
     })
@@ -155,7 +155,7 @@ function useLazySection(cb: () => void) {
 async function fetchTokens() {
   try {
     loadingItems.value = true
-    const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
+    const res = await $customApi(`/homepage-products/featured`, {
       method: 'GET',
       params: {
         page: 1,

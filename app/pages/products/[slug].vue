@@ -243,7 +243,7 @@ const { data: ssr, pending: loading, error } = await useAsyncData(
   () => `product:${slug.value}`,
   async () => {
     const endpoint =
-      `${API_BASE_URL}/products/slug/${encodeURIComponent(slug.value)}` +
+      `/products/slug/${encodeURIComponent(slug.value)}` +
       `?include=images,table_price,description,reviews,categories,manufacturers,brands,meta_title,meta_description,discount,accessories,bundles,attributes,faq,videos,compatibility,related_versions`
 
     try {
@@ -832,7 +832,7 @@ async function fetchRelatedOnce() {
     const brandIds = (product.value.brands || []).map(b => b.id).filter(Boolean)
     if (!catIds.length && !manuIds.length && !brandIds.length) { relatedProducts.value = []; return }
     const body = { exclude_id: product.value.id, categories: catIds, manufacturers: manuIds, brands: brandIds, limit: 24 }
-    const res = await $customApi(`${API_BASE_URL}/products/related`, { method: 'POST', body })
+    const res = await $customApi(`/products/related`, { method: 'POST', body })
     const rows: any[] = (res?.data ?? res ?? []) as any[]
     relatedProducts.value = rows.map(normRelatedItem).filter(Boolean) as GridProduct[]
   } catch (e: any) { relatedError.value = t('product.failedToLoadRelated','Failed to load related products') } finally { relatedLoading.value = false }

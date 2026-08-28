@@ -10,7 +10,7 @@ const { $customApi } = useNuxtApp()
 const { data, error } = await useAsyncData(
   () => `slug:${route.params.slug}`,
   async () => {
-    return await $customApi(`${API_BASE_URL}/slug/${route.params.slug}`, { method: 'GET' })
+    return await $customApi(`/slug/${route.params.slug}`, { method: 'GET' })
   },
   { server: true, default: () => null, dedupe: 'defer' }
 )

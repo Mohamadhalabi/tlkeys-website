@@ -35,7 +35,7 @@ const sanitize = (arr: any[]): SliderItem[] =>
 const { data: slidersRaw, error: slidersErrObj, refresh: refreshSliders } = await useAsyncData<unknown>(
   () => `home:sliders:${locale.value}`,
   async () => {
-    const res = await $customApi(`${API_BASE_URL}/sliders`, { method: 'GET' })
+    const res = await $customApi(`/sliders`, { method: 'GET' })
     const list = (res?.data ?? res)?.data ?? (res?.data ?? res)?.result ?? []
     return Array.isArray(list) ? list : []
   },
@@ -172,7 +172,7 @@ const featuredPage    = ref(1)
 const featuredLastRef = ref(1)
 
 async function fetchFeaturedApi(page = 1, rows = 2, perRow = 6) {
-  const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
+  const res = await $customApi(`/homepage-products/featured`, {
     method: 'GET',
     params: { page, rows, per_row: perRow, include: 'table_price,categories', currency: 'USD' }
   })
@@ -206,7 +206,7 @@ const newPage     = ref(1)
 const newLastRef  = ref(1)
 
 async function fetchNewApi(page = 1, rows = 1, perRow = 6) {
-  const res = await $customApi(`${API_BASE_URL}/homepage-products/new-arrivals`, {
+  const res = await $customApi(`/homepage-products/new-arrivals`, {
     method: 'GET',
     params: { page, rows, per_row: perRow, include: 'table_price,categories', currency: 'USD' }
   })

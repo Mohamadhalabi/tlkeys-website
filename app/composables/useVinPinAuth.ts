@@ -11,7 +11,7 @@ import { useNuxtApp, useRuntimeConfig, useCookie } from '#imports'
  */
 export function useVinPinAuth(scope: 'vin' | 'part' = 'vin') {
   const { $customApi } = useNuxtApp()
-  const { public: { API_BASE_URL, API_KEY, SECRET_KEY } } = useRuntimeConfig()
+  const { public: { API_BASE_URL } } = useRuntimeConfig()
 
   const tokenCookie = useCookie<string | null>(`vp_token_${scope}`, {
     default: () => null,
@@ -35,8 +35,6 @@ export function useVinPinAuth(scope: 'vin' | 'part' = 'vin') {
       'Accept-Language': locale,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'secret-key': SECRET_KEY,
-      'api-key': API_KEY,
     }
   }
 
@@ -45,7 +43,7 @@ export function useVinPinAuth(scope: 'vin' | 'part' = 'vin') {
   }
 
   async function login(username: string, password: string, locale = 'en') {
-    const res: any = await $customApi(`${API_BASE_URL}/vin-to-pin/login`, {
+    const res: any = await $customApi(`/vin-to-pin/login`, {
       method: 'POST',
       headers: baseHeaders(locale),
       body: { username, password, scope },
@@ -65,7 +63,7 @@ export function useVinPinAuth(scope: 'vin' | 'part' = 'vin') {
     if (tokenCookie.value) {
       // Fire-and-forget: the local cookie is cleared either way, so a
       // failed network call cannot leave the user stuck logged in.
-      $customApi(`${API_BASE_URL}/vin-to-pin/logout`, {
+      $customApi(`/vin-to-pin/logout`, {
         method: 'POST',
         headers: authHeaders(),
       }).catch(() => {})

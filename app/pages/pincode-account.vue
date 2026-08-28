@@ -147,7 +147,7 @@ const gridKey = 'grid-pincode-account'
 async function fetchPinCode(page = 1, rows = rowsForGrid, perRow = PRODUCTS_PER_ROW) {
   try {
     loadingItems.value = true
-    const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
+    const res = await $customApi(`/homepage-products/featured`, {
       method: 'GET',
       params: {
         page,

@@ -9,8 +9,8 @@ export default defineNuxtPlugin(() => {
   const tokenCookie = useCookie<string | null>('auth_token')
 
   const baseURL = process.server
-    ? (config.apiBaseInternal || config.public.API_BASE_URL)
-    : config.public.API_BASE_URL
+    ? config.apiBaseUrl
+    : '/api/proxy'
 
   const forwarded = process.server
     ? (useRequestHeaders(['cookie', 'authorization', 'accept-language']) as Record<string, string>)
@@ -89,9 +89,12 @@ export default defineNuxtPlugin(() => {
       ...incoming,
       accept: 'application/json',
       'accept-language': lang,
-      'X-Currency': cur, // 👈 backend varies on this header
-      'api-key': config.public.API_KEY,
-      'secret-key': config.public.SECRET_KEY,
+      'X-Currency': cur,
+    }
+
+    if (process.server) {
+      headers['api-key'] = config.apiKey
+      headers['secret-key'] = config.secretKey
     }
 
     // auth

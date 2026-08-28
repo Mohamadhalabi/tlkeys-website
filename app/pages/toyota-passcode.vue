@@ -96,7 +96,7 @@ const handleCalculate = async () => {
   startCountdown()
 
   try {
-    const res = await $customApi(`${API_BASE_URL}/toyota-passcode`, {
+    const res = await $customApi(`/toyota-passcode`, {
       method: 'POST',
       body: form.value
     })
@@ -193,7 +193,7 @@ onMounted(() => {
 async function fetchTokens() {
   loadingItems.value = true
   try {
-    const res = await $customApi(`${API_BASE_URL}/homepage-products/featured`, {
+    const res = await $customApi(`/homepage-products/featured`, {
       method: 'GET',
       params: { page: 1, rows: 1, per_row: 12, category_id: 6687, only_featured: 0, currency: 'USD' }
     })

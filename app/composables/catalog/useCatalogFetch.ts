@@ -150,7 +150,7 @@ export function useCatalogFetch(state: ReturnType<typeof import('./useCatalogSta
 
     // small helper: retry once on transient failures
     const attempt = async (retry = false) => {
-      const res = await $customApi(`${API_BASE_URL}/catalog`, {
+      const res = await $customApi(`/catalog`, {
         method: 'GET',
         params: baseParams,
         // if your $customApi uses fetch under the hood, this will work;

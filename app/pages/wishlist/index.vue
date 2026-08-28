@@ -40,7 +40,7 @@ const rows = ref<WishRow[]>([])
 async function fetchProductsByIds(ids: Id[]) {
   if (!ids.length) return {}
   try {
-    const r = await $customApi(`${API_BASE_URL}/products/bulk?ids=${encodeURIComponent(ids.map(String).join(','))}`)
+    const r = await $customApi(`/products/bulk?ids=${encodeURIComponent(ids.map(String).join(','))}`)
     const list = (r?.data ?? r) as any[]
     const map: Record<string, any> = {}
     list?.forEach(p => { map[String(p.id)] = p })
@@ -48,7 +48,7 @@ async function fetchProductsByIds(ids: Id[]) {
   } catch {
     const out: Record<string, any> = {}
     for (const id of ids) {
-      try { const r = await $customApi(`${API_BASE_URL}/products/${id}`); out[String(id)] = (r?.data ?? r) } catch {}
+      try { const r = await $customApi(`/products/${id}`); out[String(id)] = (r?.data ?? r) } catch {}
     }
     return out
   }

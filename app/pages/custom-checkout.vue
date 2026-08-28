@@ -119,7 +119,7 @@ async function fetchProduct() {
   const API_BASE_URL = cfg.public.API_BASE_URL as string
 
   const use = async (path: string) => {
-    const res = await $customApi(`${API_BASE_URL}${path}`)
+    const res = await $customApi(`${path}`)
     const p = (res?.data ?? res) as any
     const images = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [{ src: p.image }] : [])
     product.value = {
