@@ -586,7 +586,7 @@ async function fetchManufacturers() {
   loadingManufacturers.value = true; errorManufacturers.value = ''
   try {
     const { $customApi } = useNuxtApp()
-    const res = await $customApi(`/  get_manufacturers_menu`, { method: 'GET' })
+    const res = await $customApi(`/get_manufacturers_menu`, { method: 'GET' })
     manufacturers.value = Array.isArray(extractManufacturers(res)) ? extractManufacturers(res) : []
   } catch (err) {
     errorManufacturers.value = err?.data?.message || err?.message || t('error') || 'Error loading manufacturers.'
