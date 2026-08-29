@@ -18,7 +18,7 @@ type DownloadsResponse = {
 const route = useRoute()
 const reqUrl = useRequestURL()
 const { $customApi } = useNuxtApp()
-const { public: { API_BASE_URL, SITE_NAME = 'Techno Lock Keys' } } = useRuntimeConfig()
+const { public: { SITE_NAME = 'Techno Lock Keys' } } = useRuntimeConfig()
 
 /* ---------------- Pagination & State ---------------- */
 const perPage = computed(() => {
@@ -46,8 +46,11 @@ async function fetchPage(p: number) {
   loading.value = true
   errorMsg.value = null
   try {
+    /* Relative path: the fetch-api plugin points this at /api/proxy on the
+       client and at the Laravel base URL during SSR. Prefixing it with
+       API_BASE_URL would bypass the proxy and lose the credentials. */
     const res = await $customApi(
-      `${API_BASE_URL}/downloads?page=${p}&length=${perPage.value}`,
+      `/downloads?page=${p}&length=${perPage.value}`,
       { method: 'GET' }
     )
     const payload = (res?.data?.data ?? res?.data ?? res) as DownloadsResponse
