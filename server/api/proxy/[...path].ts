@@ -13,6 +13,26 @@ export default defineEventHandler(async (event) => {
     if (incoming[h]) headers[h] = incoming[h] as string
   }
 
+  // The visitor's real address. Laravel's client on this hop is *this server*,
+  // so without an explicit X-Forwarded-For every registration_ip, rate limit
+  // and audit log records our own box instead of the user.
+  //
+  // Set from Cloudflare's header rather than passed through from the client:
+  // an inbound x-forwarded-for is attacker-controlled and must not be trusted.
+  const clientIp =
+    (incoming['cf-connecting-ip'] as string | undefined) ||
+    getRequestIP(event, { xForwardedFor: true })
+
+  // TEMPORARY — remove once the IP is landing correctly
+  console.log('proxy ip debug', {
+    path,
+    cf:  incoming['cf-connecting-ip'],
+    xff: incoming['x-forwarded-for'],
+    resolved: clientIp,
+  })
+
+  if (clientIp) headers['x-forwarded-for'] = clientIp
+
   const method = event.method
   const body = ['POST', 'PUT', 'PATCH'].includes(method) ? await readBody(event) : undefined
 
@@ -30,6 +50,5 @@ export default defineEventHandler(async (event) => {
     /"(\/storage\/[^"]*)"/g,
     (_m, p) => JSON.stringify(origin + p)
   )
-
   return JSON.parse(json)
 })
