@@ -53,7 +53,9 @@ const tokenCookie = useCookie<string | null>('vp_token_vin', {
   default: () => null,
   maxAge: 12 * 3600,
   sameSite: 'strict',
+  secure: true,
   path: '/',
+  domain: '.tlkeys.com',
 })
 
 const isLoggedIn = computed(() => !!tokenCookie.value)

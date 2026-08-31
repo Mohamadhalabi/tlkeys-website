@@ -13,12 +13,13 @@ export function useVinPinAuth(scope: 'vin' | 'part' = 'vin') {
   const { $customApi } = useNuxtApp()
   const { public: { API_BASE_URL } } = useRuntimeConfig()
 
-  const tokenCookie = useCookie<string | null>(`vp_token_${scope}`, {
+  const tokenCookie = useCookie<string | null>('vp_token_vin', {
     default: () => null,
     maxAge: 12 * 3600,
     sameSite: 'strict',
     secure: true,
     path: '/',
+    domain: '.tlkeys.com',
   })
 
   const nameCookie = useCookie<string | null>(`vp_user_${scope}`, {
