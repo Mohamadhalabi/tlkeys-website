@@ -483,7 +483,7 @@ useHead({
    one like Toyota's still centres cleanly. */
 .tile__mark {
   width: 100%;
-  height: 96px;
+  height: 150px;
   margin-bottom: 16px;
   border-radius: 10px;
   background: #fff;
