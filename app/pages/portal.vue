@@ -57,6 +57,61 @@ const userVin   = useCookie<string | null>('vp_user_vin',   { default: () => nul
 // Signed in if EITHER token exists: a customer may hold only one of the two.
 const isLoggedIn = computed(() => !!tokenVin.value || !!tokenPart.value)
 
+/**
+ * Per-service availability, resolved server-side from the account row.
+ *
+ * The portal holds a token, not the customer's balances, so it has to ask.
+ * Doing the check here rather than in each tool means a customer who has
+ * run out of Toyota credits sees a greyed tile saying so, instead of
+ * clicking through and meeting an error that reads like a fault.
+ */
+type ServiceState = {
+  available: boolean
+  reason: string | null
+  message: string
+  mode: 'token' | 'subscription'
+  credits: number | null
+}
+
+const entitlements = ref<Record<string, ServiceState>>({})
+const loadingState = ref(false)
+
+async function loadEntitlements() {
+  if (!tokenVin.value) return
+
+  loadingState.value = true
+  try {
+    const res: any = await $customApi('/vin-to-pin/me', {
+      method: 'POST',
+      headers: { ...baseHeaders(), 'X-VinPin-Token': tokenVin.value },
+      body: {},
+    })
+    const data = (res?.data && typeof res.data === 'object') ? res.data : res
+    entitlements.value = data?.services || {}
+  } catch (e) {
+    // If this fails the tiles stay enabled rather than locking a paying
+    // customer out because one request timed out. The tools enforce their
+    // own limits regardless, so the worst case is the old behaviour.
+    entitlements.value = {}
+  } finally {
+    loadingState.value = false
+  }
+}
+
+/** Unknown key means "no information", which must not mean "blocked". */
+function stateFor(key: string): ServiceState | null {
+  return entitlements.value[key] ?? null
+}
+
+function isBlocked(key: string): boolean {
+  const st = stateFor(key)
+  return st ? !st.available : false
+}
+
+onMounted(() => {
+  if (isLoggedIn.value) loadEntitlements()
+})
+
 /* ------------------------------------------------------------------ tiles */
 
 /**
@@ -73,42 +128,42 @@ const services = [
     title: 'Kia & Hyundai — 2017 and newer',
     blurb: 'PIN by VIN for the current generation immobiliser.',
     href: '/6b750ddca9d27708692942d7d85ee5a16b3fc2e6',
-    logo: '/images/services/kia-hyundai-new.webp',
+    logo: '/images/services/kia-hyundai.svg',
   },
   {
     key: 'kia_old',
     title: 'Kia & Hyundai — before 2017',
     blurb: 'PIN by VIN for the earlier immobiliser.',
     href: '/435d7eb240c0e460cbb0281d1956b68c0ca99c33',
-    logo: '/images/services/kia-hyundai-old.webp',
+    logo: '/images/services/kia-hyundai.svg',
   },
   {
     key: 'part_number',
     title: 'Kia & Hyundai part number',
     blurb: 'Look up the remote or key part number from a VIN.',
     href: '/3e00ce51bde3addf1fa11b7',
-    logo: '/images/services/part-number.webp',
+    logo: '/images/services/kia-hyundai.svg',
   },
   {
     key: 'mazda',
     title: 'Mazda immobiliser codes',
     blurb: 'Submit outcodes and have the reply emailed back.',
     href: 'https://mazdacode.tlkeys.com/',
-    logo: '/images/services/mazda-outcode.webp',
+    logo: '/images/services/mazda.svg',
   },
   {
     key: 'toyota',
     title: 'Toyota passcode',
     blurb: 'Reads the passcode straight from the Toyota portal.',
     href: 'https://tools.tlkeys.com/',
-    logo: '/images/services/toyota-passcode.webp',
+    logo: '/images/services/toyota.svg',
   },
   {
     key: 'lonsdor',
     title: 'Lonsdor outcode calculator',
     blurb: 'Rolling code to outcode for Lonsdor devices.',
     href: 'https://www.yaris.tlkeys.com/',
-    logo: '/images/services/toyota-yaris-pin-code.webp',
+    logo: '/images/services/lonsdor.svg',
   },
 ]
 
@@ -182,6 +237,8 @@ async function handleLogin() {
   // Never keep the password around once it has been exchanged.
   passwordInput.value = ''
   isLoading.value = false
+
+  await loadEntitlements()
 }
 
 function handleLogout() {
@@ -200,6 +257,7 @@ function handleLogout() {
   userVin.value = null
   usernameInput.value = ''
   passwordInput.value = ''
+  entitlements.value = {}
 }
 
 /*
@@ -276,14 +334,32 @@ useHead({
       </div>
 
       <div class="grid">
-        <a v-for="s in services" :key="s.key" :href="s.href" class="tile">
+        <component
+          v-for="s in services"
+          :is="isBlocked(s.key) ? 'div' : 'a'"
+          :key="s.key"
+          :href="isBlocked(s.key) ? undefined : s.href"
+          class="tile"
+          :class="{ 'tile--blocked': isBlocked(s.key) }"
+          :aria-disabled="isBlocked(s.key) ? 'true' : undefined"
+        >
           <span class="tile__mark" :data-initial="s.title.charAt(0)">
             <img :src="s.logo" :alt="s.title" class="tile__logo" @error="hideBrokenLogo">
           </span>
           <span class="tile__title">{{ s.title }}</span>
           <span class="tile__blurb">{{ s.blurb }}</span>
-          <span class="tile__go">Open →</span>
-        </a>
+
+          <!-- Blocked tiles say why, rather than looking broken. -->
+          <span v-if="isBlocked(s.key)" class="tile__locked">
+            {{ stateFor(s.key)?.message || 'Not available' }}
+          </span>
+          <span v-else class="tile__go">
+            Open →
+            <em v-if="stateFor(s.key)?.mode === 'token'" class="tile__credits">
+              {{ stateFor(s.key)?.message }}
+            </em>
+          </span>
+        </component>
       </div>
 
       <p class="foot">
@@ -407,7 +483,7 @@ useHead({
    one like Toyota's still centres cleanly. */
 .tile__mark {
   width: 100%;
-  height: 150px;
+  height: 96px;
   margin-bottom: 16px;
   border-radius: 10px;
   background: #fff;
@@ -436,6 +512,38 @@ useHead({
 .tile__title { font-size: 15px; font-weight: 700; line-height: 1.35; color: #111827; }
 .tile__blurb { font-size: 13px; color: #6b7280; line-height: 1.45; }
 .tile__go    { font-size: 13px; font-weight: 600; color: #2563eb; margin-top: 8px; }
+.tile__credits {
+  display: block;
+  margin-top: 3px;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* Blocked: visibly out of reach, and it says why. Kept legible rather than
+   faded to the point of looking like a rendering fault. */
+.tile--blocked {
+  background: #f7f8fa;
+  border-color: #e5e7eb;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.tile--blocked .tile__mark  { background: #f1f2f4; }
+.tile--blocked .tile__logo  { filter: grayscale(100%); opacity: .45; }
+.tile--blocked .tile__title { color: #9ca3af; }
+.tile--blocked .tile__blurb { color: #b6bcc5; }
+.tile--blocked:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+.tile__locked {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b45309;
+}
 
 .alert {
   font-size: 13px;
