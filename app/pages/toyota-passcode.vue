@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useNuxtApp, useRuntimeConfig, useHead, useSeoMeta, useRoute } from '#imports'
+import { useNuxtApp, useHead, useSeoMeta, useRoute } from '#imports'
 import ProductGrid from '~/components/products/ProductGrid.vue'
 
 const { t, locale } = useI18n()
 const { isAuthenticated, user } = useAuth()
 const route = useRoute()
 
-const { public: { API_BASE_URL } } = useRuntimeConfig()
 const { $customApi } = useNuxtApp() as any
 
 /* ── WhatsApp support ── */
@@ -87,6 +86,32 @@ const formatInput = (key: keyof typeof form.value, e: Event) => {
   form.value[key] = v
 }
 
+/**
+ * Pull the HTTP status and JSON body out of whatever $customApi threw.
+ *
+ * ofetch wraps failures, and where the status and body end up differs
+ * between versions and between a network error and an HTTP error. Reading
+ * one location and hoping is how a real 402 ("no tokens left") ends up
+ * displayed as a generic server error — which tells the customer nothing
+ * and sends them to support.
+ */
+function readError(err: any): { status: number | null; body: any } {
+  const status =
+    err?.status ??
+    err?.statusCode ??
+    err?.response?.status ??
+    err?.response?._data?.status ??
+    null
+
+  const body =
+    err?.data ??
+    err?.response?._data ??
+    err?.response?.data ??
+    {}
+
+  return { status, body }
+}
+
 const handleCalculate = async () => {
   if (!isFormValid.value || !isAuthenticated.value) return
   errorMsg.value = null
@@ -101,40 +126,62 @@ const handleCalculate = async () => {
       body: form.value
     })
 
-    // Handle success response
     if (res?.status === 'success' && res?.passcode) {
       passcodeResult.value = res.passcode
       attemptInfo.value = {
         attemptNumber: res.attempt_number || 0,
         isPaidAttempt: res.is_paid_attempt === true,
-        attemptsUntilCharge: res.attempts_until_next_charge || 0
+        // The API returns both names; either is fine.
+        attemptsUntilCharge: res.attempts_until_next_charge ?? res.attempts_left ?? 0
       }
 
-      // Update user's token count from the server's authoritative value
+      // Trust the server's number over anything held locally.
       if (user.value && res?.tokens_remaining !== undefined) {
         user.value.toyota_tokens = res.tokens_remaining
       }
-
-      console.log('✅ Success:', {
-        passcode: res.passcode,
-        tokensRemaining: res.tokens_remaining,
-        attemptInfo: attemptInfo.value
-      })
     } else {
-      // API returned error or no passcode
-      errorMsg.value = res?.message || t('toyota_passcode.error_general')
-      console.error('❌ API Error:', res)
+      // A 200 that is not a success still carries a message worth showing.
+      errorMsg.value = res?.message || 'The calculation could not be completed. Please check your inputs.'
+      console.error('Toyota calc returned a non-success body:', res)
     }
   } catch (err: any) {
-    const status = err?.status || err?.statusCode || err?.response?.status
-    console.error('Error Status:', status, 'Error:', err)
+    const { status, body } = readError(err)
 
-    if (status === 402 || status === 403) {
-      errorMsg.value = err?.data?.message || err?.message || t('toyota_passcode.no_tokens_msg')
-      // Ensure token count is 0 on 402 response
+    // Kept deliberately: if an unexpected shape ever comes back, it is
+    // visible here rather than hidden behind a generic message.
+    console.error('Toyota calc failed', { status, body, err })
+
+    if (status === 402) {
+      // Out of tokens for a NEW calculation. The server already knows the
+      // balance is zero, so reflect that rather than leaving a stale count.
+      errorMsg.value = body?.message
+        || 'You have no Toyota tokens left. Please purchase more tokens to run a new calculation.'
       if (user.value) user.value.toyota_tokens = 0
+
+    } else if (status === 403) {
+      errorMsg.value = body?.message
+        || 'Your account does not have access to this service. Please contact the administrator.'
+
+    } else if (status === 429) {
+      // Rate limited: five calculations per minute, per account.
+      errorMsg.value = body?.message
+        || 'Too many calculations in a short time. Please wait a moment and try again.'
+
+    } else if (status === 401) {
+      errorMsg.value = 'Your session has expired. Please sign in again.'
+
+    } else if (status === 422) {
+      errorMsg.value = body?.message
+        || 'Please check the VIN and data fields and try again.'
+
+    } else if (status === 400) {
+      // Toyota looked at the data and refused it.
+      errorMsg.value = body?.message
+        || 'We cannot get this code. Please check the VIN and the three data fields, then try again.'
+
     } else {
-      errorMsg.value = err?.data?.message || err?.message || t('toyota_passcode.error_general')
+      errorMsg.value = body?.message
+        || 'The service is temporarily unavailable. Please try again in a moment.'
     }
   } finally {
     loading.value = false
@@ -278,12 +325,12 @@ useHead({
                 d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             <span class="font-bold text-sm sm:text-base">
-              {{ t('toyota_passcode.available_tokens') }}: {{ user?.toyota_tokens || 0 }}
+              Available Toyota Tokens: {{ user?.toyota_tokens || 0 }}
             </span>
           </div>
 
           <p v-if="hasNoTokens" class="text-xs text-orange-600 mt-2 font-medium">
-            {{ t('toyota_passcode.no_tokens_hint') }}
+            You have no tokens left. Purchase a token package below to continue.
           </p>
         </div>
 
@@ -291,7 +338,7 @@ useHead({
 
           <div class="text-left">
             <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">
-              {{ t('toyota_passcode.label_vin') }}
+              VIN Number
               <span class="text-red-500 ml-0.5">*</span>
             </label>
             <input
@@ -299,23 +346,23 @@ useHead({
               @input="e => formatInput('vin', e)"
               type="text"
               maxlength="17"
-              :placeholder="t('toyota_passcode.placeholder_vin')"
+              placeholder="17-digit VIN"
               :disabled="loading"
               class="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all disabled:bg-gray-100 text-center text-base sm:text-lg font-bold uppercase tracking-widest shadow-inner"
             />
-            <p class="text-xs text-gray-400 mt-1 ml-1">{{ t('toyota_passcode.vin_hint') }}</p>
+            <p class="text-xs text-gray-400 mt-1 ml-1">Must be exactly 17 characters.</p>
           </div>
 
           <div class="text-left">
             <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">
-              {{ t('toyota_passcode.label_data1') }}
+              Data 1
               <span class="text-red-500 ml-0.5">*</span>
             </label>
             <input
               v-model="form.data1"
               @input="e => formatInput('data1', e)"
               type="text"
-              :placeholder="t('toyota_passcode.placeholder_data1')"
+              placeholder="Data 1"
               :disabled="loading"
               class="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all disabled:bg-gray-100 text-center text-base sm:text-lg font-bold uppercase tracking-widest shadow-inner"
             />
@@ -323,14 +370,14 @@ useHead({
 
           <div class="text-left">
             <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">
-              {{ t('toyota_passcode.label_data2') }}
+              Data 2
               <span class="text-red-500 ml-0.5">*</span>
             </label>
             <input
               v-model="form.data2"
               @input="e => formatInput('data2', e)"
               type="text"
-              :placeholder="t('toyota_passcode.placeholder_data2')"
+              placeholder="Data 2"
               :disabled="loading"
               class="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all disabled:bg-gray-100 text-center text-base sm:text-lg font-bold uppercase tracking-widest shadow-inner"
             />
@@ -338,14 +385,14 @@ useHead({
 
           <div class="text-left">
             <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">
-              {{ t('toyota_passcode.label_data3') }}
+              Data 3
               <span class="text-red-500 ml-0.5">*</span>
             </label>
             <input
               v-model="form.data3"
               @input="e => formatInput('data3', e)"
               type="text"
-              :placeholder="t('toyota_passcode.placeholder_data3')"
+              placeholder="Data 3"
               :disabled="loading"
               @keyup.enter="handleCalculate"
               class="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all disabled:bg-gray-100 text-center text-base sm:text-lg font-bold uppercase tracking-widest shadow-inner"
@@ -353,7 +400,7 @@ useHead({
           </div>
 
           <p class="text-xs text-gray-400 text-left ml-1">
-            <span class="text-red-500">*</span> {{ t('toyota_passcode.required_fields_note') }}
+            <span class="text-red-500">*</span> All fields are required to calculate.
           </p>
 
           <div class="w-full pt-1">
@@ -366,7 +413,7 @@ useHead({
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                 </svg>
-                {{ t('toyota_passcode.login_btn') }}
+                Sign in to calculate
               </NuxtLinkLocale>
             </template>
 
@@ -381,10 +428,10 @@ useHead({
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                   </svg>
-                  {{ t('toyota_passcode.calculating') }}
+                  Calculating…
                 </span>
-                <span v-else-if="!isFormValid">{{ t('toyota_passcode.fill_all_fields') }}</span>
-                <span v-else>{{ t('toyota_passcode.calculate_btn') }}</span>
+                <span v-else-if="!isFormValid">Fill in all fields</span>
+                <span v-else>Calculate Passcode (Costs 1 Token)</span>
               </button>
             </template>
           </div>
@@ -418,10 +465,10 @@ useHead({
                    class="relative bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/50 rounded-2xl p-6 sm:p-8 text-center shadow-md overflow-hidden">
                 <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10"/>
                 <span class="inline-block px-4 py-1.5 bg-blue-100 text-blue-800 text-xs sm:text-sm font-bold rounded-full uppercase tracking-widest mb-4 shadow-sm">
-                  {{ t('toyota_passcode.success_title') }}
+                  Calculation successful
                 </span>
                 <div class="text-xs sm:text-sm text-gray-500 uppercase font-bold tracking-wider mb-1">
-                  {{ t('toyota_passcode.passcode_label') }}
+                  Generated passcode
                 </div>
 
                 <div class="flex items-center justify-center gap-4 my-2">
@@ -432,7 +479,7 @@ useHead({
                     @click="copyPasscode"
                     class="p-2.5 rounded-xl border transition-all active:scale-95 flex-shrink-0"
                     :class="copied ? 'bg-green-50 border-green-200 text-green-600' : 'bg-white border-blue-200 text-blue-600 hover:bg-blue-50 shadow-sm'"
-                    title="Copy Passcode"
+                    title="Copy passcode"
                   >
                     <svg v-if="copied" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
@@ -445,17 +492,19 @@ useHead({
 
                 <div class="mt-5 pt-5 border-t border-blue-200/60 space-y-1.5">
                   <p class="text-sm text-blue-800 font-medium">
-                    {{ t('toyota_passcode.result_note') }}
+                    Enter this passcode into your programming device.
                   </p>
-                  <!-- Paid / Free indicator -->
+
+                  <!-- Paid / free indicator. The free retries key off the VIN
+                       and the 48h window only — the data fields may differ. -->
                   <div v-if="attemptInfo" class="bg-blue-100/50 rounded-lg p-3 mt-3">
                     <p class="text-xs font-semibold" :class="attemptInfo.isPaidAttempt ? 'text-orange-600' : 'text-green-600'">
                       {{ attemptInfo.isPaidAttempt
                           ? '1 token used for this calculation'
-                          : 'Free — same VIN and data as a previous calculation' }}
+                          : 'Free retry — same VIN as a recent calculation' }}
                     </p>
                   </div>
-                  <!-- Attempt Info Display -->
+
                   <div v-if="attemptInfo" class="bg-blue-100/50 rounded-lg p-3 mt-3 space-y-1">
                     <p class="text-xs text-blue-700 font-semibold">
                       ✓ Attempt #{{ attemptInfo.attemptNumber }}
@@ -463,7 +512,7 @@ useHead({
                       <span v-else class="ml-2 text-green-600">(FREE)</span>
                     </p>
                     <p class="text-xs text-blue-600">
-                      Free attempts until next charge: {{ attemptInfo.attemptsUntilCharge }}
+                      Free attempts left on this VIN: {{ attemptInfo.attemptsUntilCharge }}
                     </p>
                   </div>
 
@@ -511,32 +560,32 @@ useHead({
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
               </svg>
-              {{ t('toyota_passcode.warning_title') }}
+              Important — read before calculating
             </h3>
             <ul class="space-y-3 text-sm">
               <li class="flex items-start gap-2 text-orange-700">
                 <svg class="w-4 h-4 mt-0.5 shrink-0 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                 </svg>
-                {{ t('toyota_passcode.warning_1') }}
+                One token covers three calculations on the same VIN within 48 hours.
               </li>
               <li class="flex items-start gap-2 text-orange-800 font-semibold">
                 <svg class="w-4 h-4 mt-0.5 shrink-0 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                 </svg>
-                {{ t('toyota_passcode.warning_2') }}
+                Do not press Calculate repeatedly or refresh the page while it is working.
               </li>
               <li class="flex items-start gap-2 text-orange-700">
                 <svg class="w-4 h-4 mt-0.5 shrink-0 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                 </svg>
-                {{ t('toyota_passcode.warning_3') }}
+                After the third calculation on the same VIN, a new token is used.
               </li>
               <li class="flex items-start gap-2 text-red-700 font-semibold">
                 <svg class="w-4 h-4 mt-0.5 shrink-0 text-red-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                 </svg>
-                {{ t('toyota_passcode.warning_4') }}
+                We are not responsible for tokens used by repeated calculations or page refreshes.
               </li>
             </ul>
           </div>
@@ -548,10 +597,10 @@ useHead({
     <section ref="tokenGridEl" class="container mx-auto max-w-7xl px-4 mt-16 sm:mt-24">
       <div class="text-center mb-8 sm:mb-12">
         <h3 class="text-3xl sm:text-4xl font-black tracking-tight text-gray-900">
-          {{ t('toyota_passcode.purchase_title') }}
+          Buy Toyota tokens
         </h3>
         <p class="text-base sm:text-lg text-gray-500 mt-3 max-w-2xl mx-auto">
-          {{ t('toyota_passcode.purchase_desc') }}
+          Choose a package below to top up your balance.
         </p>
       </div>
       <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-4 sm:p-8">
@@ -567,7 +616,7 @@ useHead({
         />
         <div v-if="loadingItems"
              class="px-3 py-10 text-center text-gray-400 font-medium animate-pulse">
-          {{ t('toyota_passcode.loading_packages') }}
+          Loading token packages…
         </div>
       </div>
     </section>
