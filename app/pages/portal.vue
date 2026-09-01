@@ -64,6 +64,12 @@ const isLoggedIn = computed(() => !!tokenVin.value || !!tokenPart.value)
  * Doing the check here rather than in each tool means a customer who has
  * run out of Toyota credits sees a greyed tile saying so, instead of
  * clicking through and meeting an error that reads like a fault.
+ *
+ * used_this_month is optional on purpose. Only the tools whose request rows
+ * live in this database (the two Kia/Hyundai PIN lookups and the part-number
+ * lookup) can report it. Mazda, Toyota and Lonsdor run on their own
+ * subdomains against their own tables, so the field is absent for them and
+ * the tile shows no usage line — rather than a zero that isn't true.
  */
 type ServiceState = {
   available: boolean
@@ -71,6 +77,7 @@ type ServiceState = {
   message: string
   mode: 'token' | 'subscription'
   credits: number | null
+  used_this_month?: number | null
 }
 
 const entitlements = ref<Record<string, ServiceState>>({})
@@ -106,6 +113,15 @@ function stateFor(key: string): ServiceState | null {
 function isBlocked(key: string): boolean {
   const st = stateFor(key)
   return st ? !st.available : false
+}
+
+/**
+ * This month's request count for a service, or null when the service does
+ * not report one. Absent must render as nothing at all, not as zero.
+ */
+function usedFor(key: string): number | null {
+  const n = stateFor(key)?.used_this_month
+  return typeof n === 'number' ? n : null
 }
 
 onMounted(() => {
@@ -349,6 +365,14 @@ useHead({
           <span class="tile__title">{{ s.title }}</span>
           <span class="tile__blurb">{{ s.blurb }}</span>
 
+          <!--
+            Shown on blocked tiles too: "No tokens left / Used this month: 150"
+            explains the lock, where a bare "No tokens left" reads like a fault.
+          -->
+          <span v-if="usedFor(s.key) !== null" class="tile__usage">
+            Used this month: <strong>{{ usedFor(s.key) }}</strong>
+          </span>
+
           <!-- Blocked tiles say why, rather than looking broken. -->
           <span v-if="isBlocked(s.key)" class="tile__locked">
             {{ stateFor(s.key)?.message || 'Not available' }}
@@ -452,11 +476,29 @@ useHead({
   border-bottom: 1px solid #e5e7eb;
 }
 
+/*
+ * Two columns is the BASE, widened on larger screens rather than narrowed on
+ * small ones. Written the other way round (auto-fit + a max-width override)
+ * a single mistake in the media query silently drops the phone back to one
+ * column, which is exactly what happened before.
+ *
+ * minmax(0, 1fr) rather than 1fr: grid items default to min-width:auto, so
+ * the longest title would otherwise force its column past half the row and
+ * collapse the layout back to a single column.
+ */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
+
+@media (min-width: 641px) {
+  .grid {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+  }
+}
+
 .tile {
   display: flex;
   flex-direction: column;
@@ -521,6 +563,15 @@ useHead({
   color: #9ca3af;
 }
 
+/* This month's request count. Only rendered for the tools whose rows live
+   in this database; the rest show nothing here. */
+.tile__usage {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #6b7280;
+}
+.tile__usage strong { color: #374151; font-weight: 700; }
+
 /* Blocked: visibly out of reach, and it says why. Kept legible rather than
    faded to the point of looking like a rendering fault. */
 .tile--blocked {
@@ -533,6 +584,8 @@ useHead({
 .tile--blocked .tile__logo  { filter: grayscale(100%); opacity: .45; }
 .tile--blocked .tile__title { color: #9ca3af; }
 .tile--blocked .tile__blurb { color: #b6bcc5; }
+.tile--blocked .tile__usage { color: #b6bcc5; }
+.tile--blocked .tile__usage strong { color: #9ca3af; }
 .tile--blocked:hover {
   transform: none;
   box-shadow: none;
@@ -561,5 +614,40 @@ useHead({
   color: #9ca3af;
   text-align: center;
   line-height: 1.7;
+}
+
+/* ------------------------------------------------------------------ phone */
+/*
+ * Sizing only — the two-column layout above no longer depends on this block
+ * loading. Without the trim, a 390px viewport leaves each tile around 130px
+ * wide and the 150px logo plate dominates the card.
+ */
+@media (max-width: 640px) {
+  .hub { padding: 14px; }
+
+  .card { padding: 22px 14px; border-radius: 12px; }
+
+  .tile { padding: 12px 8px 14px; gap: 4px; }
+
+  /* Landscape logos (Lonsdor) still need width more than height. */
+  .tile__mark {
+    height: 84px;
+    margin-bottom: 10px;
+    padding: 8px 10px;
+  }
+
+  .tile__title   { font-size: 13px; line-height: 1.3; }
+  .tile__blurb   { font-size: 11px; line-height: 1.4; }
+  .tile__usage   { font-size: 11px; margin-top: 4px; }
+  .tile__go      { font-size: 12px; margin-top: 6px; }
+  .tile__locked  { font-size: 11px; margin-top: 6px; }
+  .tile__credits { font-size: 11px; }
+
+  /* Hover lift is meaningless on touch and leaves tiles stuck in the
+     hovered state after a tap. */
+  .tile:hover { transform: none; box-shadow: none; }
+
+  .bar { padding-bottom: 16px; margin-bottom: 18px; }
+  .title { font-size: 19px; }
 }
 </style>
