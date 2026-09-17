@@ -3,12 +3,10 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const path = getRouterParam(event, 'path')
   const query = getQuery(event)
-
   const headers: Record<string, string> = {
     'api-key': config.apiKey,
     'secret-key': config.secretKey,
   }
-
   const incoming = getRequestHeaders(event)
   for (const h of ['authorization', 'accept-language', 'x-currency', 'x-vinpin-token', 'content-type', 'cookie', 'accept', 'currency']) {
     if (incoming[h]) headers[h] = incoming[h] as string
@@ -24,18 +22,11 @@ export default defineEventHandler(async (event) => {
     (incoming['cf-connecting-ip'] as string | undefined) ||
     getRequestIP(event, { xForwardedFor: true })
 
-  // TEMPORARY — remove once the IP is landing correctly
-  console.log('proxy ip debug', {
-    path,
-    cf:  incoming['cf-connecting-ip'],
-    xff: incoming['x-forwarded-for'],
-    resolved: clientIp,
-  })
-
   if (clientIp) headers['x-forwarded-for'] = clientIp
 
   const method = event.method
-  // Raw bytes so JSON, form data and file uploads are all forwarded unchanged
+  // Raw bytes so JSON, form data and file uploads are forwarded unchanged
+  // (content-type is already forwarded above).
   const body = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
     ? await readRawBody(event, false)
     : undefined
@@ -47,12 +38,21 @@ export default defineEventHandler(async (event) => {
       headers,
       query,
       body,
-      responseType: 'arrayBuffer', // never let ofetch turn binary into a Blob
-      ignoreResponseError: true,   // pass Laravel's 4xx/5xx through as-is
+      // Read everything as bytes. Without this, ofetch turns a PDF into a Blob,
+      // and JSON.stringify(blob) is "{}", which is what broke the cart PDF.
+      responseType: 'arrayBuffer',
+      // Don't throw on non-2xx. A 422 validation message, a 403 quota refusal
+      // or a 404 is passed straight through with Laravel's real status and body
+      // instead of becoming a bare 500 "Server Error".
+      ignoreResponseError: true,
     })
-  } catch (err) {
-    console.error('proxy upstream error', path, err)
-    throw createError({ statusCode: 502, statusMessage: 'Upstream unavailable' })
+  } catch (err: any) {
+    // Only network-level failures land here (Laravel down, DNS, timeout).
+    setResponseStatus(event, 502)
+    return {
+      error: true,
+      message: err?.message ?? 'Upstream request failed',
+    }
   }
 
   setResponseStatus(event, res.status)
@@ -60,31 +60,28 @@ export default defineEventHandler(async (event) => {
   const contentType = res.headers.get('content-type') || ''
   const raw = Buffer.from((res._data as ArrayBuffer | undefined) ?? new ArrayBuffer(0))
 
-  // ---- JSON: keep the /storage/ rewrite ----
-  if (contentType.includes('application/json')) {
-    if (raw.length === 0) return null
+  // ---- JSON responses (success or error): keep the /storage/ rewrite ----
+  if (contentType.includes('application/json') && raw.length > 0) {
     try {
       // Laravel returns relative image paths that used to resolve against its own
       // origin. Now that the browser talks to Nitro, rewrite them to absolute.
       const origin = new URL(config.apiBaseUrl).origin
-      const json = JSON.stringify(JSON.parse(raw.toString('utf8'))).replace(
+      const json = raw.toString('utf8').replace(
         /"(\/storage\/[^"]*)"/g,
         (_m, p) => JSON.stringify(origin + p)
       )
       return JSON.parse(json)
     } catch {
-      // Malformed JSON: send it through unchanged
-      setResponseHeader(event, 'content-type', contentType)
-      return raw
+      // Malformed JSON: fall through and send it unchanged
     }
   }
 
-  // ---- Everything else (PDF, images, Excel, text): raw bytes ----
+  // ---- Everything else (PDF, images, Excel, text): send raw bytes ----
   for (const name of ['content-type', 'content-disposition', 'cache-control']) {
     const value = res.headers.get(name)
     if (value) setResponseHeader(event, name, value)
   }
-  // Don't copy content-length / content-encoding: Nitro sets them correctly
+  // Don't copy content-length / content-encoding: Nitro sets them itself.
 
   return raw
 })
