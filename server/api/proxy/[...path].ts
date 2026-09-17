@@ -1,3 +1,4 @@
+// server/api/proxy/[...path].ts
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const path = getRouterParam(event, 'path')
@@ -34,21 +35,56 @@ export default defineEventHandler(async (event) => {
   if (clientIp) headers['x-forwarded-for'] = clientIp
 
   const method = event.method
-  const body = ['POST', 'PUT', 'PATCH'].includes(method) ? await readBody(event) : undefined
+  // Raw bytes so JSON, form data and file uploads are all forwarded unchanged
+  const body = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
+    ? await readRawBody(event, false)
+    : undefined
 
-  const res = await $fetch(`${config.apiBaseUrl}/${path}`, {
-    method: method as any,
-    headers,
-    query,
-    body,
-  })
+  let res
+  try {
+    res = await $fetch.raw(`${config.apiBaseUrl}/${path}`, {
+      method: method as any,
+      headers,
+      query,
+      body,
+      responseType: 'arrayBuffer', // never let ofetch turn binary into a Blob
+      ignoreResponseError: true,   // pass Laravel's 4xx/5xx through as-is
+    })
+  } catch (err) {
+    console.error('proxy upstream error', path, err)
+    throw createError({ statusCode: 502, statusMessage: 'Upstream unavailable' })
+  }
 
-  // Laravel returns relative image paths that used to resolve against its own
-  // origin. Now that the browser talks to Nitro, rewrite them to absolute.
-  const origin = new URL(config.apiBaseUrl).origin
-  const json = JSON.stringify(res).replace(
-    /"(\/storage\/[^"]*)"/g,
-    (_m, p) => JSON.stringify(origin + p)
-  )
-  return JSON.parse(json)
+  setResponseStatus(event, res.status)
+
+  const contentType = res.headers.get('content-type') || ''
+  const raw = Buffer.from((res._data as ArrayBuffer | undefined) ?? new ArrayBuffer(0))
+
+  // ---- JSON: keep the /storage/ rewrite ----
+  if (contentType.includes('application/json')) {
+    if (raw.length === 0) return null
+    try {
+      // Laravel returns relative image paths that used to resolve against its own
+      // origin. Now that the browser talks to Nitro, rewrite them to absolute.
+      const origin = new URL(config.apiBaseUrl).origin
+      const json = JSON.stringify(JSON.parse(raw.toString('utf8'))).replace(
+        /"(\/storage\/[^"]*)"/g,
+        (_m, p) => JSON.stringify(origin + p)
+      )
+      return JSON.parse(json)
+    } catch {
+      // Malformed JSON: send it through unchanged
+      setResponseHeader(event, 'content-type', contentType)
+      return raw
+    }
+  }
+
+  // ---- Everything else (PDF, images, Excel, text): raw bytes ----
+  for (const name of ['content-type', 'content-disposition', 'cache-control']) {
+    const value = res.headers.get(name)
+    if (value) setResponseHeader(event, name, value)
+  }
+  // Don't copy content-length / content-encoding: Nitro sets them correctly
+
+  return raw
 })
