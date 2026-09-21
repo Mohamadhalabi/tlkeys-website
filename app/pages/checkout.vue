@@ -779,7 +779,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
           <h3 class="text-lg font-semibold mb-2">{{ $t('checkout.promotions') || 'Promotions' }}</h3>
 
           <div class="space-y-2">
-            <label
+            <!-- <label
               v-if="quote.promotions.eligible.free_ship"
               class="flex items-start gap-2 p-2 rounded-xl border hover:bg-gray-50 cursor-pointer transition ring-offset-2"
               :class="selectedPromo==='free_ship' ? 'ring-2 ring-emerald-500' : ''"
@@ -796,9 +796,9 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
                   {{ quote.promotions.notes.free_ship }}
                 </div>
               </div>
-            </label>
+            </label> -->
 
-            <label
+            <!-- <label
               v-if="quote.promotions.eligible.ten_off"
               class="flex items-start gap-2 p-2 rounded-xl border hover:bg-gray-50 cursor-pointer transition ring-offset-2"
               :class="selectedPromo==='ten_off' ? 'ring-2 ring-emerald-500' : ''"
@@ -815,15 +815,15 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
                   {{ quote.promotions.notes.ten_off }}
                 </div>
               </div>
-            </label>
+            </label> -->
 
-            <label
+            <!-- <label
               class="flex items-start gap-2 p-2 rounded-xl border hover:bg-gray-50 cursor-pointer transition ring-offset-2"
               :class="selectedPromo==='none' ? 'ring-2 ring-emerald-500' : ''"
             >
               <input class="mt-1" type="radio" value="none" v-model="selectedPromo" />
               <div class="font-medium">{{ $t('checkout.noPromo') || 'No promotion' }}</div>
-            </label>
+            </label> -->
           </div>
         </div>
 
