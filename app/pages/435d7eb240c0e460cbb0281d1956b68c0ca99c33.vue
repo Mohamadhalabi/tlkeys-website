@@ -11,6 +11,7 @@ definePageMeta({
 type ApiResponse = {
   error?: string
   message?: string
+  status?: string
   errors?: { vin?: string[] }
   vin?: string
   key_code?: string | null
@@ -38,6 +39,13 @@ const requestsThisMonth = ref<number>(0)
 const tokensLeft = ref<number | null>(null)
 const greenTextState = ref(false)
 const showCachedIndicator = ref(false)
+
+/**
+ * Set only after the customer confirms the "not in DB, order it?" prompt.
+ * Reset on every fresh submit and on logout, so a yes never carries over
+ * to the next VIN.
+ */
+const forceOrder = ref(false)
 
 const { $customApi } = useNuxtApp()
 const { public: { API_BASE_URL, API_KEY, SECRET_KEY } } = useRuntimeConfig()
@@ -158,17 +166,28 @@ function doLogout() {
   keyCode.value = ''
   pinCode.value = ''
   errorMessage.value = null
+  forceOrder.value = false
   greenTextState.value = false
 }
 
-async function handleSubmit() {
+/**
+ * isRetry = true is the second call made after the customer answers yes to
+ * the confirmation prompt. It keeps forceOrder and does not wipe the fields
+ * that were already cleared on the first pass.
+ */
+async function handleSubmit(isRetry = false) {
+  if (!isRetry) forceOrder.value = false
+
   if (vin.value.length !== 17) { showVinError.value = true; return }
 
   showVinError.value = false
   errorMessage.value = null
-  keyCode.value = ''
-  pinCode.value = ''
-  greenTextState.value = false
+
+  if (!isRetry) {
+    keyCode.value = ''
+    pinCode.value = ''
+    greenTextState.value = false
+  }
 
   isLoading.value = true
 
@@ -178,10 +197,29 @@ async function handleSubmit() {
       headers: authHeaders(),
       // No username in the body: the server reads it from the token, so
       // one account cannot spend another's quota.
-      body: { vin: vin.value },
+      body: { vin: vin.value, force_order: forceOrder.value },
     })
 
     const data: ApiResponse = (res?.data && typeof res.data === 'object') ? res.data : res
+
+    // Not in our database and this account is flagged
+    // ljd_confirm_before_order — ask before spending an order upstream.
+    if (data?.status === 'requires_confirmation') {
+      isLoading.value = false
+
+      const prompt = data?.message
+        || t('vin_to_pin.confirm_order')
+        || 'This VIN is not in the database. Would you like to order it?'
+
+      if (confirm(prompt)) {
+        forceOrder.value = true
+        await handleSubmit(true)
+      } else {
+        errorMessage.value = t('vin_to_pin.order_cancelled') || 'Order cancelled.'
+      }
+
+      return
+    }
 
     if (data?.error) {
       errorMessage.value = data.error
@@ -197,6 +235,8 @@ async function handleSubmit() {
         tokensLeft.value = data?.requests_left_month ?? tokensLeft.value
       }
 
+      // Green borders: this VIN was already in our own database, and this
+      // account is the one the server flagged to see that.
       if (data?.available_in_db && showCachedIndicator.value) greenTextState.value = true
     }
   } catch (e: any) {
@@ -297,7 +337,7 @@ useHead(() => ({
           </template>
         </div>
 
-        <form @submit.prevent="handleSubmit" class="flex flex-col items-center">
+        <form @submit.prevent="() => handleSubmit(false)" class="flex flex-col items-center">
           <input
             type="text"
             v-model="vin"
@@ -385,9 +425,12 @@ useHead(() => ({
   box-shadow: 0 0 0 2px rgba(57,161,129,0.25);
 }
 
+/* Applied only when the VIN came from our own pin_codes table AND the
+   server marked this account with show_cached_indicator. */
 .green-text {
   color: #00ff8a !important;
   border-color: #00ff8a !important;
+  box-shadow: 0 0 0 2px rgba(0,255,138,0.25) !important;
 }
 
 .vin-width      { width: 680px; max-width: 92vw; }

@@ -843,7 +843,9 @@ export default {
     "today": "Today",
     "this_month": "This Month",
     "left_today": "Left Today",
-    "left_month": "Left"
+    "left_month": "Left",
+    "confirm_order": "This VIN is not in the database. Would you like to order it?",
+    "order_cancelled": "Order cancelled."
   },
   "messages": {
     "walletCopied": "Wallet address copied to clipboard.",

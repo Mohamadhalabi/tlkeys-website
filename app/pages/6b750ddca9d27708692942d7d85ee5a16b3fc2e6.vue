@@ -39,6 +39,12 @@ const requestsThisMonth = ref<number>(0)
 const tokensLeft = ref<number | null>(null)
 const greenTextState = ref(false)
 const showCachedIndicator = ref(false)
+
+/**
+ * Set only after the customer confirms the "not in DB, order it?" prompt.
+ * Reset on every fresh submit and on logout, so a yes never carries over
+ * to the next VIN.
+ */
 const forceOrder = ref(false)
 
 const { $customApi } = useNuxtApp()
@@ -159,6 +165,11 @@ function doLogout() {
   greenTextState.value = false
 }
 
+/**
+ * isRetry = true is the second call made after the customer answers yes to
+ * the confirmation prompt. It keeps forceOrder and does not wipe the fields
+ * that were already cleared on the first pass.
+ */
 async function handleSubmit(isRetry = false) {
   if (!isRetry) forceOrder.value = false
 
@@ -186,14 +197,20 @@ async function handleSubmit(isRetry = false) {
 
     const data: ApiResponse = (res?.data && typeof res.data === 'object') ? res.data : res
 
+    // Not in our database and this account is flagged
+    // ljd_confirm_before_order — ask before spending an order upstream.
     if (data?.status === 'requires_confirmation') {
       isLoading.value = false
 
-      if (confirm('This VIN is not in the database. Would you like to order it from the external server?')) {
+      const prompt = data?.message
+        || t('vin_to_pin.confirm_order')
+        || 'This VIN is not in the database. Would you like to order it?'
+
+      if (confirm(prompt)) {
         forceOrder.value = true
         await handleSubmit(true)
       } else {
-        errorMessage.value = 'Order cancelled.'
+        errorMessage.value = t('vin_to_pin.order_cancelled') || 'Order cancelled.'
       }
 
       return
@@ -213,6 +230,8 @@ async function handleSubmit(isRetry = false) {
         tokensLeft.value = data?.requests_left_month ?? tokensLeft.value
       }
 
+      // Green borders: this VIN was already in our own database, and this
+      // account is the one the server flagged to see that.
       if (data?.available_in_db && showCachedIndicator.value) greenTextState.value = true
     }
   } catch (e: any) {
@@ -417,7 +436,14 @@ useHead(() => ({
 
 .pin-accent { box-shadow: 0 0 0 2px rgba(97,195,166,0.35); }
 
-.green-text { color: #00ff00 !important; }
+/* Applied only when the VIN came from our own pin_codes table AND the
+   server marked this account with show_cached_indicator. Listed after
+   .success-border and .pin-accent so it wins on both border and glow. */
+.green-text {
+  color: #00ff00 !important;
+  border-color: #00ff00 !important;
+  box-shadow: 0 0 0 3px rgba(0,255,0,0.35) !important;
+}
 
 .get-button {
   width: 220px; height: 56px;
