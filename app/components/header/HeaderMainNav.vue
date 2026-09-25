@@ -7,177 +7,180 @@
     v-cloak
   >
     <div class="container mx-auto relative" ref="containerRef">
-      <div class="flex items-center gap-2 justify-center">
-        <!-- Cars -->
-        <button
-          type="button"
-          class="px-4 py-3 hover:bg-gray-800 flex items-center gap-2"
-          :class="btnClass(openCars)"
-          @click="toggleCars"
-          :aria-expanded="openCars ? 'true' : 'false'"
-        >
-          {{ $t('cars') || 'Cars' }}
-          <svg class="w-4 h-4 transition-transform" :class="openCars ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
-          </svg>
-        </button>
-
-        <!-- Manufacturers -->
-        <button
-          type="button"
-          class="px-4 py-3 hover:bg-gray-800 flex items-center gap-2"
-          :class="btnClass(openManufacturers)"
-          @click="toggleManufacturers"
-          :aria-expanded="openManufacturers ? 'true' : 'false'"
-        >
-          {{ $t('manufacturers') || 'Manufacturers' }}
-          <svg class="w-4 h-4 transition-transform" :class="openManufacturers ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
-          </svg>
-        </button>
-
-        <!-- Keys & Remotes -->
-        <button
-          type="button"
-          class="px-4 py-3 hover:bg-gray-800 flex items-center gap-2"
-          :class="btnClass(openKeys)"
-          @click="toggleKeys"
-          :aria-expanded="openKeys ? 'true' : 'false'"
-        >
-          {{ $t('keysRemotes') || 'Keys & Remotes' }}
-          <svg class="w-4 h-4 transition-transform" :class="openKeys ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
-          </svg>
-        </button>
-
-        <!-- Devices & Machines -->
-        <button
-          type="button"
-          class="px-4 py-3 hover:bg-gray-800 flex items-center gap-2"
-          :class="btnClass(openDevices)"
-          @click="toggleDevices"
-          :aria-expanded="openDevices ? 'true' : 'false'"
-        >
-          {{ $t('devicesMachines') || 'Devices & Machines' }}
-          <svg class="w-4 h-4 transition-transform" :class="openDevices ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
-          </svg>
-        </button>
-
-        <!-- Accessories & Tools -->
-        <button
-          type="button"
-          class="px-4 py-3 hover:bg-gray-800 flex items-center gap-2"
-          :class="btnClass(openAccessories)"
-          @click="toggleAccessories"
-          :aria-expanded="openAccessories ? 'true' : 'false'"
-        >
-          {{ $t('accessoriesTools') || 'Accessories & Tools' }}
-          <svg class="w-4 h-4 transition-transform" :class="openAccessories ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
-          </svg>
-        </button>
-
-        <!-- Software & Tokens -->
-        <button
-          type="button"
-          class="px-4 py-3 hover:bg-gray-800 flex items-center gap-2"
-          :class="btnClass(openSoftTok)"
-          @click="toggleSoftTok"
-          :aria-expanded="openSoftTok ? 'true' : 'false'"
-        >
-          {{ $t('softwareTokens') || 'Software & Tokens' }}
-          <svg class="w-4 h-4 transition-transform" :class="openSoftTok ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
-          </svg>
-        </button>
-
-        <NuxtLinkLocale
-          to="/downloads"
-          class="px-4 py-3 hover:bg-gray-800 flex items-center gap-2"
-          :class="linkClass('/downloads')"
-          :aria-current="isActive('/downloads') ? 'page' : undefined"
-        >
-          {{ $t('downloads') || 'Downloads' }}
-        </NuxtLinkLocale>
-
-        <NuxtLinkLocale
-          to="/pin-code"
-          class="px-4 py-3 bg-red-500 hover:bg-gray-800 flex items-center gap-2"
-          :class="linkClass('/pin-code')"
-          :aria-current="isActive('/pin-code') ? 'page' : undefined"
-        >
-          {{ $t('pinCodes') || 'Pin Codes' }}
-        </NuxtLinkLocale>
-
-        <!-- ── Online calculators ──────────────────────────────
-             A short, fixed list, so it gets a narrow panel anchored to the
-             button rather than the full-width mega menu the data-driven
-             menus use. `relative` here is what the panel positions against. -->
-        <div class="relative">
+      <!-- ── Single-row bar ─────────────────────────────────────
+           Outer div scrolls sideways only if the items still don't fit
+           (e.g. a long translation on a 1024px screen). Inner row is
+           w-max + mx-auto: centered when it fits, scrollable from the
+           first item when it doesn't (plain justify-center would cut
+           the left side off and make it unreachable). -->
+      <div ref="navScrollRef" class="nav-scroll overflow-x-auto" @scroll.passive="onNavScroll">
+        <div class="mx-auto flex w-max items-center gap-0.5 xl:gap-1 2xl:gap-2">
+          <!-- Cars -->
           <button
             type="button"
-            class="px-4 py-3 hover:bg-gray-800 flex items-center gap-2"
-            :class="openCalculators || calculatorsActive
-              ? 'bg-orange-500 text-white hover:bg-orange-500 focus:bg-orange-500'
-              : 'bg-orange-500 text-white'"
+            :class="[itemCls, btnClass(openCars)]"
+            @click="toggleCars"
+            :aria-expanded="openCars ? 'true' : 'false'"
+          >
+            {{ $t('cars') || 'Cars' }}
+            <svg :class="[chevCls, openCars ? 'rotate-180' : '']" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
+            </svg>
+          </button>
+
+          <!-- Manufacturers -->
+          <button
+            type="button"
+            :class="[itemCls, btnClass(openManufacturers)]"
+            @click="toggleManufacturers"
+            :aria-expanded="openManufacturers ? 'true' : 'false'"
+          >
+            {{ $t('manufacturers') || 'Manufacturers' }}
+            <svg :class="[chevCls, openManufacturers ? 'rotate-180' : '']" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
+            </svg>
+          </button>
+
+          <!-- Keys & Remotes -->
+          <button
+            type="button"
+            :class="[itemCls, btnClass(openKeys)]"
+            @click="toggleKeys"
+            :aria-expanded="openKeys ? 'true' : 'false'"
+          >
+            {{ $t('keysRemotes') || 'Keys & Remotes' }}
+            <svg :class="[chevCls, openKeys ? 'rotate-180' : '']" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
+            </svg>
+          </button>
+
+          <!-- Devices & Machines -->
+          <button
+            type="button"
+            :class="[itemCls, btnClass(openDevices)]"
+            @click="toggleDevices"
+            :aria-expanded="openDevices ? 'true' : 'false'"
+          >
+            {{ $t('devicesMachines') || 'Devices & Machines' }}
+            <svg :class="[chevCls, openDevices ? 'rotate-180' : '']" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
+            </svg>
+          </button>
+
+          <!-- Accessories & Tools -->
+          <button
+            type="button"
+            :class="[itemCls, btnClass(openAccessories)]"
+            @click="toggleAccessories"
+            :aria-expanded="openAccessories ? 'true' : 'false'"
+          >
+            {{ $t('accessoriesTools') || 'Accessories & Tools' }}
+            <svg :class="[chevCls, openAccessories ? 'rotate-180' : '']" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
+            </svg>
+          </button>
+
+          <!-- Software & Tokens -->
+          <button
+            type="button"
+            :class="[itemCls, btnClass(openSoftTok)]"
+            @click="toggleSoftTok"
+            :aria-expanded="openSoftTok ? 'true' : 'false'"
+          >
+            {{ $t('softwareTokens') || 'Software & Tokens' }}
+            <svg :class="[chevCls, openSoftTok ? 'rotate-180' : '']" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
+            </svg>
+          </button>
+
+          <NuxtLinkLocale
+            to="/downloads"
+            :class="[itemCls, linkClass('/downloads')]"
+            :aria-current="isActive('/downloads') ? 'page' : undefined"
+          >
+            {{ $t('downloads') || 'Downloads' }}
+          </NuxtLinkLocale>
+
+          <NuxtLinkLocale
+            to="/pin-code"
+            :class="[itemCls, 'bg-red-500', linkClass('/pin-code')]"
+            :aria-current="isActive('/pin-code') ? 'page' : undefined"
+          >
+            {{ $t('pinCodes') || 'Pin Codes' }}
+          </NuxtLinkLocale>
+
+          <!-- Online calculators. The panel itself lives outside the
+               scrolling row (see below) so overflow-x-auto can't clip it. -->
+          <button
+            ref="calcBtnRef"
+            type="button"
+            :class="[
+              itemCls,
+              openCalculators || calculatorsActive
+                ? 'bg-orange-500 text-white hover:bg-orange-500 focus:bg-orange-500'
+                : 'bg-orange-500 text-white'
+            ]"
             @click="toggleCalculators"
             :aria-expanded="openCalculators ? 'true' : 'false'"
             aria-haspopup="true"
           >
             {{ tt('onlineCalculators', 'Online Calculators') }}
-            <svg class="w-4 h-4 transition-transform" :class="openCalculators ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
+            <svg :class="[chevCls, openCalculators ? 'rotate-180' : '']" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
               <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
             </svg>
           </button>
-
-          <Transition name="fade-scale">
-            <!-- right-0 keeps the panel inside the viewport: this is the last
-                 item in the bar, so opening leftwards is the only option. -->
-            <div v-if="openCalculators" class="absolute right-0 mt-1 w-80 z-50">
-              <div class="bg-white text-gray-900 rounded-xl shadow-2xl ring-1 ring-black/10 overflow-hidden">
-                <NuxtLinkLocale
-                  v-for="item in calculators"
-                  :key="item.to"
-                  :to="item.to"
-                  class="flex items-start gap-3 px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
-                  :class="isActive(item.to) ? 'bg-orange-50' : ''"
-                  :aria-current="isActive(item.to) ? 'page' : undefined"
-                  @click="closeAll"
-                >
-                  <!-- White tile so a dark logo and a light one both read.
-                       Two-brand entries get a wider tile so neither shrinks. -->
-                  <span
-                    class="mt-0.5 flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg bg-white p-1.5 ring-1 ring-gray-200"
-                    :class="item.logos && item.logos.length > 1 ? 'w-16' : 'w-9'"
-                  >
-                    <template v-if="item.logos && item.logos.length">
-                      <img
-                        v-for="src in item.logos"
-                        :key="src"
-                        :src="src"
-                        alt=""
-                        aria-hidden="true"
-                        class="h-full min-w-0 flex-1 object-contain"
-                        loading="lazy"
-                        @error="onLogoError"
-                      />
-                    </template>
-                    <svg v-else viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 text-orange-700">
-                      <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6Zm0 3.5A.5.5 0 016.5 5h7a.5.5 0 01.5.5v2a.5.5 0 01-.5.5h-7a.5.5 0 01-.5-.5v-2ZM7 11a1 1 0 11-2 0 1 1 0 012 0Zm3 0a1 1 0 11-2 0 1 1 0 012 0Zm4-1a1 1 0 100 2 1 1 0 000-2Zm-7 5a1 1 0 11-2 0 1 1 0 012 0Zm3 0a1 1 0 11-2 0 1 1 0 012 0Zm3 1a1 1 0 100-2 1 1 0 000 2Z" clip-rule="evenodd" />
-                    </svg>
-                  </span>
-                  <span>
-                    <span class="block text-sm font-semibold text-gray-900">{{ item.title }}</span>
-                    <span class="mt-0.5 block text-xs text-gray-500">{{ item.blurb }}</span>
-                  </span>
-                </NuxtLinkLocale>
-              </div>
-            </div>
-          </Transition>
         </div>
-
       </div>
+
+      <!-- Online calculators panel.
+           Positioned against the container, with `right` computed from the
+           button's position so it still opens right-aligned under it. -->
+      <Transition name="fade-scale">
+        <div
+          v-if="openCalculators"
+          class="absolute mt-1 w-80 max-w-[calc(100vw-1rem)] z-50"
+          :style="calcPanelStyle"
+        >
+          <div class="bg-white text-gray-900 rounded-xl shadow-2xl ring-1 ring-black/10 overflow-hidden">
+            <NuxtLinkLocale
+              v-for="item in calculators"
+              :key="item.to"
+              :to="item.to"
+              class="flex items-start gap-3 px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+              :class="isActive(item.to) ? 'bg-orange-50' : ''"
+              :aria-current="isActive(item.to) ? 'page' : undefined"
+              @click="closeAll"
+            >
+              <!-- White tile so a dark logo and a light one both read.
+                   Two-brand entries get a wider tile so neither shrinks. -->
+              <span
+                class="mt-0.5 flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg bg-white p-1.5 ring-1 ring-gray-200"
+                :class="item.logos && item.logos.length > 1 ? 'w-16' : 'w-9'"
+              >
+                <template v-if="item.logos && item.logos.length">
+                  <img
+                    v-for="src in item.logos"
+                    :key="src"
+                    :src="src"
+                    alt=""
+                    aria-hidden="true"
+                    class="h-full min-w-0 flex-1 object-contain"
+                    loading="lazy"
+                    @error="onLogoError"
+                  />
+                </template>
+                <svg v-else viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 text-orange-700">
+                  <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6Zm0 3.5A.5.5 0 016.5 5h7a.5.5 0 01.5.5v2a.5.5 0 01-.5.5h-7a.5.5 0 01-.5-.5v-2ZM7 11a1 1 0 11-2 0 1 1 0 012 0Zm3 0a1 1 0 11-2 0 1 1 0 012 0Zm4-1a1 1 0 100 2 1 1 0 000-2Zm-7 5a1 1 0 11-2 0 1 1 0 012 0Zm3 0a1 1 0 11-2 0 1 1 0 012 0Zm3 1a1 1 0 100-2 1 1 0 000 2Z" clip-rule="evenodd" />
+                </svg>
+              </span>
+              <span>
+                <span class="block text-sm font-semibold text-gray-900">{{ item.title }}</span>
+                <span class="mt-0.5 block text-xs text-gray-500">{{ item.blurb }}</span>
+              </span>
+            </NuxtLinkLocale>
+          </div>
+        </div>
+      </Transition>
 
       <!-- Cars dropdown -->
       <Transition name="fade-scale">
@@ -189,9 +192,9 @@
               <input v-model="carsQuery" type="text" :placeholder="$t('searchBrand') || 'Search brand…'" class="flex-1 rounded-lg border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:border-gray-500" />
             </div>
             <div class="p-4 max-h-[40vh] lg:max-h-[50vh] xl:max-h-[60vh] overflow-y-auto">
-              <div v-if="filteredCars.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-                <button v-for="item in filteredCars" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-100 text-center" @click="goToBrand(item.slug)">
-                  <NuxtImg :src="item.image" :alt="item.name" class="h-20 w-20 object-contain rounded" loading="lazy" />
+              <div v-if="filteredCars.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3">
+                <button v-for="item in filteredCars" :key="item.slug" :class="tileCls" @click="goToBrand(item.slug)">
+                  <NuxtImg :src="item.image" :alt="item.name" :class="tileImgCls" loading="lazy" />
                   <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">{{ item.name }}</span>
                 </button>
               </div>
@@ -210,10 +213,10 @@
               <span v-else-if="errorManufacturers" class="text-sm text-red-600">{{ errorManufacturers }}</span>
               <input v-model="manufacturersQuery" type="text" :placeholder="$t('searchManufacturer') || 'Search manufacturer…'" class="flex-1 rounded-lg border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:border-gray-500" />
             </div>
-            <div class="p-4 max-h-[60vh] overflow-y-auto">
+            <div :class="panelBodyCls">
               <div v-if="filteredManufacturers.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3">
-                <button v-for="item in filteredManufacturers" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-100 text-center" @click="goToBrand(item.slug)">
-                  <NuxtImg :src="item.image" :alt="item.name" class="h-20 w-20 object-contain rounded" loading="lazy" />
+                <button v-for="item in filteredManufacturers" :key="item.slug" :class="tileCls" @click="goToBrand(item.slug)">
+                  <NuxtImg :src="item.image" :alt="item.name" :class="tileImgCls" loading="lazy" />
                   <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">{{ item.name }}</span>
                 </button>
               </div>
@@ -232,10 +235,10 @@
               <span v-else-if="errorKeys" class="text-sm text-red-600">{{ errorKeys }}</span>
               <input v-model="keysQuery" type="text" :placeholder="$t('searchKeyRemote') || 'Search keys & remotes…'" class="flex-1 rounded-lg border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:border-gray-500" />
             </div>
-            <div class="p-4 max-h-[60vh] overflow-y-auto">
+            <div :class="panelBodyCls">
               <div v-if="filteredKeys.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3">
-                <button v-for="item in filteredKeys" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-100 text-center" @click="goToBrand(item.slug)">                
-                  <NuxtImg :src="item.image" :alt="item.name" class="h-20 w-20 object-contain rounded" loading="lazy" />
+                <button v-for="item in filteredKeys" :key="item.slug" :class="tileCls" @click="goToBrand(item.slug)">
+                  <NuxtImg :src="item.image" :alt="item.name" :class="tileImgCls" loading="lazy" />
                   <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">{{ item.name }}</span>
                 </button>
               </div>
@@ -254,10 +257,10 @@
               <span v-else-if="errorDevices" class="text-sm text-red-600">{{ errorDevices }}</span>
               <input v-model="devicesQuery" type="text" :placeholder="$t('searchDeviceMachine') || 'Search devices & machines…'" class="flex-1 rounded-lg border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:border-gray-500" />
             </div>
-            <div class="p-4 max-h-[60vh] overflow-y-auto">
+            <div :class="panelBodyCls">
               <div v-if="filteredDevices.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3">
-                <button v-for="item in filteredDevices" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-100 text-center" @click="goToBrand(item.slug)">
-                  <NuxtImg :src="item.image" :alt="item.name" class="h-20 w-20 object-contain rounded" loading="lazy" />
+                <button v-for="item in filteredDevices" :key="item.slug" :class="tileCls" @click="goToBrand(item.slug)">
+                  <NuxtImg :src="item.image" :alt="item.name" :class="tileImgCls" loading="lazy" />
                   <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">{{ item.name }}</span>
                 </button>
               </div>
@@ -276,10 +279,10 @@
               <span v-else-if="errorAccessories" class="text-sm text-red-600">{{ errorAccessories }}</span>
               <input v-model="accessoriesQuery" type="text" :placeholder="$t('searchAccessoriesTools') || 'Search accessories & tools…'" class="flex-1 rounded-lg border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:border-gray-500" />
             </div>
-            <div class="p-4 max-h-[60vh] overflow-y-auto">
+            <div :class="panelBodyCls">
               <div v-if="filteredAccessories.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3">
-                <button v-for="item in filteredAccessories" :key="item.slug" class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-100 text-center" @click="goToBrand(item.slug)">
-                  <NuxtImg :src="item.image" :alt="item.name" class="h-20 w-20 object-contain rounded" loading="lazy" />
+                <button v-for="item in filteredAccessories" :key="item.slug" :class="tileCls" @click="goToBrand(item.slug)">
+                  <NuxtImg :src="item.image" :alt="item.name" :class="tileImgCls" loading="lazy" />
                   <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">{{ item.name }}</span>
                 </button>
               </div>
@@ -310,7 +313,7 @@
             </div>
 
             <!-- Two columns with divider -->
-            <div class="p-4 max-h-[60vh] overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6 md:divide-x md:divide-gray-300">
+            <div class="p-4 max-h-[50vh] xl:max-h-[60vh] overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6 md:divide-x md:divide-gray-300">
               <!-- Softwares -->
               <div class="md:pr-4">
                 <h4 class="mb-3 font-semibold text-gray-900">
@@ -320,10 +323,10 @@
                   <button
                     v-for="item in filteredSoftwares"
                     :key="'soft-'+item.slug"
-                    class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-100 text-center"
+                    :class="tileCls"
                     @click="goToBrand(item.slug, 'software')"
                   >
-                    <NuxtImg :src="item.image" :alt="item.name" class="h-16 w-16 object-contain rounded" loading="lazy" />
+                    <NuxtImg :src="item.image" :alt="item.name" class="h-12 w-12 xl:h-16 xl:w-16 object-contain rounded" loading="lazy" />
                     <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">
                       {{ item.name }}
                     </span>
@@ -343,10 +346,10 @@
                   <button
                     v-for="item in filteredTokens"
                     :key="'tok-'+item.slug"
-                    class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-100 text-center"
+                    :class="tileCls"
                     @click="goToBrand(item.slug, 'token')"
                   >
-                    <NuxtImg :src="item.image" :alt="item.name" class="h-16 w-16 object-contain rounded" loading="lazy" />
+                    <NuxtImg :src="item.image" :alt="item.name" class="h-12 w-12 xl:h-16 xl:w-16 object-contain rounded" loading="lazy" />
                     <span class="text-sm text-gray-800 group-hover:text-gray-900 line-clamp-1">
                       {{ item.name }}
                     </span>
@@ -381,6 +384,26 @@ function tt(key, fallback) {
 const router = useRouter()
 const route = useRoute()
 const localePath = useLocalePath() // ✅
+
+/* ---------- responsive class tokens ----------
+ * Mobile-first: the smallest size is the default and covers small laptops
+ * (1024–1279px). xl (1280–1535) steps up, 2xl (1536+) is the original look.
+ * whitespace-nowrap + shrink-0 stop labels breaking onto two lines.
+ */
+const itemCls =
+  'shrink-0 whitespace-nowrap flex items-center gap-1 2xl:gap-2 ' +
+  'px-1.5 py-2.5 text-xs ' +
+  'xl:px-2.5 xl:py-3 xl:text-sm ' +
+  '2xl:px-4 2xl:text-base ' +
+  'hover:bg-gray-800'
+const chevCls = 'shrink-0 transition-transform w-3 h-3 xl:w-3.5 xl:h-3.5 2xl:w-4 2xl:h-4'
+
+/* Dropdown grids: a bit smaller on short laptop screens so more fits. */
+const panelBodyCls = 'p-4 max-h-[50vh] xl:max-h-[60vh] overflow-y-auto'
+const tileCls =
+  'group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 ' +
+  'p-3 xl:p-4 hover:border-gray-300 hover:bg-gray-100 text-center'
+const tileImgCls = 'h-14 w-14 xl:h-20 xl:w-20 object-contain rounded'
 
 /* ---------- sticky + scroll shadow ---------- */
 const scrolled = ref(false)
@@ -444,6 +467,28 @@ function onLogoError(e) {
 /** Highlight the button whenever the visitor is on any calculator page. */
 const calculatorsActive = computed(() =>
   calculators.value.some(c => isActive(c.to)))
+
+/* ---------- calculators panel position ----------
+ * The panel sits outside the (possibly scrolling) button row so it can't be
+ * clipped. We right-align it to the button by measuring both rects. */
+const calcBtnRef = ref(null)
+const navScrollRef = ref(null)
+const calcPanelStyle = ref({ right: '0px' })
+function positionCalcPanel() {
+  const btn = calcBtnRef.value
+  const box = containerRef.value
+  if (!btn || !box) return
+  const b = btn.getBoundingClientRect()
+  const c = box.getBoundingClientRect()
+  calcPanelStyle.value = { right: `${Math.max(0, c.right - b.right)}px` }
+}
+function onNavScroll() {
+  if (openCalculators.value) positionCalcPanel()
+}
+function onResize() {
+  setMainNavHeightVar()
+  if (openCalculators.value) positionCalcPanel()
+}
 
 /* ---------- data ---------- */
 const cars = ref([])
@@ -560,6 +605,7 @@ async function toggleSoftTok() {
 // Nothing to fetch here, so no async and no loading state.
 function toggleCalculators() {
   const next = !openCalculators.value; closeAll(); openCalculators.value = next
+  if (next) positionCalcPanel()
 }
 function closeAll() {
   openCars.value = false
@@ -648,8 +694,8 @@ function goToBrand(slug, category) {
 
   // 3. Parse the query string into an object using URLSearchParams
   // This handles complex params like attributes={"status-10":...} correctly
-  const queryObj = queryPart 
-    ? Object.fromEntries(new URLSearchParams(queryPart)) 
+  const queryObj = queryPart
+    ? Object.fromEntries(new URLSearchParams(queryPart))
     : {}
 
   // 4. If a separate category argument was passed, merge it in
@@ -683,14 +729,14 @@ onMounted(() => {
   setMainNavHeightVar()
   ro = new ResizeObserver(setMainNavHeightVar)
   if (mainNavRef.value) ro.observe(mainNavRef.value)
-  window.addEventListener('resize', setMainNavHeightVar)
+  window.addEventListener('resize', onResize)
 })
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocClick)
   document.removeEventListener('keydown', onEsc)
   if (handleScroll) window.removeEventListener('scroll', handleScroll)
   ro?.disconnect()
-  window.removeEventListener('resize', setMainNavHeightVar)
+  window.removeEventListener('resize', onResize)
 })
 
 // Button style when opened
@@ -715,4 +761,9 @@ const linkClass = (path) =>
   opacity: 0; transform: translateY(4px) scale(0.98);
 }
 [v-cloak] { display: none; }
+
+/* Sideways scroll is only a safety net, so keep the scrollbar out of sight
+   (trackpad / shift+wheel still work). */
+.nav-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+.nav-scroll::-webkit-scrollbar { display: none; }
 </style>

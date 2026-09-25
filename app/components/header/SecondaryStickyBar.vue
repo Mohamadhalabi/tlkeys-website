@@ -5,42 +5,49 @@
     :style="{ top: 'var(--main-nav-h, 56px)' }"
   >
     <div class="container mx-auto px-3">
-      <ul class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 md:gap-x-6 py-2 d-none">
-        <li v-for="item in items" :key="item.key">
-          <NuxtLinkLocale
-            :to="item.to"
-            :aria-current="isActive(item) ? 'page' : undefined"
-            class="group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-md
-                   text-[15px] md:text-[16px] font-semibold transition-colors 
-                   focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
-            :class="[
-              isActive(item) ? 'text-orange-700' : '',
-              item.key === 'hot-deals' 
-                ? (isActive(item) ? 'text-rose-700' : 'text-rose-600 hover:text-rose-800')
-                : (item.key === 'new-arrival' ? 'text-orange-700 hover:text-orange-800' : 'text-gray-700 hover:text-gray-900')
-            ]"
-          >
-            <Icon 
-              :name="item.key" 
-              class="w-[18px] h-[18px] shrink-0"
-              :class="{ 'animate-pulse': item.key === 'hot-deals' }" 
-              aria-hidden="true" 
-            />
-            
-            <span class="whitespace-nowrap">{{ item.label }}</span>
-
-            <span
-              class="pointer-events-none absolute left-2 right-2 bottom-0 h-[2px]
-                     rounded-full transition-opacity duration-200"
+      <!-- Always one row. The outer div scrolls sideways only as a fallback
+           (long translations / narrow screens); w-max + mx-auto keeps the
+           row centered when it fits and fully reachable when it doesn't. -->
+      <div class="subnav-scroll overflow-x-auto">
+        <ul class="mx-auto flex w-max flex-nowrap items-center gap-x-0.5 xl:gap-x-2 2xl:gap-x-4 py-1.5 xl:py-2 d-none">
+          <li v-for="item in items" :key="item.key" class="shrink-0">
+            <NuxtLinkLocale
+              :to="item.to"
+              :aria-current="isActive(item) ? 'page' : undefined"
+              class="group relative inline-flex items-center rounded-md font-semibold whitespace-nowrap transition-colors
+                     gap-1.5 px-1.5 py-1 text-xs
+                     xl:gap-2 xl:px-2.5 xl:py-1.5 xl:text-sm
+                     2xl:px-3 2xl:text-[15px]
+                     focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
               :class="[
-                isActive(item) ? 'opacity-100' : 'opacity-0 group-hover:opacity-60',
-                item.key === 'hot-deals' ? 'bg-rose-500' : 'bg-orange-500'
+                isActive(item) ? 'text-orange-700' : '',
+                item.key === 'hot-deals'
+                  ? (isActive(item) ? 'text-rose-700' : 'text-rose-600 hover:text-rose-800')
+                  : (item.key === 'new-arrival' ? 'text-orange-700 hover:text-orange-800' : 'text-gray-700 hover:text-gray-900')
               ]"
-              aria-hidden="true"
-            />
-          </NuxtLinkLocale>
-        </li>
-      </ul>
+            >
+              <Icon
+                :name="item.key"
+                class="shrink-0 w-3.5 h-3.5 xl:w-4 xl:h-4 2xl:w-[18px] 2xl:h-[18px]"
+                :class="{ 'animate-pulse': item.key === 'hot-deals' }"
+                aria-hidden="true"
+              />
+
+              <span>{{ item.label }}</span>
+
+              <span
+                class="pointer-events-none absolute bottom-0 h-[2px] rounded-full transition-opacity duration-200
+                       left-1.5 right-1.5 xl:left-2 xl:right-2"
+                :class="[
+                  isActive(item) ? 'opacity-100' : 'opacity-0 group-hover:opacity-60',
+                  item.key === 'hot-deals' ? 'bg-rose-500' : 'bg-orange-500'
+                ]"
+                aria-hidden="true"
+              />
+            </NuxtLinkLocale>
+          </li>
+        </ul>
+      </div>
     </div>
   </nav>
 </template>
@@ -107,3 +114,9 @@ const Icon = defineComponent({
   }
 })
 </script>
+
+<style scoped>
+/* Sideways scroll is a fallback only; hide the scrollbar. */
+.subnav-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+.subnav-scroll::-webkit-scrollbar { display: none; }
+</style>
