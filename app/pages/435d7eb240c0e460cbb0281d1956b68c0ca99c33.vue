@@ -67,17 +67,38 @@ const copiedVin = ref<string | null>(null)
 
 /** Window the server returns (days). Kept from the response so the title stays in sync. */
 const historyDays = ref(29)
-const historySearch = ref('')
+/** Client-side pagination: the server already caps the list, so paging here is enough. */
+const HISTORY_PAGE_SIZE = 10
+const historyPage = ref(1)
 
-const filteredHistory = computed(() => {
-  const q = historySearch.value.trim().toUpperCase()
-  if (!q) return history.value
-  return history.value.filter(h =>
-    h.vin.toUpperCase().includes(q)
-    || (h.key_code || '').toUpperCase().includes(q)
-    || (h.pin_code || '').toUpperCase().includes(q)
-  )
+const historyTotalPages = computed(() =>
+  Math.max(1, Math.ceil(history.value.length / HISTORY_PAGE_SIZE))
+)
+
+const pagedHistory = computed(() => {
+  const start = (historyPage.value - 1) * HISTORY_PAGE_SIZE
+  return history.value.slice(start, start + HISTORY_PAGE_SIZE)
 })
+
+/** Page buttons with ellipses, e.g. 1 … 4 5 6 … 12 */
+const historyPageButtons = computed<(number | '…')[]>(() => {
+  const total = historyTotalPages.value
+  const cur = historyPage.value
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+
+  const pages: (number | '…')[] = [1]
+  const from = Math.max(2, cur - 1)
+  const to = Math.min(total - 1, cur + 1)
+  if (from > 2) pages.push('…')
+  for (let p = from; p <= to; p++) pages.push(p)
+  if (to < total - 1) pages.push('…')
+  pages.push(total)
+  return pages
+})
+
+function goToHistoryPage(p: number) {
+  historyPage.value = Math.min(Math.max(1, p), historyTotalPages.value)
+}
 
 /**
  * Set only after the customer confirms the "not in DB, order it?" prompt.
@@ -195,6 +216,8 @@ async function loadHistory() {
     const data = (res?.data && typeof res.data === 'object') ? res.data : res
     history.value = Array.isArray(data?.history) ? data.history : []
     if (Number(data?.days) > 0) historyDays.value = Number(data.days)
+    // Keep the current page if it still exists after a refresh.
+    if (historyPage.value > historyTotalPages.value) historyPage.value = historyTotalPages.value
   } catch (e: any) {
     const status = e?.response?.status ?? e?.status ?? e?.statusCode
     history.value = []
@@ -210,18 +233,10 @@ async function loadHistory() {
 function openTab(tab: Tab) {
   activeTab.value = tab
   // Always show fresh data when the History tab is opened.
-  if (tab === 'history') loadHistory()
-}
-
-/** Refills the calculator from a past lookup. No request is made, no quota spent. */
-function useHistoryItem(item: HistoryItem) {
-  vin.value = item.vin
-  keyCode.value = item.key_code || ''
-  pinCode.value = item.pin_code || ''
-  greenTextState.value = false
-  errorMessage.value = null
-  showVinError.value = false
-  activeTab.value = 'calc'
+  if (tab === 'history') {
+    historyPage.value = 1
+    loadHistory()
+  }
 }
 
 function copyHistoryItem(item: HistoryItem) {
@@ -292,7 +307,7 @@ function doLogout() {
   historyError.value = null
   activeTab.value = 'calc'
   copiedVin.value = null
-  historySearch.value = ''
+  historyPage.value = 1
 }
 
 /**
@@ -566,23 +581,13 @@ useHead(() => ({
             </button>
           </div>
 
-          <input
-            v-if="history.length"
-            v-model="historySearch"
-            type="text"
-            autocomplete="off"
-            placeholder="Search VIN, key code or PIN"
-            class="h-search"
-          />
-
           <p v-if="historyLoading && !history.length" class="history-note">Loading…</p>
           <p v-else-if="historyError" class="history-note history-err">{{ historyError }}</p>
           <p v-else-if="!history.length" class="history-note">No lookups in the last {{ historyDays }} days.</p>
-          <p v-else-if="!filteredHistory.length" class="history-note">Nothing matches “{{ historySearch }}”.</p>
 
           <div v-else class="h-list">
             <article
-              v-for="item in filteredHistory"
+              v-for="item in pagedHistory"
               :key="item.vin"
               class="h-card"
               :class="{ 'h-cached': item.from_cache === 1 }"
@@ -606,13 +611,44 @@ useHead(() => ({
                   <button type="button" class="h-btn" @click="copyHistoryItem(item)">
                     {{ copiedVin === item.vin ? 'Copied' : 'Copy' }}
                   </button>
-                  <button type="button" class="h-btn h-btn-primary" @click="useHistoryItem(item)">
-                    Open
-                  </button>
                 </div>
               </div>
             </article>
           </div>
+
+          <nav v-if="historyTotalPages > 1" class="h-pager" aria-label="History pages">
+            <button
+              type="button"
+              class="h-page h-page-nav"
+              :disabled="historyPage === 1"
+              @click="goToHistoryPage(historyPage - 1)"
+            >
+              ‹ Prev
+            </button>
+
+            <template v-for="(p, i) in historyPageButtons" :key="`${p}-${i}`">
+              <span v-if="p === '…'" class="h-page-gap">…</span>
+              <button
+                v-else
+                type="button"
+                class="h-page"
+                :class="{ 'h-page-active': p === historyPage }"
+                :aria-current="p === historyPage ? 'page' : undefined"
+                @click="goToHistoryPage(p)"
+              >
+                {{ p }}
+              </button>
+            </template>
+
+            <button
+              type="button"
+              class="h-page h-page-nav"
+              :disabled="historyPage === historyTotalPages"
+              @click="goToHistoryPage(historyPage + 1)"
+            >
+              Next ›
+            </button>
+          </nav>
         </section>
       </div>
     </div>
@@ -697,6 +733,22 @@ useHead(() => ({
 }
 .logout-button:hover { color: #fff; border-color: #fff; }
 
+/* ---------- Pagination ---------- */
+.h-pager {
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px; flex-wrap: wrap; margin-top: 18px;
+}
+.h-page {
+  min-width: 38px; height: 38px; padding: 0 10px; border-radius: 8px;
+  border: 1.5px solid #3a3a3a; background: #151515; color: #cfcfcf;
+  font-weight: 700; font-size: 14px; transition: .2s;
+}
+.h-page:hover:not(:disabled) { border-color: #8a8a8a; color: #fff; }
+.h-page:disabled { opacity: .4; cursor: not-allowed; }
+.h-page-active,
+.h-page-active:hover:not(:disabled) { background: #5fb99c; border-color: #5fb99c; color: #fff; }
+.h-page-gap { color: #7a7a7a; padding: 0 4px; }
+
 /* ---------- Tabs ---------- */
 .tabs {
   display: flex; gap: 6px;
@@ -721,13 +773,6 @@ useHead(() => ({
 }
 .history-title { color: #f2f2f2; font-weight: 700; font-size: 18px; }
 .history-count { color: #7a7a7a; font-weight: 500; font-size: 14px; margin-inline-start: 4px; }
-.h-search {
-  width: 100%; height: 44px; margin-bottom: 14px; padding: 0 14px;
-  background: #151515; border: 1.5px solid #3a3a3a; border-radius: 10px;
-  color: #eaeaea; font-size: 15px; outline: none;
-}
-.h-search::placeholder { color: #7a7a7a; }
-.h-search:focus { border-color: #8a8a8a; }
 .h-refresh {
   height: 34px; padding: 0 14px; border-radius: 8px;
   border: 1.5px solid #555; background: transparent; color: #aaa;
@@ -767,8 +812,6 @@ useHead(() => ({
   font-weight: 700; font-size: 13px; transition: .2s;
 }
 .h-btn:hover { background: rgba(95,185,156,.15); }
-.h-btn-primary { background: #5fb99c; color: #fff; }
-.h-btn-primary:hover { background: #4fa98c; }
 
 .fade-enter-active, .fade-leave-active { transition: opacity .2s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
@@ -777,8 +820,7 @@ useHead(() => ({
   .pill-input { height: 50px; font-size: 16px; margin: 12px auto; }
   .get-button { width: 160px; height: 50px; font-size: 16px; }
   .h-card-body { gap: 18px; }
-  .h-actions { margin-inline-start: 0; width: 100%; }
-  .h-btn { flex: 1; }
+  .h-page { min-width: 34px; height: 34px; }
 }
 
 .custom-message{ background-color: red; color: white; }
