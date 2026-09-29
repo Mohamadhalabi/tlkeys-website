@@ -693,7 +693,8 @@ export default {
     "freeShipping": "Free Shipping",
     "bundles": "Bundles",
     "newArrival": "New Arrival",
-    "hotdeals": "Hot Deals"
+    "hotdeals": "Hot Deals",
+    "pincodeAccount" : "PIN Code Account"
   },
   "loading": "Loading",
   "coupon": {
