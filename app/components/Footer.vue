@@ -120,9 +120,7 @@ const props = defineProps<{
 const companyName = computed(() => props.companyName ?? 'Techno Lock Keys Trading')
 const logoSrc = computed(() => props.logoSrc ?? '/images/logo/techno-lock-desktop-logo.webp')
 const addressLines = computed(() => props.addressLines ?? [
-  'Sharjah – Industrial No. 5, behind Maliha Road',
-  'Shop No. 8, Property of Ali Nasir Mohamed Suleiman',
-  'United Arab Emirates'
+  'Warehouse Shed No. 1, Maleha Road, Industrial Area 5, Sharjah, UAE',
 ])
 const phone  = computed(() => props.phone  ?? '+971504429045')
 const email  = computed(() => props.email  ?? 'support@tlkeys.com')

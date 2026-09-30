@@ -99,7 +99,7 @@ const orgJsonLd = {
   description: t('return.ogDescription'),
   address: {
     '@type': 'PostalAddress',
-    streetAddress: 'Industrial No. 5, behind Maliah Road., shop No. 8',
+    streetAddress: 'Warehouse Shed No. 1, Maleha Road, Industrial Area 5, Sharjah, UAE',
     addressCountry: 'AE'
   },
   telephone: phone,

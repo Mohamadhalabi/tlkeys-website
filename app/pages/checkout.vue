@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useI18n, useRouter, useNuxtApp, definePageMeta, useSeoMeta, useHead, useRuntimeConfig, useLoadingIndicator } from '#imports'
 import { useAlertStore } from '~/stores/alert'
 
@@ -130,6 +130,7 @@ function countryDisplayName(c: Country, loc: string): string {
 const quote = ref<Quote | null>(null)
 const loading = ref(false)
 const creatingOrder = ref(false)
+const orderSubmitted = ref(false) // stays true after a successful submit (redirecting)
 const isInternalUpdate = ref(false) 
 
 const couponInput = ref<string>('')
@@ -150,6 +151,10 @@ const selectedAddress = computed<Address | null>(() => addresses.value.find(a =>
 const selectedShipping = ref<ShippingKey | null>(null)
 const paymentMethod = ref<'card'|'paypal'|'transfer'|'network_ae' | null>(null)
 const acceptTerms = ref(false)
+const acceptCustoms = ref(false)
+
+/** Button + form are locked while creating the order or after it was submitted */
+const isLocked = computed(() => creatingOrder.value || orderSubmitted.value)
 
 const surchargePct = computed(() => (paymentMethod.value === 'card' || paymentMethod.value === 'paypal' || paymentMethod.value === 'network_ae') ? 3 : 0)
 
@@ -161,7 +166,6 @@ const totalWithSurcharge = computed(() => {
 /* ---------------- Crypto / Transfer State ---------------- */
 const transferType = ref<'bank' | 'crypto'>('bank')
 const copied = ref(false)
-// TODO: Replace with your actual USDT TRC20 Address
 const USDT_WALLET_ADDRESS = 'TMUnF98HTXiW3uQz4VbktLJuEaHcYS47zb' 
 
 function copyWalletAddress() {
@@ -376,7 +380,6 @@ function showCouponAlertOnce(c: CouponResult | null | undefined) {
 
 async function applyCoupon() {
     if (!couponInput.value.trim()) return
-    // Reset Promo if applying coupon
     selectedPromo.value = 'none'
     await fetchQuote({ couponOverride: couponInput.value, showCouponAlert: true })
 }
@@ -386,7 +389,6 @@ async function removeCoupon() {
     await fetchQuote({ couponOverride: '', showCouponAlert: false })
 }
 
-// Watcher to remove coupon if a promo is selected
 watch(selectedPromo, async (newVal) => {
     if (newVal !== 'none' && appliedCouponCode.value) {
         couponInput.value = ''
@@ -400,7 +402,6 @@ watch(selectedPromo, async (newVal) => {
     } else if (newVal !== 'none' && !isInternalUpdate.value) {
         await fetchQuote()
     } else if (newVal === 'none' && !isInternalUpdate.value) {
-        // If user manually selects "No promo", refresh quote to remove discount
         await fetchQuote()
     }
 })
@@ -463,9 +464,7 @@ async function fetchQuote(opts?: { couponOverride?: string | null, showCouponAle
       selectedShipping.value = null
     }
 
-    // Sync Promo selection from Backend
     if (res.promotions?.selected) {
-       // Only update if differnt to avoid loop, though internal update flag handles most
        if(selectedPromo.value !== res.promotions.selected) {
            isInternalUpdate.value = true
            selectedPromo.value = res.promotions.selected as PromoKey
@@ -548,6 +547,9 @@ async function deleteAddress(a: Address) {
 
 /* ---------------- Order creation ---------------- */
 async function createOrder() {
+  // Hard lock: ignore any further clicks once the order is being created / was submitted
+  if (isLocked.value) return
+
   if (isCheckoutBlocked.value) {
     alerts.showAlert({
       type: 'error',
@@ -561,19 +563,19 @@ async function createOrder() {
   if (!selectedAddressId.value) return alerts.showAlert({ type:'error', title: t('checkout.selectAddressFirst') || 'Please select an address' })
   if (!selectedShipping.value)  return alerts.showAlert({ type:'error', title: t('checkout.selectShippingFirst') || 'Please choose a shipping method' })
   if (!paymentMethod.value)     return alerts.showAlert({ type:'error', title: t('checkout.selectPaymentFirst') || 'Please select a payment method' })
+  if (!acceptCustoms.value)     return alerts.showAlert({ type:'error', title: t('checkout.acceptCustomsFirst') || 'Please confirm that you are responsible for customs duties and taxes' })
   if (!acceptTerms.value)       return alerts.showAlert({ type:'error', title: t('checkout.acceptTermsFirst') || 'Please accept Terms & Conditions' })
 
-  if (creatingOrder.value) return
+  // Lock immediately (synchronously) so double-clicks can't create two orders
   creatingOrder.value = true
 
-const paymentMap: Record<'card'|'paypal'|'transfer'|'network_ae', string> = {
+  const paymentMap: Record<'card'|'paypal'|'transfer'|'network_ae', string> = {
     card: 'ccavenue',
     paypal: 'paypal',
     transfer: 'transfer_online',
     network_ae: 'network_ae'
   }
 
-  // Append Crypto note to order note if Crypto is selected
   let finalNote = orderNote.value
   if (paymentMethod.value === 'transfer' && transferType.value === 'crypto') {
       const cryptoTag = '[Crypto/USDT]'
@@ -581,14 +583,15 @@ const paymentMap: Record<'card'|'paypal'|'transfer'|'network_ae', string> = {
   }
 
   const body = {
-    address:         selectedAddressId.value,
-    shipping_method: selectedShipping.value,
-    payment_method:  paymentMap[paymentMethod.value],
-    coupon_code:     appliedCouponCode.value || null,
-    promo:           selectedPromo.value,
-    free_ship:       selectedPromo.value === 'free_ship' ? 1 : 0,
-    note:            finalNote,               
-    shipment_value:  customShipmentValue.value,     
+    address:          selectedAddressId.value,
+    shipping_method:  selectedShipping.value,
+    payment_method:   paymentMap[paymentMethod.value],
+    coupon_code:      appliedCouponCode.value || null,
+    promo:            selectedPromo.value,
+    free_ship:        selectedPromo.value === 'free_ship' ? 1 : 0,
+    note:             finalNote,
+    shipment_value:   customShipmentValue.value,
+    customs_accepted: acceptCustoms.value ? 1 : 0,
   }
 
   try {
@@ -602,6 +605,9 @@ const paymentMap: Record<'card'|'paypal'|'transfer'|'network_ae', string> = {
     const order   = payload?.order
     const paypalUrl = (payload?.paypal_url || '').trim()
     const networkUrl = (payload?.networkae_url || '').trim()
+
+    // From here on the order exists — keep the button locked permanently
+    orderSubmitted.value = true
 
     if (paymentMethod.value === 'paypal' && paypalUrl) {
       window.location.href = paypalUrl
@@ -629,14 +635,24 @@ const paymentMap: Record<'card'|'paypal'|'transfer'|'network_ae', string> = {
       title: t('checkout.orderCreated') || 'Order created',
       message: t('checkout.missingOrderId') || 'Missing order id in response.'
     })
-    creatingOrder.value = false
   } catch (e: any) {
     alerts.showAlert({
       type:'error',
       title: t('checkout.failedCreateOrder') || 'Failed to create order',
       message: e?.message
     })
+    // Only unlock when the order was NOT created, so the user can retry
+    orderSubmitted.value = false
+  } finally {
     creatingOrder.value = false
+  }
+}
+
+/* Unlock if the user comes back with the browser Back button from the payment page (bfcache) */
+function onPageShow(e: PageTransitionEvent) {
+  if (e.persisted) {
+    creatingOrder.value = false
+    orderSubmitted.value = false
   }
 }
 
@@ -678,8 +694,13 @@ useHead({ meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
 
 /* ---------------- Effects ---------------- */
 onMounted(async () => {
+  window.addEventListener('pageshow', onPageShow)
   await fetchCountries()
   await fetchQuote({ initialLoad: true })
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('pageshow', onPageShow)
 })
 
 watch(selectedAddressId, async (newVal) => {
@@ -741,7 +762,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
 
     <div v-if="(quote?.products?.length ?? 0) > 0" class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:sticky">
       <section class="lg:col-span-8 space-y-6">
-        <div class="rounded-2xl border p-4 bg-white shadow-sm">
+        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="isLocked ? 'opacity-50 pointer-events-none' : ''">
           <p class="text-center text-gray-500 mb-2">{{ $t('checkout.IfYouHaveAcoupon') }}</p>
 
           <div class="flex flex-col sm:flex-row items-center gap-3 justify-center">
@@ -752,10 +773,11 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
               :placeholder="$t('checkout.enterCouponCode')"
               @keyup.enter="applyCoupon"
               :aria-label="$t('checkout.couponCode') || 'Coupon code'"
+              :disabled="isLocked"
             />
             <button
               class="rounded-2xl border px-4 py-2 font-medium hover:bg-gray-50"
-              :disabled="!couponInput || creatingOrder"
+              :disabled="!couponInput || isLocked"
               @click="applyCoupon"
             >
               {{ $t('checkout.applyCoupon') }}
@@ -764,7 +786,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
             <button
               v-if="appliedCouponCode"
               class="rounded-2xl border px-4 py-2 font-medium hover:bg-gray-50"
-              :disabled="creatingOrder"
+              :disabled="isLocked"
               @click="removeCoupon"
             >
               {{ $t('common.remove') || 'Remove' }} ({{ appliedCouponCode }})
@@ -840,7 +862,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
           </div>
         </div>
 
-        <div class="rounded-2xl border p-4 bg-white shadow-sm">
+        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="isLocked ? 'opacity-50 pointer-events-none' : ''">
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-lg font-semibold flex items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -852,7 +874,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
 
           <div v-if="!showAddressForm">
              <div class="flex justify-end mb-3">
-                <button class="rounded-2xl border px-3 py-2 text-sm hover:bg-gray-50" @click="openAddressForm()" :disabled="creatingOrder">
+                <button class="rounded-2xl border px-3 py-2 text-sm hover:bg-gray-50" @click="openAddressForm()" :disabled="isLocked">
                   + {{ $t('checkout.addAddress') }}
                 </button>
              </div>
@@ -864,7 +886,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
                 class="rounded-2xl border p-3 cursor-pointer flex gap-3 items-start transition ring-offset-2 bg-white hover:shadow-sm"
                 :class="selectedAddressId === a.id ? 'ring-2 ring-emerald-500' : ''"
               >
-                <input type="radio" class="mt-1" :value="a.id" v-model="selectedAddressId" :disabled="creatingOrder" />
+                <input type="radio" class="mt-1" :value="a.id" v-model="selectedAddressId" :disabled="isLocked" />
                 <div class="w-full">
                   <div class="font-medium">
                     {{ a.country_name || '—' }} <span v-if="a.city">— {{ a.city }}</span>
@@ -880,8 +902,8 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
                     <span v-if="a.is_default" class="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 border border-emerald-200">
                       <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>{{ $t('checkout.default') }}
                     </span>
-                    <button class="px-2 py-1 rounded border hover:bg-gray-50" @click.stop="openAddressForm(a)" :disabled="creatingOrder">{{ $t('edit') }}</button>
-                    <button class="px-2 py-1 rounded border hover:bg-gray-50" @click.stop="deleteAddress(a)" :disabled="creatingOrder">{{ $t('delete') }}</button>
+                    <button class="px-2 py-1 rounded border hover:bg-gray-50" @click.stop="openAddressForm(a)" :disabled="isLocked">{{ $t('edit') }}</button>
+                    <button class="px-2 py-1 rounded border hover:bg-gray-50" @click.stop="deleteAddress(a)" :disabled="isLocked">{{ $t('delete') }}</button>
                   </div>
                 </div>
               </label>
@@ -998,7 +1020,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
           </div>
         </div>
 
-        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="((!selectedAddressId || creatingOrder || showAddressForm) ? 'opacity-50 pointer-events-none' : '')">
+        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="((!selectedAddressId || isLocked || showAddressForm) ? 'opacity-50 pointer-events-none' : '')">
           <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M2 6a2 2 0 012-2h10a2 2 0 012 2v8h-1.18a3 3 0 10-5.64 0H8.82a3 3 0 10-5.64 0H2V6z"/>
@@ -1016,7 +1038,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
               class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
               :class="[selectedShipping === opt.key ? 'ring-2 ring-emerald-500' : '', (opt.disabled || isCheckoutBlocked) ? 'opacity-50 pointer-events-none' : '']"
             >
-              <input type="radio" class="sr-only" :value="opt.key" v-model="selectedShipping" :disabled="opt.disabled || isCheckoutBlocked" />
+              <input type="radio" class="sr-only" :value="opt.key" v-model="selectedShipping" :disabled="opt.disabled || isCheckoutBlocked || isLocked" />
               <div class="flex items-center justify-center gap-2">
                 <span v-if="opt.key==='pick_up'" class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">{{ $t('checkout.pickup') }}</span>
                 <span v-else-if="opt.key==='domestic'" class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold bg-cyan-100 text-cyan-700 border border-cyan-200">{{ $t('checkout.localShipping') }}</span>
@@ -1031,7 +1053,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
           </div>
         </div>
 
-        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="((!selectedShipping && !isCheckoutBlocked) ? 'opacity-50 pointer-events-none' : '') + (creatingOrder ? ' opacity-50 pointer-events-none' : '')">
+        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="((!selectedShipping && !isCheckoutBlocked) ? 'opacity-50 pointer-events-none' : '') + (isLocked ? ' opacity-50 pointer-events-none' : '')">
           <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M2 6a2 2 0 012-2h16a2 2 0 012 2v2H2V6z"/>
@@ -1044,7 +1066,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
             <!-- Card -->
             <label class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
                    :class="paymentMethod === 'card' ? 'ring-2 ring-emerald-500 border-emerald-500' : 'border-gray-200'">
-              <input class="sr-only" type="radio" value="card" v-model="paymentMethod" :disabled="isCheckoutBlocked" />
+              <input class="sr-only" type="radio" value="card" v-model="paymentMethod" :disabled="isCheckoutBlocked || isLocked" />
               <div class="flex items-center justify-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6a2 2 0 012-2h14a2 2 0 012 2v2H3V6z"/><path d="M3 10h18v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8zm2 5h6v2H5v-2z"/></svg>
                 <span class="font-medium truncate">{{ $t('checkout.payCard') }}</span>
@@ -1054,7 +1076,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
             <!-- PayPal -->
             <label class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
                    :class="paymentMethod === 'paypal' ? 'ring-2 ring-emerald-500 border-emerald-500' : 'border-gray-200'">
-              <input class="sr-only" type="radio" value="paypal" v-model="paymentMethod" :disabled="isCheckoutBlocked" />
+              <input class="sr-only" type="radio" value="paypal" v-model="paymentMethod" :disabled="isCheckoutBlocked || isLocked" />
               <div class="flex items-center justify-center gap-2">
                 <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-600 text-white text-xs font-bold shrink-0">P</span>
                 <span class="font-medium truncate">PayPal</span>
@@ -1064,7 +1086,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
             <!-- Apple / Google Pay -->
             <label class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
                   :class="paymentMethod === 'network_ae' ? 'ring-2 ring-emerald-500 border-emerald-500' : 'border-gray-200'">
-              <input class="sr-only" type="radio" value="network_ae" v-model="paymentMethod" :disabled="isCheckoutBlocked" />
+              <input class="sr-only" type="radio" value="network_ae" v-model="paymentMethod" :disabled="isCheckoutBlocked || isLocked" />
               <div class="flex items-center justify-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>
@@ -1076,7 +1098,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
             <!-- Bank / Crypto Transfer -->
             <label class="rounded-2xl border p-3 cursor-pointer text-center transition ring-offset-2 bg-white hover:shadow-sm"
                    :class="paymentMethod === 'transfer' ? 'ring-2 ring-emerald-500 border-emerald-500' : 'border-gray-200'">
-              <input class="sr-only" type="radio" value="transfer" v-model="paymentMethod" :disabled="isCheckoutBlocked" />
+              <input class="sr-only" type="radio" value="transfer" v-model="paymentMethod" :disabled="isCheckoutBlocked || isLocked" />
               <div class="flex items-center justify-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 6v2H3V9l9-6z"/><path d="M4 13h16v6H4v-6z"/></svg>
                 <span class="font-medium truncate">{{ $t('checkout.transfer') || 'Transfer' }}</span>
@@ -1162,7 +1184,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
           </div>
         </div>
 
-        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="creatingOrder ? 'opacity-50 pointer-events-none' : ''">
+        <div class="rounded-2xl border p-4 bg-white shadow-sm" :class="isLocked ? 'opacity-50 pointer-events-none' : ''">
           <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-600" viewBox="0 0 24 24" fill="currentColor">
               <path d="M19 3H14.82C14.4 1.84 13.3 1 12 1C10.7 1 9.6 1.84 9.18 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM12 3C12.55 3 13 3.45 13 4C13 4.55 12.55 5 12 5C11.45 5 11 4.55 11 4C11 3.45 11.45 3 12 3ZM7 7H17V9H7V7ZM7 11H17V13H7V11ZM7 15H14V17H7V15Z"/>
@@ -1178,6 +1200,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
                 rows="2" 
                 class="w-full rounded-xl border px-3 py-2" 
                 :placeholder="$t('checkout.enterNote') || 'Any special instructions...'"
+                :disabled="isLocked"
               ></textarea>
             </div>
 
@@ -1189,6 +1212,7 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
                 min="0"
                 step="0.01"
                 class="w-full rounded-xl border px-3 py-2"
+                :disabled="isLocked"
               />
               <p class="mt-1 text-xs text-gray-500">
                 {{ $t('checkout.shipmentValueHelper') }}
@@ -1267,7 +1291,6 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
               type="button"
               class="w-full rounded-xl bg-orange-500 text-white px-4 py-2 font-medium shadow-sm hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500"
               :aria-expanded="showAllProducts"
-              :disabled="creatingOrder"
               @click="showAllProducts = !showAllProducts"
             >
               <template v-if="showAllProducts">
@@ -1305,9 +1328,37 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
             </div>
           </div>
 
-          <div class="mt-5 rounded-2xl border p-4 bg-emerald-50/60">
+          <!-- Customs duties notice -->
+          <div class="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900" role="note">
+            <div class="flex items-start gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M11.001 10h2v5h-2z"/><path d="M12 17a1.25 1.25 0 110 2.5A1.25 1.25 0 0112 17z"/><path d="M10.29 3.86l-8 14A1 1 0 003 19h18a1 1 0 00.87-1.5l-8-14a1 1 0 00-1.74 0z"/>
+              </svg>
+              <div class="text-sm">
+                <p class="font-semibold">{{ $t('checkout.customsNoteTitle') || 'Customs duties & import taxes' }}</p>
+                <p class="mt-1">
+                  {{ $t('checkout.customsNoteText') || 'Prices and shipping costs do not include customs duties, import taxes, VAT, or clearance fees. These are charged by your country\'s customs authority and must be paid by you in full. Techno Lock Keys is not responsible for any of these charges.' }}
+                  <NuxtLinkLocale to="/privacy-policy" class="underline font-medium hover:text-amber-700">
+                    {{ $t('checkout.customsLearnMore') || 'Learn more' }}
+                  </NuxtLinkLocale>
+                </p>
+              </div>
+            </div>
+
+            <label class="mt-3 flex items-start gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                v-model="acceptCustoms"
+                class="mt-1 accent-amber-600"
+                :disabled="isLocked"
+              />
+              <span>{{ $t('checkout.customsAccept') || 'I understand that I am fully responsible for paying all customs duties, taxes, and import fees.' }}</span>
+            </label>
+          </div>
+
+          <div class="mt-4 rounded-2xl border p-4 bg-emerald-50/60">
             <label class="flex items-start gap-2 text-sm text-emerald-900">
-              <input type="checkbox" v-model="acceptTerms" class="mt-1 accent-emerald-600" />
+              <input type="checkbox" v-model="acceptTerms" class="mt-1 accent-emerald-600" :disabled="isLocked" />
               <span>
                 {{ $t('checkout.iAgreeTo') }}
                 <NuxtLinkLocale to="/terms" class="underline decoration-emerald-600 text-emerald-700 hover:text-emerald-800">
@@ -1317,18 +1368,20 @@ watch(() => quote.value?.summary?.sub_total, (newVal) => {
             </label>
 
             <button
-              class="w-full mt-3 rounded-xl bg-orange-500 text-white px-6 py-3 font-medium shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="isCheckoutBlocked || !selectedAddressId || !selectedShipping || !paymentMethod || !acceptTerms || creatingOrder"
-              :aria-busy="creatingOrder ? 'true' : 'false'"
+              type="button"
+              class="w-full mt-3 rounded-xl bg-orange-500 text-white px-6 py-3 font-medium shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-orange-500"
+              :disabled="isLocked || isCheckoutBlocked || !selectedAddressId || !selectedShipping || !paymentMethod || !acceptCustoms || !acceptTerms"
+              :aria-busy="isLocked ? 'true' : 'false'"
               @click="createOrder"
               :title="isCheckoutBlocked ? ($t('checkout.blockedButtonTitle') || 'Remove restricted items or change the country to continue') : ''"
             >
-              <span v-if="creatingOrder" class="inline-flex items-center gap-2">
+              <span v-if="isLocked" class="inline-flex items-center gap-2">
                 <svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
                 </svg>
-                {{ $t('checkout.creatingOrder') || 'Creating your order…' }}
+                <template v-if="orderSubmitted">{{ $t('checkout.redirecting') || 'Order placed, redirecting…' }}</template>
+                <template v-else>{{ $t('checkout.creatingOrder') || 'Creating your order…' }}</template>
               </span>
               <span v-else>
                 {{ $t('checkout.createOrder') }}

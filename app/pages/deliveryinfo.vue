@@ -182,7 +182,7 @@ const orgJsonLd = {
   "description": t('deliveryinfo.ogTitle'),
   "address": {
     "@type": "PostalAddress",
-    "streetAddress": "Industrial No. 5, behind Maliah Road., shop No. 8",
+    "streetAddress": "Warehouse Shed No. 1, Maleha Road, Industrial Area 5, Sharjah, UAE",
     "addressCountry": "AE"
   },
   "telephone": "+971504429045",

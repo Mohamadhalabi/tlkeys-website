@@ -222,10 +222,6 @@
             <NuxtImg src="/images/flags/usa-flag.webp" alt="USA flag" width="200" class="rounded-md" />
             <div class="text-center sm:text-left">
               <p>{{ t('contact.address') }}: {{ t('contact.usaAddress') }}</p>
-              <p class="mt-1">
-                {{ t('contact.Mobile') }}:
-                <a href="tel:+19734624473" class="text-orange-700 hover:underline">+1 973 462 4473</a>
-              </p>
             </div>
           </div>
         </article>
@@ -261,7 +257,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   contactPhone: "+971504429045",
   contactEmail: "support@tlkeys.com",
-  contactAddress: "Sharjah – Industrial No. 5, behind Maliha Road Shop No. 8, Property of Ali Nasir Mohamed Suleiman United Arab Emirates"
+  contactAddress: "Warehouse Shed No. 1, Maleha Road, Industrial Area 5, Sharjah, UAE"
 })
 
 /* Form state */
@@ -353,7 +349,7 @@ const orgJsonLd = {
   sameAs,
   address: {
     '@type': 'PostalAddress',
-    streetAddress: 'Industrial No. 5, behind Maliha Road., shop No. 8',
+    streetAddress: 'Warehouse Shed No. 1, Maleha Road, Industrial Area 5, Sharjah, UAE',
     addressLocality: 'Sharjah',
     addressCountry: 'AE'
   },

@@ -28,7 +28,7 @@
 
         <p>
           {{ t('privacypolicy.websitePolicies') }}
-          <NuxtLinkLocale :to="('/terms')" class="text-blue-600 hover:underline">
+          <NuxtLinkLocale to="/terms" class="text-blue-600 hover:underline">
             {{ t('privacypolicy.TermsAndConditions') }}
           </NuxtLinkLocale>
           {{ t('privacypolicy.mayBeChanged') }}<br />
@@ -53,7 +53,7 @@
 
         <p>
           {{ t('privacypolicy.at') }}
-          <NuxtLinkLocale :to="('/')" class="text-blue-600 hover:underline">tlkeys.com</NuxtLinkLocale>,
+          <NuxtLinkLocale to="/" class="text-blue-600 hover:underline">tlkeys.com</NuxtLinkLocale>,
           {{ t('privacypolicy.WeAre') }}
         </p>
 
@@ -61,7 +61,7 @@
 
         <p>
           {{ t('privacypolicy.PleasebeAware') }}
-          <NuxtLinkLocale :to="('/')" class="text-blue-600 hover:underline">tlkeys.com</NuxtLinkLocale>
+          <NuxtLinkLocale to="/" class="text-blue-600 hover:underline">tlkeys.com</NuxtLinkLocale>
           {{ t('privacypolicy.mayContain') }}
         </p>
 
@@ -69,11 +69,29 @@
 
         <p>{{ t('privacypolicy.ifyouchoose') }}</p>
 
+        <!-- Customs Duties & Import Fees -->
+        <section
+          aria-labelledby="customs-heading"
+          class="rounded-lg border border-amber-200 bg-amber-50 p-4 md:p-5"
+        >
+          <h2 id="customs-heading" class="text-lg md:text-xl font-bold text-gray-900">
+            {{ t('privacypolicy.customsTitle') }}
+          </h2>
+          <div class="mt-2 space-y-2">
+            <p>{{ t('privacypolicy.customsNotResponsible') }}</p>
+            <p class="font-semibold text-gray-900">
+              {{ t('privacypolicy.customsCustomerResponsible') }}
+            </p>
+            <p>{{ t('privacypolicy.customsRefused') }}</p>
+            <p>{{ t('privacypolicy.customsDelays') }}</p>
+          </div>
+        </section>
+
         <p>
           {{ t('privacypolicy.yourPrivacy') }}
-          <NuxtLinkLocale :to="('/')" class="text-blue-600 hover:underline">tlkeys.com</NuxtLinkLocale>,
+          <NuxtLinkLocale to="/" class="text-blue-600 hover:underline">tlkeys.com</NuxtLinkLocale>,
           {{ t('privacypolicy.doNotHesitate') }}
-          <NuxtLinkLocale :to="('/contact')" class="text-blue-600 hover:underline">
+          <NuxtLinkLocale to="/contact" class="text-blue-600 hover:underline">
             {{ t('privacypolicy.contactUs') }}
           </NuxtLinkLocale>.
           {{ t('privacypolicy.ThankYouFor') }}
@@ -81,7 +99,7 @@
 
         <p>
           {{ t('privacypolicy.ifYouHaveAny') }}
-          <NuxtLinkLocale :to="('/contact')" class="text-blue-600 hover:underline">
+          <NuxtLinkLocale to="/contact" class="text-blue-600 hover:underline">
             {{ t('privacypolicy.contactUs') }}
           </NuxtLinkLocale>
           {{ t('privacypolicy.viaThe') }}
@@ -121,7 +139,7 @@ useSeoMeta({
   twitterCard: 'summary_large_image'
 })
 
-/* ---- JSON-LD (without children) ---- */
+/* ---- JSON-LD ---- */
 const orgJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
@@ -131,7 +149,7 @@ const orgJsonLd = {
   description: t('privacypolicy.ogDescription'),
   address: {
     '@type': 'PostalAddress',
-    streetAddress: 'Industrial No. 5, behind Maliah Road., shop No. 8',
+    streetAddress: 'Warehouse Shed No. 1, Maleha Road, Industrial Area 5, Sharjah, UAE',
     addressCountry: 'AE'
   },
   telephone: phone,
@@ -159,7 +177,7 @@ const logoJsonLd = {
   logo: logoUrl
 }
 
-/* ---- Head (note: use innerHTML, not children) ---- */
+/* ---- Head ---- */
 useHead({
   htmlAttrs: { lang: locale.value },
   link: [{ rel: 'canonical', href: canonical }],

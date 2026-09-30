@@ -221,7 +221,7 @@ const orgJsonLd = {
   sameAs,
   address: {
     '@type': 'PostalAddress',
-    streetAddress: 'Industrial No. 5, behind Maliha Road., shop No. 8',
+    streetAddress: 'Warehouse Shed No. 1, Maleha Road, Industrial Area 5, Sharjah, UAE',
     addressLocality: 'Sharjah',
     addressCountry: 'AE'
   },

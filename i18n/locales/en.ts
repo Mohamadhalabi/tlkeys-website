@@ -158,7 +158,7 @@ export default {
     "orderNote": "Order Note",
     "enterNote": "Any special instructions...",
     "shipmentValue": "Declared Shipment Value ($)",
-    "shipmentValueHelper": "You can use this input to change the shipment value to avoid paying too much customs.",
+    "shipmentValueHelper": "This value appears on customs documents. Any duties or taxes are calculated by your country's customs authority and paid by you.",
     "enterCity": "Select a City From The List",
     "invalidCity": "Invalid City",
     "invalidCityUpdateMessage": "The selected city is invalid. Please edit the address and select a city from the list.",
@@ -231,7 +231,13 @@ export default {
     "pickup": "Pickup",
     "localShipping": "Local shipping",
     "itemNotAvailableForCountry": "Item Not Available For Country",
-    "shippingBlocked": "Shipping Blocked"
+    "shippingBlocked": "Shipping Blocked",
+    "customsNoteTitle": "Customs duties & import taxes",
+    "customsNoteText": "Prices and shipping costs do not include customs duties, import taxes, VAT, or clearance fees. These are charged by your country's customs authority and must be paid by you in full. Techno Lock Keys is not responsible for any of these charges.",
+    "customsAccept": "I understand that I am fully responsible for paying all customs duties, taxes, and import fees.",
+    "customsLearnMore": "Learn more",
+    "acceptCustomsFirst": "Please confirm that you are responsible for customs duties and taxes",
+    "redirecting": "Order placed, redirecting…",
   },
   "edit": "Edit",
   "delete": "Delete",
@@ -296,7 +302,7 @@ export default {
     "ourBranches": "Our Branches",
     "address": "Address",
     "Mobile": "Mobile",
-    "uaeAddress": "Industrial No. 5, behind Maliah Road, Shop No. 8, Sharjah, UAE",
+    "uaeAddress": "Warehouse Shed No. 1, Maleha Road, Industrial Area 5, Sharjah, UAE",
     "ksaAddress": "Riyadh, Saudi Arabia",
     "usaAddress": "New Jersey, United States of America",
     "turkeyAddress": "Mersin, Turkey",
@@ -306,6 +312,7 @@ export default {
     "alertSuccessBody": "Thanks! Your message has been sent."
   },
   "deliveryinfo": {
+    "customsNote": "Customs duties, import taxes, and fees are not included and are the sole responsibility of the customer.",
     "seoTitle": "Delivery Information | Techno Lock Keys Trading",
     "seoDescription": "Learn how orders are processed, packed, shipped, and delivered. Includes timelines, tracking, fees, and important notes.",
     "ogTitle": "How We Deliver Your Order",
@@ -387,37 +394,122 @@ export default {
     "email": "email",
     "or": "or",
     "phoneNumber": "phone number",
-    "trust": "Your trust matters to us—we strive to keep your data safe and private."
+    "trust": "Your trust matters to us—we strive to keep your data safe and private.",
+    "customsTitle": "Customs Duties, Taxes & Import Fees",
+    "customsNotResponsible": "Techno Lock Keys is not responsible for any customs duties, import taxes, VAT, brokerage or clearance fees, or any other charges imposed by the destination country.",
+    "customsCustomerResponsible": "The customer is fully responsible for paying all such charges in full. These charges are set by local customs authorities and are not included in the product price or shipping cost.",
+    "customsRefused": "If a shipment is refused, abandoned, or returned because these charges were not paid, the original shipping fees are non-refundable, and any return shipping or related costs will be deducted from any refund.",
+    "customsDelays": "We are not responsible for delays caused by customs inspection or clearance."
+
   },
+// Replace the existing "terms" block in your English locale file with this one.
+// Placeholders like {company}, {license}, {address}, {email}, {phone} are filled in by terms.vue.
+
+// Replace the existing "terms" block in your English locale file with this one.
+// Placeholders like {company}, {address}, {email}, {phone} are filled in by terms.vue.
+
   "terms": {
     "title": "Terms & Conditions",
     "seoTitle": "Terms & Conditions | Techno Lock Keys",
-    "seoDescription": "Read the terms that govern your use of tlkeys.com and our products and services.",
+    "seoDescription": "The terms that govern purchases and use of tlkeys.com, including shipping, customs duties, digital products, refunds, and liability.",
     "ogTitle": "Terms & Conditions — Techno Lock Keys",
-    "ogDescription": "Clear terms covering accounts, purchases, intellectual property, and privacy.",
-    "definition": "Definition",
-    "theseTerms": "These Terms & Conditions (\"Terms\") govern your access to and use of tlkeys.com and any services provided by Techno Lock Keys.",
-    "acceptanceTerms": "Acceptance of Terms",
-    "byUsing": "By using our website, you agree to be bound by these Terms and all applicable laws and regulations.",
-    "services": "Services",
-    "ourWebsite": "Our website provides information and enables the purchase of locksmith-related products and accessories.",
-    "userAccount": "User Account",
-    "youMayNeed": "You may need an account to make purchases or access certain features.",
-    "youAre": "You are responsible for maintaining the confidentiality of your login credentials and for all activities under your account.",
-    "youMust": "You must provide accurate, complete, and current information and promptly update it when necessary.",
-    "purchase": "Purchases",
-    "whenMaking": "When making a purchase, ensure that billing, shipping, and contact details are correct.",
-    "allSales": "All sales are subject to availability, order acceptance, and our policies on returns and refunds.",
-    "prices": "Prices may change without notice; taxes, duties, and shipping fees may apply.",
-    "intellectual": "Intellectual Property",
-    "allContent": "All content on tlkeys.com (text, images, logos, product data) is owned by or licensed to Techno Lock Keys.",
-    "YouMayNot": "You may not copy, reproduce, or exploit content without prior written permission.",
-    "privacy": "Privacy",
-    "weCollect": "We collect and process personal data in accordance with our Privacy Policy.",
-    "ByUsing": "By using our website, you consent to such processing as described there.",
-    "Contact": "Contact",
-    "IfYouHave": "If you have questions about these Terms, please contact us at",
-    "email": "email"
+    "ogDescription": "Clear terms covering orders, shipping, customs duties, digital products, warranties, and disputes.",
+    "lastUpdated": "Last updated: {date}",
+    "intro": "Please read these Terms carefully before placing an order. By placing an order you confirm that you have read, understood, and accepted them.",
+
+    "whoTitle": "1. Who we are",
+    "who1": "tlkeys.com is operated by {company}, a company registered in the United Arab Emirates, with its address at {address}.",
+    "who2": "In these Terms, \"we\", \"us\" and \"our\" mean {company}. \"You\" and \"customer\" mean the person or business using the website or placing an order.",
+
+    "acceptTitle": "2. Acceptance of these Terms",
+    "accept1": "By using tlkeys.com or placing an order, you agree to these Terms, our Return & Refund Policy, our Delivery Information, and our Privacy Policy.",
+    "accept2": "At checkout you are asked to confirm your acceptance. We keep a record of that confirmation, including the date, time, and the version of these Terms in force at that moment.",
+
+    "useTitle": "3. Professional and lawful use",
+    "use1": "Our products and services are intended for automotive locksmiths, workshops, and other professionals, and for lawful purposes only.",
+    "use2": "You confirm that you will only use our products, PIN code services, calculators, and software on vehicles you own or are legally authorized to work on.",
+    "use3": "We may refuse or cancel any order, or suspend any account, if we reasonably suspect unlawful use. We are not responsible for any misuse of our products or services.",
+
+    "accountTitle": "4. Your account",
+    "account1": "You are responsible for keeping your login details confidential and for all activity under your account, including the use of tokens and credits.",
+    "account2": "You must provide accurate and complete information, including your name, phone number, and shipping address, and keep it up to date.",
+
+    "productTitle": "5. Products and compatibility",
+    "product1": "We try to describe products and compatibility information accurately. However, vehicle manufacturers change systems frequently, and compatibility lists are provided as a guide only.",
+    "product2": "You are responsible for checking that a product is compatible with your vehicle, programming device, and software version before ordering. If you are unsure, contact us before you buy.",
+    "product3": "We are not responsible for orders placed with the wrong model, year, frequency, chip, or part number, or for programming failures caused by the vehicle, the programming device, its software version, or the procedure used.",
+    "product4": "Product images are for illustration. Minor differences in color, packaging, or appearance do not affect function and are not a defect.",
+
+    "orderTitle": "6. Orders, prices and payment",
+    "order1": "All prices are shown in US dollars. Prices, stock, and promotions may change without notice until your order is confirmed.",
+    "order2": "If a product is listed at an obviously wrong price, or becomes unavailable, we may cancel the order and refund any amount you paid.",
+    "order3": "Card, PayPal, and wallet payments carry a 3% processing surcharge, which is shown before you place your order.",
+    "order4": "For bank transfer and cryptocurrency (USDT) payments, your order is processed only after the payment is received and confirmed. You are responsible for any bank or network fees, and for sending the payment to the correct account or wallet address shown at checkout.",
+
+    "shipTitle": "7. Shipping and delivery",
+    "ship1": "Delivery times shown on our website are estimates from the courier and are not guaranteed.",
+    "ship2": "You are responsible for giving a complete and correct shipping address and a reachable phone number. We are not responsible for delays, extra charges, or losses caused by incorrect or incomplete details.",
+    "ship3": "Once a shipment has been handed to the courier, its tracking record is our proof of dispatch, and the courier's delivery confirmation is our proof of delivery.",
+    "ship4": "Please inspect your package on delivery. Visible damage to the package must be reported to us within 48 hours of delivery, with photos.",
+
+    "customsTitle": "8. Customs duties, taxes and import fees",
+    "customs1": "Product prices and shipping costs do not include customs duties, import taxes, VAT, brokerage, or clearance fees in the destination country.",
+    "customs2": "These charges are set by the customs authority of your country. You are fully responsible for paying all of them. {company} is not responsible for any customs duties, taxes, or import fees.",
+    "customs3": "If a shipment is refused, abandoned, or returned because these charges were not paid, the original shipping cost is non-refundable, and any return shipping, storage, or destruction costs will be deducted from any refund.",
+    "customs4": "We are not responsible for delays caused by customs inspection, clearance, or requests for documents. You are responsible for providing any documents or permits your country requires for import.",
+
+    "declaredTitle": "9. Declared value and insurance",
+    "declared1": "The declared value shown on shipping and customs documents is based on the value you confirm at checkout.",
+    "declared2": "If a shipment is lost or damaged in transit, any claim is limited to the declared value on the shipping documents. Any consequences of the declared value, including penalties or seizure by customs, are your responsibility.",
+
+    "digitalTitle": "10. Digital products and services",
+    "digital1": "Digital products include tokens, credits, PIN codes, calculator results, software, activations, and licenses.",
+    "digital2": "Digital products are delivered instantly or shortly after payment, and are non-refundable once delivered, activated, or used.",
+    "digital3": "Tokens are deducted according to the rules shown on each service page. We cannot refund tokens used because of incorrect VINs, incorrect input data, repeated requests, or page refreshes.",
+    "digital4": "If a result is not available for a vehicle, we will not charge a token where the service page says so. Results depend on third-party data and are provided without a guarantee that they will work in every case.",
+
+    "returnsTitle": "11. Returns and refunds",
+    "returns1": "Returns and refunds are handled under our Return & Refund Policy, which forms part of these Terms.",
+    "returns2": "Products that have been programmed, installed, activated, or modified may not be eligible for return, except for proven manufacturing defects.",
+
+    "warrantyTitle": "12. Warranty",
+    "warranty1": "Where a product has a manufacturer warranty, that warranty applies under the manufacturer's terms. We will help you with warranty claims where possible.",
+    "warranty2": "To the extent permitted by law, we give no other warranties, and we do not guarantee that any product or service will work with every vehicle, device, or software version.",
+
+    "liabilityTitle": "13. Limitation of liability",
+    "liability1": "To the extent permitted by law, our total liability for any claim related to an order is limited to the amount you paid for that order.",
+    "liability2": "We are not liable for indirect or consequential losses, including lost profit, lost jobs, vehicle downtime, damage to vehicles or modules during programming, or loss of data.",
+    "liability3": "Nothing in these Terms limits any liability that cannot be limited under applicable law.",
+
+    "disputeTitle": "14. Problems with an order and payment disputes",
+    "dispute1": "If there is a problem with your order, please contact us first at {email} or {phone}. Most issues can be solved quickly.",
+    "dispute2": "Please allow us at least 5 business days to respond and resolve the issue before opening a dispute or chargeback with your bank, card issuer, or PayPal.",
+    "dispute3": "If a dispute or chargeback is opened, we will provide the payment provider with our records, including your order details, your acceptance of these Terms, tracking and delivery confirmation, and our communication with you.",
+
+    "ipTitle": "15. Intellectual property",
+    "ip1": "All content on tlkeys.com, including text, images, logos, product data, and compatibility data, is owned by or licensed to {company}.",
+    "ip2": "You may not copy, reproduce, scrape, or commercially use this content without our prior written permission.",
+
+    "privacyTitle": "16. Privacy",
+    "privacy1": "We collect and process personal data as described in our Privacy Policy.",
+
+    "forceTitle": "17. Events beyond our control",
+    "force1": "We are not responsible for delays or failure to perform caused by events beyond our reasonable control, including war, regional tensions, government actions, customs or border closures, courier disruptions, natural disasters, epidemics, or outages of third-party systems.",
+
+    "changesTitle": "18. Changes to these Terms",
+    "changes1": "We may update these Terms from time to time. The version that applies to your order is the version in force when you placed it. The date of the latest update is shown at the top of this page.",
+
+    "lawTitle": "19. Governing law and jurisdiction",
+    "law1": "These Terms and any order are governed by the laws of the United Arab Emirates, as applied in the Emirate of Sharjah.",
+    "law2": "Any dispute that cannot be resolved between us will be subject to the exclusive jurisdiction of the courts of Sharjah, United Arab Emirates.",
+
+    "contactTitle": "20. Contact",
+    "contact1": "If you have any questions about these Terms, contact us at {email} or {phone}.",
+
+    "relatedReturn": "Return & Refund Policy",
+    "relatedPrivacy": "Privacy Policy",
+    "relatedDelivery": "Delivery Information",
+    "relatedContact": "Contact us"
   },
   "return": {
     "short_title": "Return Policy",
