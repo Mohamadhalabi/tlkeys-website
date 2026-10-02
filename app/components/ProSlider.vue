@@ -12,13 +12,13 @@
     @mouseenter="pause()"
     @mouseleave="resume()"
   >
-    <!-- Viewport -->
-    <div class="relative overflow-hidden" :class="rounded ? 'rounded-2xl' : ''">
+    <!-- Viewport: size comes from the `height` prop, so the page never jumps -->
+    <div class="relative overflow-hidden" :class="[rounded ? 'rounded-2xl' : '', height]">
       <!-- Slide effect -->
       <div
         v-if="effect === 'slide'"
         ref="trackEl"
-        class="whitespace-nowrap will-change-transform"
+        class="h-full whitespace-nowrap will-change-transform"
         :class="transitioning ? 'transition-transform duration-600 ease-out' : ''"
         :style="{ transform: `translate3d(${translateX}px,0,0)`, touchAction: 'pan-y' }"
         @pointerdown="onPointerDown"
@@ -30,19 +30,20 @@
         <div
           v-for="(s, i) in items"
           :key="i"
-          class="inline-block align-top w-full"
+          class="inline-block align-top w-full h-full"
           :aria-hidden="active !== i"
         >
           <!-- Just the image; navigation handled in pointerup -->
-            <NuxtImg
-              :src="s.image"
-              :preload="i === active"
-              :fetchpriority="i === active ? 'high' : undefined"
-              placeholder
-              decoding="async"
-              :alt="s.alt || s.title || ''"
-              :class="imgClass"
-            />
+          <NuxtImg
+            :src="s.image"
+            :alt="s.alt || s.title || ''"
+            :preload="i === 0"
+            :loading="i === 0 ? 'eager' : 'lazy'"
+            :fetchpriority="i === 0 ? 'high' : undefined"
+            decoding="async"
+            :draggable="false"
+            :class="imgClass"
+          />
         </div>
       </div>
 
@@ -50,7 +51,7 @@
       <div
         v-else
         ref="trackEl"
-        class="relative"
+        class="relative h-full"
         :style="{ height: resolvedHeight, touchAction: 'pan-y' }"
         @pointerdown="onPointerDown"
         @pointermove="onPointerMove"
@@ -69,11 +70,10 @@
             v-if="useNuxtImg"
             :src="s.image"
             :alt="s.alt || s.title || ''"
-            :preload="i === active"
+            :preload="i === 0"
+            :loading="i === 0 ? 'eager' : 'lazy'"
+            :fetchpriority="i === 0 ? 'high' : undefined"
             :class="imgClass + ' h-full w-full'"
-            :loading="i === active ? 'eager' : 'lazy'"
-            :fetchpriority="i === active ? 'high' : undefined"
-            placeholder
             :draggable="false"
           />
         </div>
@@ -150,7 +150,9 @@ const props = withDefaults(defineProps<{
 }>(), {
   interval: 5000,
   effect: 'slide',
-  height: 'h-48 md:h-64',
+  // Empty by default so other usages keep their natural height.
+  // Pass e.g. "aspect-[4/1]" to reserve space and prevent layout shift.
+  height: '',
   styleHeight: '',
   rounded: true,
   autoplay: true,
@@ -188,7 +190,6 @@ const downTime = ref(0)
 const CLICK_MOVE_PX = 8
 const CLICK_TIME_MS = 350
 
-const wrapperClass = computed(() => props.height)
 const resolvedHeight = computed(() => props.styleHeight || '')
 
 const translateX = computed(() => {

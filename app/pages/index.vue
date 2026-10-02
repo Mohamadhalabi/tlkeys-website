@@ -10,7 +10,9 @@ import { useIntersectionFetch } from '~/composables/useIntersectionFetch'
 
 type SliderItem = { image: string; link?: string; title?: string; alt?: string; type?: string }
 
-const heightClasses = 'h-[180px] sm:h-[240px] md:h-[320px] lg:h-[420px] xl:h-[480px]'
+// Banners are 4:1. Reserving that exact shape (for both the slider and its
+// loading placeholder) means the content below never jumps → no CLS.
+const heightClasses = 'aspect-[4/1]'
 const imgSizes = '(min-width: 1280px) 1280px, (min-width: 1024px) 1024px, 100vw'
 
 const { public: { API_BASE_URL, siteName: cfgSiteName, siteUrl: cfgSiteUrl, defaultOgImage } } = useRuntimeConfig()
