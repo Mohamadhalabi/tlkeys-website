@@ -27,6 +27,14 @@ const attemptInfo    = ref<{
 } | null>(null)
 const copied         = ref(false)
 
+/* ── VIN length rules (internal only, not shown to the customer) ── */
+const VIN_MIN = 12
+const VIN_MAX = 22
+const vinLength = computed(() => form.value.vin.trim().length)
+const isVinValid = computed(() =>
+  vinLength.value >= VIN_MIN && vinLength.value <= VIN_MAX
+)
+
 /* ── Countdown while calculating (backend API timeout is 120s) ── */
 const countdown = ref(0)
 let countdownInterval: ReturnType<typeof setInterval> | null = null
@@ -69,7 +77,7 @@ onBeforeUnmount(() => {
 })
 
 const isFormValid = computed(() =>
-  form.value.vin.trim().length === 17 &&
+  isVinValid.value &&
   form.value.data1.trim().length > 0 &&
   form.value.data2.trim().length > 0 &&
   form.value.data3.trim().length > 0
@@ -345,12 +353,11 @@ useHead({
               v-model="form.vin"
               @input="e => formatInput('vin', e)"
               type="text"
-              maxlength="17"
-              placeholder="17-digit VIN"
+              :maxlength="VIN_MAX"
+              placeholder="VIN Number"
               :disabled="loading"
               class="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all disabled:bg-gray-100 text-center text-base sm:text-lg font-bold uppercase tracking-widest shadow-inner"
             />
-            <p class="text-xs text-gray-400 mt-1 ml-1">Must be exactly 17 characters.</p>
           </div>
 
           <div class="text-left">
