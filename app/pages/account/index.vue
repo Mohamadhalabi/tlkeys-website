@@ -20,14 +20,17 @@ import {
   ShoppingCartIcon,
   ArrowLeftIcon,
   ArrowDownTrayIcon,
-  ArrowLeftOnRectangleIcon as LogoutIcon
+  ArrowLeftOnRectangleIcon as LogoutIcon,
+  KeyIcon,
+  MagnifyingGlassIcon,
+  CalendarDaysIcon
 } from '@heroicons/vue/24/outline'
 
 const route = useRoute()
 const router = useRouter()
 const { $customApi } = useNuxtApp()
-const { t } = useI18n()
-const { logout } = useAuth()
+const { t, te, locale } = useI18n()
+const { logout, user } = useAuth()
 
 /** SEO Meta */
 useSeoMeta({
@@ -112,8 +115,191 @@ onMounted(async () => {
       cart: Number(d.cart ?? 0),
       addresses: Number(d.addresses ?? 0)
     }
+    // Optional: if /account/stats also returns balances, they take priority
+    // over the (possibly cached) user object.
+    if (d.tokens && typeof d.tokens === 'object') statsTokens.value = d.tokens as any
   } catch { /* ignore */ }
   finally { loadingStats.value = false }
+})
+
+/* ───────────────────────── Service tokens ─────────────────────────
+ * One entry per online calculator. `fields` lists the property names to
+ * look for on the user object (or on `tokens` from /account/stats); the
+ * first one present wins. Rename them to match your API.
+ */
+const statsTokens = ref<any>({})
+
+/* Kia / Hyundai balances — the same endpoint the PIN code form uses.
+   Returns { balances: { kia_pre2017: n, kia_post2017: n } }. */
+const pinBalances = ref<Record<string, number>>({})
+onMounted(async () => {
+  try {
+    const res: any = await $customApi('/pin-code/balances', { method: 'GET' })
+    const body = res?.data ?? res
+    if (body?.balances && typeof body.balances === 'object') pinBalances.value = body.balances
+  } catch { /* not logged in or endpoint down — cards fall back to 0 */ }
+})
+
+/* English fallback so raw keys never show if a locale is missing account.tokens */
+const TOKENS_EN: Record<string, string> = {
+  title: 'My service tokens',
+  subtitle: 'Your balance for each online calculator.',
+  toyota: 'Toyota Passcode',
+  toyota_desc: 'Passcode calculation',
+  kia_new: 'Kia / Hyundai 2017+',
+  kia_old: 'Kia / Hyundai before 2017',
+  pin_key_desc: 'PIN code & key code calculation',
+  lookup: 'Kia / Hyundai Part Number Lookup',
+  lookup_desc: 'Remote part number from the VIN',
+  tokens_available: 'tokens available',
+  subscription_active: 'Monthly subscription active',
+  subscription_until: 'Until {date}',
+  days_left: '{n} days left',
+  subscription_expired: 'Subscription expired on {date}',
+  use: 'Use',
+  buy: 'Buy tokens',
+}
+function tx(key: string, params: Record<string, unknown> = {}) {
+  const full = `account.tokens.${key}`
+  if (te(full)) return t(full, params)
+  return (TOKENS_EN[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ''))
+}
+
+type ServiceDef = {
+  key: string
+  name: string
+  desc: string
+  icon: any
+  to: string
+  tokenFields: string[]
+  subscriptionFields?: string[]   // expiry date of a monthly subscription
+  buyTo?: string                  // where 'Buy tokens' goes (default: <to>#buy-tokens)
+}
+
+const SERVICES = computed<ServiceDef[]>(() => [
+  {
+    key: 'toyota',
+    name: tx('toyota'),
+    desc: tx('toyota_desc'),
+    icon: KeyIcon,
+    to: '/toyota-passcode',
+    tokenFields: ['toyota_tokens'],
+  },
+  {
+    key: 'kia_new',
+    name: tx('kia_new'),
+    desc: tx('pin_key_desc'),
+    icon: KeyIcon,
+    to: '/pin-code',
+    buyTo: '/pin-code',
+    tokenFields: ['kia_post2017', 'kia_hyundai_new_tokens', 'kia_new_tokens'],
+  },
+  {
+    key: 'kia_old',
+    name: tx('kia_old'),
+    desc: tx('pin_key_desc'),
+    icon: KeyIcon,
+    to: '/pin-code',
+    buyTo: '/pin-code',
+    tokenFields: ['kia_pre2017', 'kia_hyundai_old_tokens', 'kia_old_tokens'],
+  },
+  {
+    key: 'lookup',
+    name: tx('lookup'),
+    desc: tx('lookup_desc'),
+    icon: MagnifyingGlassIcon,
+    to: '/kia-hyundai-part-number-lookup',
+    tokenFields: [
+      'part_number_tokens', 'partnumber_tokens', 'part_tokens',
+      'vin_lookup_tokens', 'kia_lookup_tokens', 'lookup_tokens', 'vin_tokens',
+      'tokens', // the original (first) token balance, before Toyota got its own
+    ],
+    subscriptionFields: [
+      'part_number_subscription_expires_at', 'part_number_subscription_ends_at',
+      'vin_lookup_subscription_expires_at', 'lookup_subscription_ends_at',
+    ],
+  },
+])
+
+/* Dev only: print the token-related fields the API really sends, so the
+   names above can be matched exactly. Shows in the browser console. */
+if (import.meta.dev && import.meta.client) {
+  watch(user, (u: any) => {
+    if (!u) return
+    const found = Object.fromEntries(
+      Object.entries(u).filter(([k]) => /token|subscri|credit|balance/i.test(k))
+    )
+    console.info('[account] token fields on user:', found)
+  }, { immediate: true })
+}
+
+/**
+ * Kia / Hyundai balances live in their own table as rows of
+ * { type: 'kia_post2017' | 'kia_pre2017', balance }. When the API sends those
+ * rows (on the user or in /account/stats) as an array, turn them into
+ * { kia_post2017: 4, kia_pre2017: 5 } so they can be looked up by name.
+ */
+function rowsToMap(obj: any): Record<string, any> {
+  const out: Record<string, any> = {}
+  if (!obj || typeof obj !== 'object') return out
+  const scan = (v: any) => {
+    if (!Array.isArray(v)) return
+    for (const row of v) {
+      if (row && typeof row === 'object' && row.type != null && row.balance != null) {
+        out[String(row.type)] = row.balance
+      }
+    }
+  }
+  scan(obj)
+  for (const v of Object.values(obj)) scan(v)
+  return out
+}
+
+const balanceMap = computed<Record<string, any>>(() => ({
+  ...pinBalances.value,
+  ...rowsToMap(user.value),
+  ...(user.value as any ?? {}),
+  ...rowsToMap(statsTokens.value),
+  ...(Array.isArray(statsTokens.value) ? {} : statsTokens.value),
+}))
+
+function pick(fields: string[] = []) {
+  for (const f of fields) {
+    const v = balanceMap.value[f]
+    if (v !== undefined && v !== null && v !== '' && typeof v !== 'object') return v
+  }
+  return null
+}
+
+function formatDate(d: Date) {
+  try {
+    return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(d)
+  } catch {
+    return d.toISOString().slice(0, 10)
+  }
+}
+
+const tokenCards = computed(() => {
+  const now = Date.now()
+  return SERVICES.value.map(s => {
+    const tokens = Math.max(0, Number(pick(s.tokenFields) ?? 0) || 0)
+
+    let sub: null | { active: boolean; date: string; daysLeft: number } = null
+    const raw = s.subscriptionFields ? pick(s.subscriptionFields) : null
+    if (raw) {
+      const end = new Date(raw)
+      if (!Number.isNaN(end.getTime())) {
+        const ms = end.getTime() - now
+        sub = {
+          active: ms > 0,
+          date: formatDate(end),
+          daysLeft: Math.max(0, Math.ceil(ms / 86_400_000)),
+        }
+      }
+    }
+
+    return { ...s, tokens, sub, ready: tokens > 0 || !!sub?.active }
+  })
 })
 
 const side = computed(() => [
@@ -196,7 +382,91 @@ async function handleLogout() {
 
           <hr class="mb-6 border-gray-100" />
 
-          <div v-if="active === 'dashboard'" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div v-if="active === 'dashboard'" class="space-y-6">
+
+            <!-- ═════ Service tokens ═════ -->
+            <!-- Client-only: balances come from the logged-in user, which the
+                 server render does not have; rendering on the server gave every
+                 card the zero-balance colors, and hydration kept them. -->
+            <ClientOnly>
+              <section class="rounded-xl border border-gray-200 bg-gray-50/70 p-4 sm:p-5">
+                <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-4">
+                  <h3 class="text-base font-bold text-gray-900">{{ tx('title') }}</h3>
+                  <p class="text-xs text-gray-500">{{ tx('subtitle') }}</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div v-for="card in tokenCards" :key="card.key" class="token-card">
+                    <!-- Name -->
+                    <div class="flex items-start gap-2">
+                      <component :is="card.icon" class="w-4 h-4 mt-0.5 shrink-0 text-gray-400" />
+                      <div class="min-w-0">
+                        <p class="text-sm font-semibold text-gray-900 leading-snug">{{ card.name }}</p>
+                        <p class="text-[11px] text-gray-500 leading-snug mt-0.5">{{ card.desc }}</p>
+                      </div>
+                    </div>
+
+                    <!-- Balance -->
+                    <div class="mt-auto pt-3">
+                      <div v-if="card.sub?.active" class="flex items-center gap-1.5 text-green-700">
+                        <CalendarDaysIcon class="w-4 h-4 shrink-0" />
+                        <div class="min-w-0">
+                          <p class="text-xs font-bold leading-tight">{{ tx('subscription_active') }}</p>
+                          <p class="text-[11px] leading-tight">
+                            {{ tx('subscription_until', { date: card.sub.date }) }} · {{ tx('days_left', { n: card.sub.daysLeft }) }}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div v-if="!(card.sub?.active && card.tokens === 0)"
+                           class="flex items-baseline gap-1.5" :class="card.sub?.active ? 'mt-2' : ''">
+                        <span class="text-2xl font-black tabular-nums leading-none"
+                              :class="card.tokens > 0 ? 'text-gray-900' : 'text-gray-300'">
+                          {{ card.tokens }}
+                        </span>
+                        <span class="text-[11px] text-gray-500">{{ tx('tokens_available') }}</span>
+                      </div>
+
+                      <p v-if="card.sub && !card.sub.active" class="mt-1 text-[11px] text-gray-500">
+                        {{ tx('subscription_expired', { date: card.sub.date }) }}
+                      </p>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between gap-2 text-xs font-bold">
+                      <NuxtLinkLocale :to="card.to" class="text-gray-700 hover:text-gray-900">
+                        {{ tx('use') }} →
+                      </NuxtLinkLocale>
+                      <NuxtLinkLocale
+                        :to="card.buyTo || `${card.to}#buy-tokens`"
+                        class="px-2.5 py-1 rounded-md transition-colors"
+                        :class="card.ready
+                          ? 'text-orange-700 hover:bg-orange-50'
+                          : 'bg-orange-600 text-white hover:bg-orange-700'"
+                      >
+                        {{ tx('buy') }}
+                      </NuxtLinkLocale>
+                    </div>
+                  </div>
+                </div>
+              </section>
+              <template #fallback>
+                <section class="rounded-xl border border-gray-200 bg-gray-50/70 p-4 sm:p-5">
+                  <div class="h-5 w-40 bg-gray-200 rounded mb-4 animate-pulse"></div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div v-for="n in 4" :key="n" class="token-card animate-pulse">
+                      <div class="h-4 w-3/4 bg-gray-200 rounded"></div>
+                      <div class="h-3 w-1/2 bg-gray-100 rounded mt-2"></div>
+                      <div class="h-7 w-10 bg-gray-200 rounded mt-auto"></div>
+                      <div class="h-4 w-full bg-gray-100 rounded mt-3"></div>
+                    </div>
+                  </div>
+                </section>
+              </template>
+            </ClientOnly>
+
+            <!-- ═════ Account shortcuts ═════ -->
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <NuxtLinkLocale :to="{ query: { tab: 'orders' } }" class="tile group">
               <OrdersIcon class="h-8 w-8 text-gray-400 group-hover:text-orange-500 transition-colors" />
               <div class="tile-label text-lg font-semibold">{{ $t('account.tabs.myOrders') }}</div>
@@ -232,6 +502,7 @@ async function handleLogout() {
               <div class="tile-label text-lg font-semibold">Logout</div>
               <div class="tile-sub text-sm">Sign Out</div>
             </button>
+            </div>
           </div>
 
           <OrdersTab v-else-if="active === 'orders'" @view="openOrder" />
@@ -321,5 +592,8 @@ async function handleLogout() {
   @apply relative rounded-xl border bg-white p-6 shadow-sm
          hover:shadow-md transition-all hover:bg-orange-50/30
          flex flex-col items-center justify-center text-center gap-2;
+}
+.token-card {
+  @apply rounded-lg border border-gray-200 bg-white p-3.5 flex flex-col sm:min-h-[150px];
 }
 </style>
