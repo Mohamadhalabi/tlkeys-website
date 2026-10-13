@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useNuxtApp, useHead, useSeoMeta, useRoute } from '#imports'
 import ProductGrid from '~/components/products/ProductGrid.vue'
 
-const { t, locale } = useI18n()
+const { t, te, locale } = useI18n()
 const { isAuthenticated, user } = useAuth()
 const route = useRoute()
 
@@ -12,6 +12,18 @@ const { $customApi } = useNuxtApp() as any
 /** Shorthand for this page's translation keys: tp('step_buy') → t('toyota_passcode.step_buy') */
 const tp = (key: string, params: Record<string, unknown> = {}) =>
   t(`toyota_passcode.${key}`, params)
+
+/**
+ * Translation with an English fallback, so the maintenance texts read
+ * correctly even before their keys are added to the locale files.
+ */
+const tpOr = (key: string, fallback: string) =>
+  te(`toyota_passcode.${key}`) ? tp(key) : fallback
+
+/* ── Maintenance mode ──
+ * While true, the calculate button is disabled and a notice is shown.
+ * Set to false when maintenance is finished to re-enable calculations. */
+const MAINTENANCE_MODE = true
 
 /* ── Customer journey: register → buy tokens → calculate ── */
 const tokenCount = computed(() => Number(user.value?.toyota_tokens || 0))
@@ -180,6 +192,8 @@ function readError(err: any): { status: number | null; body: any } {
 }
 
 const handleCalculate = async () => {
+  // Blocks the button AND the Enter key on the last field during maintenance.
+  if (MAINTENANCE_MODE) return
   if (!isFormValid.value || !isAuthenticated.value || loading.value) return
   errorMsg.value = null
   passcodeResult.value = null
@@ -409,6 +423,25 @@ useHead({
 
         <div class="relative z-10 max-w-xl mx-auto mt-8 space-y-4 sm:space-y-5">
 
+          <!-- Maintenance notice (shown while MAINTENANCE_MODE is true) -->
+          <div v-if="MAINTENANCE_MODE"
+               role="alert"
+               class="flex items-start gap-3 bg-yellow-50 border border-yellow-300 rounded-2xl p-4 sm:p-5 text-sm text-yellow-900 text-start">
+            <svg class="w-6 h-6 shrink-0 text-yellow-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            <div>
+              <p class="font-bold mb-1">
+                {{ tpOr('maintenance_title', 'Under maintenance') }}
+              </p>
+              <p>
+                {{ tpOr('maintenance_text', 'The passcode calculator is temporarily unavailable while we carry out maintenance. Please check back soon. No tokens will be used during this time.') }}
+              </p>
+            </div>
+          </div>
+
           <!-- State banners -->
           <div v-if="!isAuthenticated"
                class="bg-blue-50 border border-blue-100 rounded-2xl p-4 sm:p-5 text-sm text-blue-800 text-start">
@@ -562,10 +595,18 @@ useHead({
             <template v-else>
               <button
                 @click="handleCalculate"
-                :disabled="loading || !isFormValid"
+                :disabled="MAINTENANCE_MODE || loading || !isFormValid"
+                :aria-disabled="MAINTENANCE_MODE || loading || !isFormValid"
                 class="w-full flex justify-center items-center bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 sm:py-5 rounded-2xl font-bold hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-blue-500/30 disabled:from-gray-300 disabled:to-gray-300 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed text-base sm:text-lg transform active:scale-[0.98]"
               >
-                <span v-if="loading" class="flex items-center gap-2">
+                <span v-if="MAINTENANCE_MODE" class="flex items-center gap-2">
+                  <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                  </svg>
+                  {{ tpOr('btn_maintenance', 'Under maintenance') }}
+                </span>
+                <span v-else-if="loading" class="flex items-center gap-2">
                   <svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
