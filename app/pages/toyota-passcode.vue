@@ -23,7 +23,7 @@ const tpOr = (key: string, fallback: string) =>
 /* ── Maintenance mode ──
  * While true, the calculate button is disabled and a notice is shown.
  * Set to false when maintenance is finished to re-enable calculations. */
-const MAINTENANCE_MODE = true
+const MAINTENANCE_MODE = false
 
 /* ── Customer journey: register → buy tokens → calculate ── */
 const tokenCount = computed(() => Number(user.value?.toyota_tokens || 0))
