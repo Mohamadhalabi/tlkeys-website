@@ -198,6 +198,57 @@
       </div>
     </form>
 
+    <!-- Email verification step (shown when the server asks for a code) -->
+    <div v-if="codeStep" class="mx-6 mb-6 sm:mx-8 rounded-xl border-2 border-orange-200 bg-orange-50 px-5 py-5">
+      <p class="text-base font-semibold text-gray-900">
+        {{ tt('pincode.verifyTitle', 'Enter your verification code') }}
+      </p>
+      <p class="mt-1 text-sm text-gray-600">
+        {{ tt('pincode.verifyBody', 'For your security, we emailed a 6-digit code to') }}
+        <b class="font-semibold">{{ codeEmailHint }}</b>.
+        {{ tt('pincode.verifyBody2', 'Enter it to unlock calculations for 30 minutes.') }}
+      </p>
+
+      <div class="mt-4 flex flex-wrap items-center gap-3">
+        <input
+          v-model="code"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          maxlength="6"
+          :placeholder="tt('pincode.codePlaceholder', '------')"
+          class="w-40 rounded-xl border-2 border-gray-300 px-4 py-3 text-center font-mono text-2xl tracking-[0.4em] text-gray-900 focus:border-orange-600 focus:outline-none focus:ring-4 focus:ring-orange-500/20"
+          @input="onCodeInput"
+          @keyup.enter="submitCode"
+        >
+        <button
+          type="button"
+          :disabled="code.length !== 6 || verifying"
+          class="inline-flex items-center gap-2 rounded-xl bg-orange-700 px-6 py-3 text-base font-semibold text-white transition hover:bg-orange-800 focus:outline-none focus:ring-4 focus:ring-orange-500/30 disabled:cursor-not-allowed disabled:bg-gray-300"
+          @click="submitCode"
+        >
+          <svg v-if="verifying" class="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+          </svg>
+          {{ tt('pincode.verifyBtn', 'Verify & continue') }}
+        </button>
+      </div>
+
+      <p v-if="codeError" class="mt-3 text-sm font-medium text-red-600">{{ codeError }}</p>
+
+      <div class="mt-4 text-sm text-gray-500">
+        <button
+          type="button"
+          :disabled="resendIn > 0 || sendingCode"
+          class="font-semibold text-orange-700 underline underline-offset-2 disabled:text-gray-400 disabled:no-underline"
+          @click="requestCode()"
+        >
+          {{ tt('pincode.resend', 'Resend code') }}
+        </button>
+        <span v-if="resendIn > 0"> — {{ tt('pincode.resendIn', 'you can resend in') }} {{ resendIn }}s</span>
+      </div>
+    </div>
+
     <!-- Lookup failed → contact us on WhatsApp -->
     <div v-if="notFound" class="mx-6 mb-6 sm:mx-8 rounded-xl border-2 border-amber-200 bg-amber-50 px-5 py-5" role="alert">
       <p class="text-base font-semibold text-amber-900">
@@ -209,7 +260,7 @@
 
       <p class="mt-3 font-mono text-sm tracking-wider text-amber-900">{{ lastVin }}</p>
 
-      
+
        <a :href="whatsappLink"
         target="_blank"
         rel="noopener noreferrer"
@@ -293,7 +344,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 
 const props = withDefaults(defineProps<{
   balancesEndpoint?: string
@@ -336,6 +387,69 @@ const needsLogin = ref(false)
 const notFound = ref(false)
 const lastVin = ref('')
 const instructionsOpen = ref(props.instructionsExpanded)
+
+/* ─────────── email verification step ─────────── */
+const codeStep = ref(false)
+const code = ref('')
+const codeError = ref('')
+const codeEmailHint = ref('')
+const sendingCode = ref(false)
+const verifying = ref(false)
+const resendIn = ref(0)
+let resendTimer: any = null
+
+function onCodeInput(e: Event) {
+  const el = e.target as HTMLInputElement
+  const clean = el.value.replace(/\D/g, '').slice(0, 6)
+  code.value = clean
+  el.value = clean
+  codeError.value = ''
+}
+
+function startResendCountdown(seconds = 30) {
+  resendIn.value = seconds
+  clearInterval(resendTimer)
+  resendTimer = setInterval(() => {
+    resendIn.value -= 1
+    if (resendIn.value <= 0) clearInterval(resendTimer)
+  }, 1000)
+}
+
+async function requestCode() {
+  sendingCode.value = true
+  codeError.value = ''
+  try {
+    const res = await $customApi('/pin-code/request-code', { method: 'POST' })
+    const body = res?.data ?? res
+    codeEmailHint.value = body?.email_hint ?? ''
+    codeStep.value = true
+    startResendCountdown(30)
+  } catch (err: any) {
+    const b = err?.data ?? err?.response?._data ?? {}
+    codeError.value = b?.error || b?.message || tt('pincode.codeSendFail', 'Could not send the code. Please try again.')
+    // Still show the panel so the user can retry "Resend".
+    codeStep.value = true
+  } finally {
+    sendingCode.value = false
+  }
+}
+
+async function submitCode() {
+  if (code.value.length !== 6 || verifying.value) return
+  verifying.value = true
+  codeError.value = ''
+  try {
+    await $customApi('/pin-code/verify-code', { method: 'POST', body: { code: code.value } })
+    codeStep.value = false
+    code.value = ''
+    await calculate()   // window is open now — run the lookup the user wanted
+  } catch (err: any) {
+    const b = err?.data ?? err?.response?._data ?? {}
+    codeError.value = b?.error || b?.message || tt('pincode.codeWrong', 'Incorrect code.')
+  } finally {
+    verifying.value = false
+  }
+}
 
 const result = ref<{
   vin: string
@@ -428,6 +542,10 @@ async function loadBalances() {
 
 onMounted(loadBalances)
 
+onBeforeUnmount(() => {
+  clearInterval(resendTimer)
+})
+
 /* ─────────── submit gating ─────────── */
 const canSubmit = computed(() =>
   !loading.value
@@ -516,6 +634,12 @@ function handleError(err: any) {
 
   if (body?.balances) balances.value = { ...balances.value, ...body.balances }
 
+  // Email-code gate: not a login problem — show the code step instead.
+  if (status === 403 && body?.code === 'code_required') {
+    requestCode()
+    return
+  }
+
   // Auth, tokens and validation keep their own specific messages —
   // telling these users to "contact us on WhatsApp" would be wrong.
   if (status === 401 || status === 403) {
@@ -568,6 +692,9 @@ function reset() {
   lastVin.value = ''
   needsLogin.value = false
   vinTouched.value = false
+  codeStep.value = false
+  code.value = ''
+  codeError.value = ''
   clearFeedback()
 }
 
